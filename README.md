@@ -1,20 +1,13 @@
-# Q2
+# Installation
 
-Q2 is a robotics and reinforcement-learning framework descended from
-[legged_gym](https://github.com/leggedrobotics/legged_gym). It supports MuJoCo CPU,
-MuJoCo Warp, and optional licensed VSim physics backends.
+Clone the repo:
 
-Follow [the setup and training guide](README_MUJOCO.md) for installation,
-backend selection, and the supported command-line workflows. From a checkout
-with Python 3.11 and uv installed, the default setup and test commands are:
+```git clone https://github.com/LampLighterLab/BigRedGym.git```
 
-```bash
-uv sync --frozen
-uv run --frozen python -m pytest -q
-```
+Then, enter the BigRedGym folder.
 
-Go2 hardware deployment uses the optional `unitree_sdk` extra. See the
-[deployment guide](README_DEPLOY.md) for the SDK and native dependencies.
+Create the venv using uv:
 
-Historical project notes are available in the
-[QGym wiki](https://github.com/sheim/QGym/wiki).
+```uv sync --frozen```
+
+Note: you will need to use the ```---frozen``` flag every time you run a python script in this repo if you do not install unitree-sdk2py (only used for deploying on the hardware). example: ```uv run --frozen scripts/train.py --task=go2trot  --device=cuda:0 --headless --max_iterations=300```
