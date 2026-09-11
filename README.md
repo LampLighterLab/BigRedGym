@@ -10,7 +10,7 @@ Create the venv using uv:
 
 ```uv sync --frozen```
 
-Note: you will need to use the ```---frozen``` flag every time you run a python script in this repo if you do not install unitree-sdk2py (only used for deploying on the hardware). example: ```uv run --frozen scripts/train.py --task=go2trot  --device=cuda:0 --headless --max_iterations=300```
+Note: you will need to use the ```---frozen``` flag every time you run a python script in this repo if you do not install vsim. example: ```uv run --frozen scripts/train.py --task=go2trot  --device=cuda:0 --headless --max_iterations=300```
 
 # Training
 
