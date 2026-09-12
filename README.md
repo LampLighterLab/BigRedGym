@@ -10,7 +10,7 @@ Create the venv using uv:
 
 ```uv sync --frozen```
 
-Note: you will need to use the ```---frozen``` flag every time you run a python script in this repo if you do not install vsim. example: ```uv run --frozen scripts/train.py --task=go2trot  --device=cuda:0 --headless --max_iterations=300```
+Note: you will need to use the ```--frozen``` flag every time you run a python script in this repo when the optional VSim wheel or Unitree SDK checkout is absent. example: ```uv run --frozen scripts/train.py --task=go2trot  --device=cuda:0 --headless --max_iterations=300```
 
 # Training
 
@@ -31,7 +31,7 @@ Optional arguments:
 --backend: mujoco or vsim (most likely you will only use mujoco)
 --num_envs: how many environments to run in parallel in training
 --max_iterations: how many training iterations to run (typically 300-500 is sufficient for the go2)
---headless: display visuals when training; this will slow down training (False or True)
+--headless: disable the viewer window during training
 --save_interval: override checkpoint interval in learning iterations
 --seed: random seed for rng
 --batch_size: override batch size from cfg
@@ -65,5 +65,11 @@ Optional arguments:
 --original_cfg: Load environment and runner configs saved with the selected run.
 ```
 
+For deterministic checkpoint comparisons and recorded evaluation metrics, see
+[scripts/eval_go2_policy.py](scripts/eval_go2_policy.py) and
+[the evaluation guide](genAI_skills/README_MUJOCO.md#evaluate-go2trot-policy-changes).
+The automated regression suite runs with `uv run --frozen python -m pytest -q`;
+developer benchmarking and profiling commands are in [tools/README.md](tools/README.md).
+
 # Note on AI-generated files
-Some of the code has been worked on by an AI agent, in the case where code segments have been heavily edited by AI, the AI-generated files in ```claude_files``` may be of some value in understanding the code, especially ```README_MUJOCO.md```.
+Some of the code has been worked on by an AI agent, in the case where code segments have been heavily edited by AI, the AI-generated files in [genAI_skills](genAI_skills/) may be of some value in understanding the code, especially [README_MUJOCO.md](genAI_skills/README_MUJOCO.md).

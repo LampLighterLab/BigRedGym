@@ -5,8 +5,16 @@ description: Executable runbook for integrating a NEW physics engine backend int
 
 # Q2 Backend Integration Runbook
 
+> Historical reference: the remaining narrative describes the July 2026
+> migration; its dated APIs, statuses, and checklists are not current execution
+> requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
+> [repository skills](../../../.agents/skills/), and
+> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> The retired migration plan is recoverable with
+> `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
+
 Q2 has executed this playbook twice (MuJocoCPUBackend, MuJocoWarpBackend; see
-MIGRATION_PLAN.md Phases 1–3 for the full worked example) and once before that
+retired migration plan Phases 1–3 for the full worked example) and once before that
 in reverse (extracting IsaacGymBackend, Phase 0). A third integration (v-sim)
 is planned as of 2026-07-10. The ladder below is the order that worked; the
 lessons are the bugs that cost real time. Do not reorder the ladder — every
@@ -67,11 +75,11 @@ a `test_<engine>_backend_contract.py` that is a fixture-swapped copy of
 sanity, reset persistence, partial-reset isolation, dof_state-view liveness).
 
 ```bash
-uv run python -m pytest tests/unit_tests/ -q -k "<engine>"
+uv run --frozen python -m pytest tests/unit_tests/ -q -k "<engine>"
 ```
 
 All green before proceeding. This suite exists precisely so new backends
-inherit the spec for free (MIGRATION_PLAN "Test strategy").
+inherit the spec for free (retired migration plan "Test strategy").
 
 **4. Physics sanity.** `test_<engine>_physics.py` = copy of
 `test_mujoco_cpu_physics.py`: 32 damped pendulums from random ICs, zero
@@ -89,7 +97,7 @@ docstring; don't quietly widen it.
 device-string or cfg trigger, keep selection fail-fast — then:
 
 ```bash
-uv run scripts/train_mujoco.py --task pendulum --device <dev> --num_envs 256 --max_iterations 200 --headless --disable_wandb
+uv run --frozen scripts/train.py --task pendulum --device <dev> --num_envs 256 --max_iterations 200 --headless --disable_wandb
 ```
 
 Expected: reward climbs to ≥ +1.0 by iteration 200 (historical marks: −0.63 →
@@ -161,12 +169,13 @@ undocumented pause; see q2-debugging-playbook row 2).
 ## Definition of done
 
 - Contract + physics + lockstep + legged + termination + **liveness** tests
-  green: `uv run python -m pytest tests/unit_tests/ -q` (update the expected
+  green: `uv run --frozen python -m pytest tests/unit_tests/ -q` (update the expected
   counts in q2-testing-and-validation).
 - Pendulum AND mini_cheetah train; steps/s recorded; warmup documented.
 - `select_backend` wiring is fail-fast; `q2-run-and-train` device table,
   `q2-build-and-env` platform matrix, `q2-architecture-contract` diagram, and
-  MIGRATION_PLAN (or its successor doc) updated in the same change.
+  `genAI_skills/DEVELOPMENT_NOTES.md` updated when supported limitations or
+  consequential evidence change.
 - Convention sheet filled in the module docstring; new engine gotchas get a
   `<engine>-backend-reference` skill if they run past a page (MuJoCo's did).
 
@@ -215,13 +224,13 @@ the 0.3.5 node-lock did not carry over; proper re-activation is a human task.
 - Working ON an existing backend's bug → `q2-debugging-playbook` +
   `q2-architecture-contract`.
 - MuJoCo/warp API details → `mujoco-backend-reference`.
-- The warp parity/IsaacGym-removal work → `q2-phase4-parity-campaign` (do that
-  campaign's Phase 0 BEFORE starting a new backend — otherwise the new backend
-  will copy the stale-tensor pattern from warp).
+- Current backend parity work → `.agents/skills/q2-backend-development/` and
+  `.agents/skills/q2-testing-and-debugging/`. The Phase 4 campaign is historical;
+  it is not a prerequisite for new work.
 
 ## Provenance and maintenance
 
-Distilled 2026-07-10 from MIGRATION_PLAN.md Phases 0–3, the two MuJoCo
+Distilled 2026-07-10 from retired migration plan Phases 0–3, the two MuJoCo
 backends, conftest fixture patterns, and the archaeology of `ebc2925`,
 `973b8d5`, `fba2deb`, `2bc709b`, `2326b71`, `135adf2`. Re-verify:
 

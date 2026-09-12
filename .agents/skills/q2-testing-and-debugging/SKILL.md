@@ -5,7 +5,7 @@ description: Select, run, extend, and interpret Q2 tests and diagnose crashes, h
 
 # Q2 Testing and Debugging
 
-Read `AGENTS.md`, `pyproject.toml`'s pytest settings, the failing code path,
+Read `genAI_skills/AGENTS.md`, `pyproject.toml`'s pytest settings, the failing code path,
 and the nearest test. Start with the cheapest experiment that distinguishes
 plausible causes; do not begin by tuning around the symptom.
 
@@ -34,7 +34,7 @@ colocated tests; run the relevant source root explicitly. Run licensed VSim
 tests separately:
 
 ```bash
-bash scripts/run_vsim_tests.sh
+bash tests/support/run_vsim_tests.sh
 ```
 
 A skip for unavailable CUDA, Warp, VSim, or a license is not proof for that
@@ -93,8 +93,8 @@ backend. Record what executed.
 5. Fix the source and add a regression that fails without the fix.
 6. Run the focused test, full unit gate, relevant optional-backend tests, and
    Ruff. Remove debug flags and temporary prints.
-7. Update `MIGRATION_PLAN.md` if the finding invalidates or advances campaign
-   evidence.
+7. Update `genAI_skills/DEVELOPMENT_NOTES.md` if the finding changes supported
+   limitations or consequential evidence.
 
 Test meaningful contracts rather than defensive restatements. Before adding a
 type, shape, dtype, or device guard, trace where the value was produced. Keep a
@@ -103,5 +103,6 @@ internal path just constructed the value correctly, consume it directly and
 let the operation fail naturally if that invariant is broken.
 
 GitHub CI runs the uv-managed portable and colocated suites, Ruff, and a package
-build. Local validation remains required for smoke training, Warp, and licensed
-VSim evidence.
+build. The portable suite includes a tiny PPO update/checkpoint smoke, not a
+learning-quality gate. Run applicable task training, Warp, licensed VSim, and
+Unitree checks locally.

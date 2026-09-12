@@ -1,11 +1,19 @@
 ---
 name: q2-phase4-parity-campaign
-description: The executable, decision-gated campaign for Q2's hardest live problem — making GPU (warp) training trustworthy, proving CPU/GPU/legacy parity, and completing MIGRATION_PLAN Phase 4 (IsaacGym removal). Numbered phases with exact commands and expected observations, ranked solution menu for the warp root_states staleness bug, fenced-off wrong paths, and a promotion protocol. Load whenever working on GPU training correctness, backend parity, Phase 4, IsaacGym removal, or before trusting/benchmarking any warp training result.
+description: Historical July 2026 Phase 4 campaign specification, retained for provenance only. Its checklist is retired; use the current .agents skills and genAI_skills/DEVELOPMENT_NOTES.md for backend validation and evidence boundaries.
 ---
 
-# Campaign: Warp Parity → Phase 4 Close-out
+# Historical campaign: Warp Parity → Phase 4 Close-out (retired)
 
-**Mission:** end state where `--device cuda:0` training is provably correct,
+> Historical reference: the remaining narrative describes the July 2026
+> migration; its dated APIs, statuses, and checklists are not current execution
+> requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
+> [repository skills](../../../.agents/skills/), and
+> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> The retired migration plan is recoverable with
+> `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
+
+**Historical mission:** end state where `--device cuda:0` training is provably correct,
 CPU/GPU learning curves agree, domain randomization status is known (working or
 explicitly de-scoped), IsaacGym code is deleted, and CI runs the real suite.
 
@@ -77,12 +85,12 @@ Also resolve **W3** while in the file: warp `dof_state` getter returns a
 `torch.stack` copy; either make the cached `self.dof_state` unnecessary or
 document it as write-never/read-never on warp (architecture skill W3).
 
-**0.3 Gate:** `uv run python -m pytest tests/unit_tests/ -q` — new tests green
+**0.3 Gate:** `uv run --frozen python -m pytest tests/unit_tests/ -q` — new tests green
 on cpu AND cuda; expected total goes from 172 collected / 151 passed
 (2026-07-10 baseline) to strictly more, zero failures.
 
 **0.4 Overhead check:**
-`uv run scripts/train_mujoco.py --task mini_cheetah --device cuda:0 --num_envs 4096 --max_iterations 30 --headless --disable_wandb`
+`uv run --frozen scripts/train.py --task mini_cheetah --device cuda:0 --num_envs 4096 --max_iterations 30 --headless --disable_wandb`
 before/after the fix; compare steps/s from the logger block. Expected: within
 noise (±5%). If >10% regression → the copy is on the wrong stream/device;
 investigate before merging, don't accept it.
@@ -93,7 +101,7 @@ investigate before merging, don't accept it.
 
 1. Reproduce or retire the never-closed "quadruped on GPU crashes partway
    through" thread (`63b5b3d`, 2026-04-08):
-   `uv run scripts/train_mujoco.py --task mini_cheetah --device cuda:0 --num_envs 4096 --max_iterations 1000 --headless --disable_wandb`
+   `uv run --frozen scripts/train.py --task mini_cheetah --device cuda:0 --num_envs 4096 --max_iterations 1000 --headless --disable_wandb`
    run to completion twice. **If it crashes:** capture the exact error +
    iteration, add an archaeology entry, and check constraint-capacity warnings
    first (below). If clean twice → mark the thread closed in
@@ -114,8 +122,8 @@ investigate before merging, don't accept it.
 Same seed, both backends:
 
 ```bash
-uv run scripts/train_mujoco.py --task pendulum --device cpu    --num_envs 256  --max_iterations 200 --seed 7 --headless --disable_wandb
-uv run scripts/train_mujoco.py --task pendulum --device cuda:0 --num_envs 4096 --max_iterations 200 --seed 7 --headless --disable_wandb
+uv run --frozen scripts/train.py --task pendulum --device cpu    --num_envs 256  --max_iterations 200 --seed 7 --headless --disable_wandb
+uv run --frozen scripts/train.py --task pendulum --device cuda:0 --num_envs 4096 --max_iterations 200 --seed 7 --headless --disable_wandb
 ```
 
 **Expected (historical marks, 2026-04, RTX 4080):** CPU ~16,600 steps/s,
@@ -125,7 +133,7 @@ reward decomposition (printed each iteration) has no term frozen at its
 initial value. Exact final-reward equality is NOT expected (different
 num_envs/batch trajectories); curve *shape* agreement is.
 **If GPU underperforms CPU per-step:** re-run the lockstep physics test
-(`uv run python -m pytest tests/unit_tests/test_cross_backend_physics.py -v`
+(`uv run --frozen python -m pytest tests/unit_tests/test_cross_backend_physics.py -v`
 — prints max deviations; tolerance 1e-3). Physics matching + learning
 diverging ⇒ obs/plumbing problem → debugging playbook, staleness family.
 
@@ -137,9 +145,9 @@ diverging ⇒ obs/plumbing problem → debugging playbook, staleness family.
    `--task mini_cheetah --seed 7`, CPU `--num_envs 64`, GPU `--num_envs 4096`,
    same `--batch_size` (num_steps_per_env auto-adjusts, commit `936a4cc`).
    Gate: tracking rewards climb on both; inspect gait with
-   `uv run scripts/play_mujoco.py --task mini_cheetah` (keyboard teleop;
+   `uv run --frozen scripts/play.py --task mini_cheetah` (keyboard teleop;
    trotting, no limb dragging, responds to Up/Down/turn commands).
-2. **Friction DR experiment (answers MIGRATION_PLAN's first open checkbox).**
+2. **Friction DR experiment (answers retired migration plan's first open checkbox).**
    Hypothesis to refute: friction randomization is a no-op under MuJoCo
    (the `_process_rigid_shape_props` callback is IsaacGym-only; MuJoCo backends
    call only `_get_env_origins` + `_process_dof_props`,
@@ -179,7 +187,7 @@ diverging ⇒ obs/plumbing problem → debugging playbook, staleness family.
 3. **Determinism:** two runs, same seed, `--device cpu`, assert identical
    reward at iteration 10 (CPU backend is deterministic; warp is not
    guaranteed).
-4. **IsaacGym removal** (MIGRATION_PLAN Phase 4 list, expanded):
+4. **IsaacGym removal** (retired migration plan Phase 4 list, expanded):
    delete `gym/envs/base/isaac_gym_backend.py`; remove isaacgym import guards
    (`grep -rn "isaacgym" gym/ learning/ scripts/ | grep -v Binary` must end
    empty); remove `gym`/`sim` shims in `base_task.py` + `TODO Phase 3`
@@ -189,11 +197,12 @@ diverging ⇒ obs/plumbing problem → debugging playbook, staleness family.
    `tests/regression_tests/` or their rewrite); retire `requirements.txt` +
    `setup.py`; fix `[tool.setuptools] packages` (add pendulum/cartpole).
    Each deletion: full suite + a pendulum & mini_cheetah smoke train.
-5. **CI modernization:** `unit_tests.yml` → uv + Python 3.13 + `uv run python
+5. **CI modernization:** `unit_tests.yml` → uv + Python 3.13 + `uv run --frozen python
    -m pytest tests/unit_tests/ gym learning -q`, triggered on `port` (and
    later `main`). This closes the "zero CI on port" hole.
-6. Tick MIGRATION_PLAN checkboxes; update README_MUJOCO if CLI changed; add
-   archaeology entries for every battle fought.
+6. Historical close-out called for migration-plan checkbox updates and
+   archaeology entries. That checklist is retired; current changes update
+   `genAI_skills/DEVELOPMENT_NOTES.md` and `genAI_skills/README_MUJOCO.md` as relevant.
 
 ---
 
@@ -212,11 +221,11 @@ diverging ⇒ obs/plumbing problem → debugging playbook, staleness family.
 - **Do not commit binary references** to revive the regression suite (100 KB
   gate; that's how it died).
 
-## Promotion protocol
+## Historical promotion protocol (retired)
 
-A phase counts as done only when: its gate command outputs match the stated
+The old campaign counted a phase as done only when: its gate command outputs match the stated
 expectations (paste them in the PR); new/changed behavior has a test; suite
-green cpu+cuda; MIGRATION_PLAN + affected skills updated in the same change;
+green cpu+cuda; retired migration plan + affected skills updated in the same change;
 gates from q2-conventions-and-change-control all pass. Success is measured by
 test output and curves — never by eye.
 
@@ -230,11 +239,13 @@ test output and curves — never by eye.
 
 Grounded 2026-07-10 in: `mujoco_warp_backend.py` (getter-only refresh),
 `legged_robot.py:496,502` (caching), jt/port commits `e604532`/`2326b71`
-(discovery + band-aid), MIGRATION_PLAN Phase 4 + open checkboxes, and the
-2026-04 benchmark numbers in MIGRATION_PLAN 1f/1i. Re-verify before executing:
+(discovery + band-aid), retired migration plan Phase 4 + open checkboxes, and the
+2026-04 benchmark numbers in the retired plan, sections 1f/1i.
+The following inspection commands are historical provenance, not a request to
+resume the old phases. Current validation follows the repository skills above:
 
 ```bash
 grep -n "root_states" gym/envs/base/mujoco_warp_backend.py   # staleness fixed already? → skip to Phase 1
 git log --oneline port..origin/jt/port | wc -l               # reconciliation still pending?
-grep -n "\[ \]" MIGRATION_PLAN.md                            # open checkboxes
+git show ce5a436:claude_files/MIGRATION_PLAN.md              # retired plan, not a live checklist
 ```

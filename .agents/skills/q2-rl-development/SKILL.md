@@ -5,7 +5,7 @@ description: Design, implement, or review Q2 reinforcement-learning behavior, in
 
 # Q2 RL Development
 
-Read `AGENTS.md`, the selected task and runner config, the active runner and
+Read `genAI_skills/AGENTS.md`, the selected task and runner config, the active runner and
 algorithm, and their focused tests. Confirm which configured class names are
 actually instantiated; the tree includes legacy and experimental paths.
 
@@ -19,8 +19,8 @@ For the main on-policy path, trace one update end to end:
    their scales.
 4. The environment steps the backend for its configured decimation.
 5. `DictStorage` records transitions for the collected temporal horizon.
-6. `PPO2` performs repeated optimizer minibatches without recounting the same
-   rollout as fresh normalization data.
+6. `PPO2` performs repeated optimizer minibatches. Check that normalizers do
+   not recount those samples as fresh rollout data.
 7. The logger records total and per-term episode metrics and checkpoints model,
    optimizer, iteration, and normalization state.
 
@@ -59,7 +59,7 @@ Do not infer behavior from a config field alone; find its consumer.
 
 Treat these as separate controls:
 
-- `rollout_batch_size`: total new transition samples collected per update;
+- `algorithm.rollout_size`: total new transition samples collected per update;
   together with `num_envs`, it determines consecutive steps per environment.
 - `batch_size`: optimizer minibatch size.
 - `max_gradient_steps`: number of actor/critic optimization steps.
@@ -81,9 +81,9 @@ Re-run frequency conversion rather than editing derived values.
 5. Compare per-term rewards, episode duration/survival, action statistics,
    losses/KL, throughput, and domain-relevant physical metrics. Do not select
    only on aggregate reward or a viewer impression.
-6. Record failed or invalid experiments in `MIGRATION_PLAN.md` when they affect
-   the active campaign. Keep tuning changes numerically explicit and separate
-   from algorithm/refactor changes.
+6. Record consequential failed or invalid evidence in
+   `genAI_skills/DEVELOPMENT_NOTES.md`. Keep tuning changes numerically explicit
+   and separate from algorithm/refactor changes.
 
 Validate with focused learning tests and then:
 

@@ -5,11 +5,19 @@ description: Recreate the Q2 development environment from scratch — uv, Python
 
 # Q2 Build & Environment
 
+> Historical reference: the remaining narrative describes the July 2026
+> migration; its dated APIs, statuses, and checklists are not current execution
+> requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
+> [repository skills](../../../.agents/skills/), and
+> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> The retired migration plan is recoverable with
+> `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
+
 ## Canonical setup (all platforms)
 
 ```bash
 cd Q2
-uv sync        # creates .venv from pyproject.toml + uv.lock
+uv sync --frozen        # creates .venv from pyproject.toml + uv.lock
 ```
 
 That is the whole install. Facts behind it (verified 2026-07-12):
@@ -18,10 +26,10 @@ That is the whole install. Facts behind it (verified 2026-07-12):
   **3.11** by `.python-version` (2026-07-12; the vsim/vlearn wheels are cp311
   only — full suite revalidated identical on 3.11). Ruff targets py311.
 - **vsim backend extra**: fully self-contained in-repo since 2026-07-21 —
-  `uv sync --extra vsim` installs the `vlearn` wheel from `vendor/vlearn/`
+  `uv sync --frozen --extra vsim` installs the `vlearn` wheel from `vendor/vlearn/`
   (gitignored drop zone; see its README for the new-machine procedure).
   Needs system `libczmq4`; every vsim process must start via
-  `uv run --env-file .env.vsim` (LD_LIBRARY_PATH is read by the loader at
+  `uv run --frozen --extra vsim --env-file .env.vsim` (LD_LIBRARY_PATH is read by the loader at
   process start). License mechanics (verified): `License.key` is looked up
   in the process CWD (a gitignored root symlink handles this);
   `TurboActivate.dat` via `VL_WORKING_DIRECTORY`.
@@ -30,19 +38,19 @@ That is the whole install. Facts behind it (verified 2026-07-12):
   **vendor-side fix pending**; all vsim runtime is blocked until then.
 - Runtime deps: `mujoco>=3.6`, `torch`, `tensordict`, `numpy`, `pygame`, `mss`,
   `wandb`, `pandas`, `matplotlib`.
-- The `dev` dependency group (installed by default with `uv sync`) includes
-  `mujoco-warp>=3.6`, `pytest`, `ruff`, `pre-commit` — so **a plain `uv sync` on
+- The `dev` dependency group (installed by default with `uv sync --frozen`) includes
+  `mujoco-warp>=3.6`, `pytest`, `ruff`, `pre-commit` — so **a plain `uv sync --frozen` on
   Linux already gives you the GPU backend**. There is also a `gpu` extra
   (`uv pip install -e '.[gpu]'`) but you normally don't need it.
-- Install pre-commit hooks once per clone: `uv run pre-commit install`
+- Install pre-commit hooks once per clone: `uv run --frozen pre-commit install`
   (hooks: ruff-format, ruff, check-merge-conflict, check-added-large-files 100 KB).
 
 ## Verify the environment
 
 ```bash
-uv run python -c "import mujoco, torch; print(mujoco.__version__, torch.__version__, torch.cuda.is_available())"
-uv run python -c "import importlib.util as u; print('warp:', u.find_spec('mujoco_warp') is not None)"
-uv run python -m pytest tests/unit_tests/ -q     # expect ~151 passed, 21 skipped in ~30 s
+uv run --frozen python -c "import mujoco, torch; print(mujoco.__version__, torch.__version__, torch.cuda.is_available())"
+uv run --frozen python -c "import importlib.util as u; print('warp:', u.find_spec('mujoco_warp') is not None)"
+uv run --frozen python -m pytest tests/unit_tests/ -q     # expect ~151 passed, 21 skipped in ~30 s
 ```
 
 The 21 skips are by design (CPU-backend contract tests parametrized over a
@@ -61,13 +69,13 @@ The 21 skips are by design (CPU-backend contract tests parametrized over a
 **T1 — macOS GUI viewer needs `mjpython` + a dylib-bearing Python.**
 MuJoCo's passive viewer on macOS must run under `mjpython` (ships with the
 `mujoco` pip package), and `mjpython` dlopens `libpython3.13.dylib`, which uv's
-bundled Python does not ship. Recipe (from README_MUJOCO.md, added in `bb8c981`):
+bundled Python does not ship. Recipe (from genAI_skills/README_MUJOCO.md, added in `bb8c981`):
 
 ```bash
 brew install python@3.13
 uv venv --python /opt/homebrew/opt/python@3.13/bin/python3.13
-uv sync
-.venv/bin/mjpython scripts/train_mujoco.py --task mini_cheetah --device cpu --num_envs 64
+uv sync --frozen
+.venv/bin/mjpython scripts/train.py --task mini_cheetah --device cpu --num_envs 64
 ```
 
 Or skip the viewer with `--headless`. The CPU backend raises a RuntimeError with
@@ -81,7 +89,10 @@ this can sit silent for minutes before the first iteration prints. Evidence: the
 `warp/_src/context.py … kernel.module.load` — someone Ctrl-C'd during compile.
 Wait it out; subsequent runs reuse the warp kernel cache.
 
-**T3 — legacy paths that look real but are dead in this env:**
+**T3 — historical July 2026 legacy paths (not the current entrypoints):**
+Current `scripts/train.py` and `scripts/play.py` support all retained backends;
+use `genAI_skills/README_MUJOCO.md` for the Python 3.11 environment. The
+following bullets record the older checkout only:
 - `requirements.txt` + `setup.py` (package "QGym", depends on `isaacgym`) are the
   pre-port pip path. CI on main/dev still uses them; local dev must not.
 - `scripts/train.py`, `scripts/play.py`, `scripts/export_policy.py` require
@@ -96,7 +107,7 @@ Wait it out; subsequent runs reuse the warp kernel cache.
 
 **T4 — packaging debt (matters only if you build a wheel):**
 `[tool.setuptools] packages` in `pyproject.toml` omits `gym.envs.pendulum` and
-`gym.envs.cartpole` — editable/`uv run` works (repo root on path), a built wheel
+`gym.envs.cartpole` — editable/`uv run --frozen` works (repo root on path), a built wheel
 would silently lack those tasks. Also `onnx`/`onnxruntime` are only in the legacy
 `requirements.txt`, so the (IsaacGym-only) export script has no deps under uv.
 Both are known, unfixed as of 2026-07-10.
@@ -116,7 +127,7 @@ Verified 2026-07-10 on Linux, RTX 4080, `port` @ `bc2bd96`. Re-verify:
 
 ```bash
 cat .python-version pyproject.toml | head -30
-uv run python -m pytest tests/unit_tests/ -q | tail -1     # pass/skip counts drift with new tests
+uv run --frozen python -m pytest tests/unit_tests/ -q | tail -1     # pass/skip counts drift with new tests
 grep -n "packages" pyproject.toml                          # T4 still missing pendulum/cartpole?
 ls scripts/                                                # legacy scripts still present?
 ```

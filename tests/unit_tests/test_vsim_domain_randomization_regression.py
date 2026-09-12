@@ -2,7 +2,7 @@
 
 These licensed tests use current Go2Trot code at 100 Hz, without historical
 checkpoints or throughput thresholds. Worlds are created and closed sequentially
-because VSim owns a process singleton. Run with scripts/run_vsim_tests.sh.
+because VSim owns a process singleton. Run with tests/support/run_vsim_tests.sh.
 """
 
 from contextlib import contextmanager

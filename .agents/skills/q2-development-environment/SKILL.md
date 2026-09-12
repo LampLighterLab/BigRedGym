@@ -5,15 +5,14 @@ description: Set up, repair, and verify Q2's uv-managed .venv across Linux CPU, 
 
 # Q2 Development Environment
 
-Read `AGENTS.md`, `.python-version`, `pyproject.toml`, `uv.lock`, and the
-relevant setup section of `README_MUJOCO.md` before changing dependencies.
+Read `genAI_skills/AGENTS.md`, `.python-version`, `pyproject.toml`, `uv.lock`, and the
+relevant setup section of `genAI_skills/README_MUJOCO.md` before changing dependencies.
 `pyproject.toml` and `uv.lock` are the only dependency sources of truth.
 
 ## Establish the target
 
 - Use uv to create and manage the repository's `.venv`.
-- Use Python 3.11 for the common tested environment and VSim wheel
-  compatibility. The package metadata permits Python 3.11 through 3.13.
+- Use Python 3.11, as required by `pyproject.toml` and the optional VSim wheel.
 - Use MuJoCo CPU for portable/headless development and the Linux CPU viewer.
 - Use MuJoCo Warp only with a working NVIDIA driver and CUDA-visible PyTorch.
 - Use VSim only when the machine has the local wheel, system library, node
@@ -42,10 +41,10 @@ Require the final command to print `True`. If it does not, inspect
 `nvidia-smi`, the PyTorch build, and device visibility; do not add a CPU
 fallback.
 
-For VSim, follow `thirdparty/vlearn/README.md` exactly. Install the local wheel
-with `uv sync --locked --extra vsim`; start every process with
-`uv run --env-file .env.vsim ...`; validate using
-`bash scripts/run_vsim_tests.sh`. Do not print or inspect license contents.
+For VSim, follow `thirdparty/README.md` exactly. Install the local wheel
+with `uv sync --frozen --extra vsim`; start every process with
+`uv run --frozen --extra vsim --env-file .env.vsim ...`; validate using
+`bash tests/support/run_vsim_tests.sh`. Do not print or inspect license contents.
 
 ## Diagnose by boundary
 
@@ -62,14 +61,15 @@ with `uv sync --locked --extra vsim`; start every process with
 - VSim license errors: verify paths and activation state without reading,
   logging, or committing secrets. License repair may require the vendor.
 - macOS viewer errors: use `mjpython` with the Homebrew-Python recipe in
-  `README_MUJOCO.md`, or validate headless behavior.
+  `genAI_skills/README_MUJOCO.md`, or validate headless behavior.
 - CI mismatch: inspect `.github/workflows/` directly. CI runs the uv-managed
-  portable and colocated suites, Ruff, and a package build, but does not cover
-  smoke training, Warp, or licensed VSim.
+  portable suite (including a tiny PPO checkpoint smoke), colocated suites,
+  Ruff, and a package build. It does not establish learning quality or cover
+  Warp, licensed VSim, or Unitree integration.
 
 ## Change dependencies
 
 Explain why a dependency belongs in the modern core, `gpu` extra, `vsim`
 extra, or dev group. Update `pyproject.toml` and the lockfile together, then
 test a clean sync appropriate to every affected platform. Update
-`README_MUJOCO.md` when setup steps or supported versions change.
+`genAI_skills/README_MUJOCO.md` when setup steps or supported versions change.

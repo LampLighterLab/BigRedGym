@@ -5,6 +5,14 @@ description: The discipline that turns a hunch into an accepted result in Q2 —
 
 # Q2 Research Methodology
 
+> Historical reference: the remaining narrative describes the July 2026
+> migration; its dated APIs, statuses, and checklists are not current execution
+> requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
+> [repository skills](../../../.agents/skills/), and
+> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> The retired migration plan is recoverable with
+> `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
+
 ## The evidence bar
 
 A claim is accepted here when:
@@ -80,7 +88,7 @@ cross-robot generalization pressure (per-joint mean rewards), and porting
 friction itself (the URDF-limits and cfrc_ext discoveries are reusable
 MuJoCo knowledge now encoded in mujoco-backend-reference).
 
-## Open problems worth a campaign (grounded, 2026-07-10)
+## Historical problem proposals (2026-07-10; not a current work queue)
 
 For each: the asset this repo holds, first steps HERE, and a falsifiable
 "you have a result when…".
@@ -119,12 +127,13 @@ For each: the asset this repo holds, first steps HERE, and a falsifiable
 - You just need to find/fix a bug → `q2-debugging-playbook`.
 - You need the standards a change must pass to merge →
   `q2-conventions-and-change-control`.
-- You're executing the parity work → `q2-phase4-parity-campaign`.
+- Current parity work → `.agents/skills/q2-backend-development/` and
+  `.agents/skills/q2-testing-and-debugging/`; Phase 4 is historical.
 
 ## Provenance and maintenance
 
 Synthesized 2026-07-10 from git history (`port`, `jt/port`, research
-branches), MIGRATION_PLAN.md, and the test suite. Volatile parts: the open
+branches), retired migration plan, and the test suite. Volatile parts: the open
 problems list (§ above) and branch-graveyard examples. Re-verify:
 
 ```bash

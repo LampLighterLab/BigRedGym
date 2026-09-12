@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from scripts.profile_simulation import (
+from tools.profile_simulation import (
     capture_command,
     cuda_capture_summary,
     get_args,
@@ -116,7 +116,7 @@ def test_capture_commands_use_one_bounded_benchmark_batch(tool, tmp_path):
 
     command = capture_command(args, f"/tools/{tool}")
 
-    assert "scripts.benchmark_simulation" in command
+    assert "tools.benchmark_simulation" in command
     assert command[command.index("--repeats") + 1] == "1"
     assert command[command.index("--warmup") + 1] == "100"
     assert command[command.index("--sets") + 1] == "4096"
@@ -156,7 +156,7 @@ def test_cuda_summary_counts_native_kernels_and_preserves_overlap_caveat(tmp_pat
 
 @pytest.mark.parametrize("tool", ["nsys", "py-spy"])
 def test_profiled_worker_durations_cannot_enter_performance_gate(tool, tmp_path):
-    from scripts.benchmark_simulation import compare_pairs
+    from tools.benchmark_simulation import compare_pairs
 
     reference = {
         "schema": 1,

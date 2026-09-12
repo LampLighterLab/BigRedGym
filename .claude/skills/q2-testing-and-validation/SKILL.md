@@ -5,13 +5,21 @@ description: Q2's test suites and evidence standards — what each suite covers,
 
 # Q2 Testing & Validation
 
+> Historical reference: the remaining narrative describes the July 2026
+> migration; its dated APIs, statuses, and checklists are not current execution
+> requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
+> [repository skills](../../../.agents/skills/), and
+> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> The retired migration plan is recoverable with
+> `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
+
 ## The one command that matters
 
 ```bash
-uv run python -m pytest tests/unit_tests/ -q
+uv run --frozen python -m pytest tests/unit_tests/ -q
 # expected (2026-07-12, branch vsim): 158 passed, 62 skipped in ~30 s
 # (skips = by-design device combos + opt-in vsim tests)
-bash scripts/run_vsim_tests.sh
+bash tests/support/run_vsim_tests.sh
 # vsim suite (opt-in: license + CUDA): 46 passed in ~8 s
 # (contract 22, physics 2, parity 2, legged 11, termination 1, liveness 1,
 #  asset 5, pendulum-fixture extras; sets Q2_VSIM_TESTS/LD_LIBRARY_PATH/
@@ -32,8 +40,8 @@ with `--collect-only`. Always target a path explicitly.
 
 | Suite | Command | Status (2026-07-10) |
 |---|---|---|
-| Backend/task unit tests | `uv run python -m pytest tests/unit_tests/ -q` | **the real gate**; 172 collected |
-| In-package legacy tests | `uv run python -m pytest gym learning -q` | 13 pass in ~2 s; what CI runs |
+| Backend/task unit tests | `uv run --frozen python -m pytest tests/unit_tests/ -q` | **the real gate**; 172 collected |
+| In-package legacy tests | `uv run --frozen python -m pytest gym learning -q` | 13 pass in ~2 s; what CI runs |
 | Integration tests | — | DEAD without IsaacGym (INTERNALERROR on collection) |
 | Regression tests | — | DOUBLY dead: needs IsaacGym AND reference file `main_output.pt` was never committed (100 KB CI cap likely why) |
 
@@ -85,7 +93,7 @@ What the invariants pin down (per file):
 - `.github/workflows/basic_checks.yml` runs on every push: 100 KB file-size cap
   only.
 - **Net: pushes to `port` run zero tests in CI.** Local
-  `uv run python -m pytest tests/unit_tests/` is the only gate. Self-hosted
+  `uv run --frozen python -m pytest tests/unit_tests/` is the only gate. Self-hosted
   IsaacGym runners were deliberately removed 2025-10 (`7cf29c7`, `0606552`).
 
 ## What counts as evidence here
@@ -109,7 +117,7 @@ What the invariants pin down (per file):
 ## Adding tests
 
 - New backend → add a fixture in `conftest.py`, parametrize the existing
-  contract files over it (that was the design intent; MIGRATION_PLAN "Test
+  contract files over it (that was the design intent; retired migration plan "Test
   strategy").
 - New task → cheapest meaningful test is a `make_env_mujoco` smoke +
   a couple of `_reward_*` shape checks (`[num_envs]`), mirroring
@@ -123,8 +131,8 @@ What the invariants pin down (per file):
 ## When NOT to use this skill
 
 - A test is failing and you don't know why → `q2-debugging-playbook`.
-- Designing the parity/validation experiments for Phase 4 →
-  `q2-phase4-parity-campaign`.
+- Designing current parity/validation experiments →
+  `.agents/skills/q2-testing-and-debugging/`; Phase 4 is historical.
 - Wondering whether a historical failure was already fought →
   `q2-failure-archaeology`.
 
@@ -134,9 +142,9 @@ Verified by execution 2026-07-10 (`port` @ `bc2bd96`, Linux, RTX 4080).
 Re-verify:
 
 ```bash
-uv run python -m pytest tests/unit_tests/ -q | tail -1
-uv run python -m pytest gym learning -q | tail -1
-uv run python -m pytest tests/unit_tests/ --collect-only -q | tail -1   # 172 as of 2026-07-10
+uv run --frozen python -m pytest tests/unit_tests/ -q | tail -1
+uv run --frozen python -m pytest gym learning -q | tail -1
+uv run --frozen python -m pytest tests/unit_tests/ --collect-only -q | tail -1   # 172 as of 2026-07-10
 ls tests/regression_tests/                                              # main_output.pt still missing?
 grep -n "branches" .github/workflows/unit_tests.yml                     # CI still main/dev only?
 ```

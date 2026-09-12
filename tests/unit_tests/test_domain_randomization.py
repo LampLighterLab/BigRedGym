@@ -7,6 +7,10 @@ import pytest
 import torch
 
 from gym import GYM_ROOT_DIR
+from gym.envs.base.domain_randomization import (
+    apply_domain_randomization_override,
+    get_domain_randomization_range,
+)
 from tests.unit_tests.conftest import vsim_guard
 
 
@@ -667,3 +671,38 @@ def test_vsim_link_mass_and_inertia_change_acceleration():
 def test_vsim_task_randomizes_link_mass_only_at_startup():
     vsim_guard()
     _assert_task_link_mass_randomization("cuda:0", "vsim")
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected"),
+    [
+        ("off", (None, None, None, None)),
+        ("friction-only", ([0.5, 1.0], None, None, None)),
+        ("pd-only", (None, [0.9, 1.1], [0.8, 1.2], None)),
+        ("mass-only", (None, None, None, [0.85, 1.15])),
+    ],
+)
+def test_domain_randomization_bundle_override(mode, expected):
+    cfg = SimpleNamespace(
+        domain_randomization=SimpleNamespace(
+            startup=SimpleNamespace(
+                contact_friction_range=[0.5, 1.0],
+                link_mass_scale_range=[0.85, 1.15],
+            ),
+            episode=SimpleNamespace(
+                scale_ranges={
+                    "p_gains": [0.9, 1.1],
+                    "d_gains": [0.8, 1.2],
+                }
+            ),
+        )
+    )
+
+    apply_domain_randomization_override(cfg, mode)
+
+    assert (
+        get_domain_randomization_range(cfg, "contact_friction_range"),
+        get_domain_randomization_range(cfg, "p_gains"),
+        get_domain_randomization_range(cfg, "d_gains"),
+        get_domain_randomization_range(cfg, "link_mass_scale_range"),
+    ) == expected

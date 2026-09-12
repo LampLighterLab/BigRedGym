@@ -5,6 +5,14 @@ description: Q2's configuration system — BaseConfig class trees (env cfg + run
 
 # Q2 Config System
 
+> Historical reference: the remaining narrative describes the July 2026
+> migration; its dated APIs, statuses, and checklists are not current execution
+> requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
+> [repository skills](../../../.agents/skills/), and
+> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> The retired migration plan is recoverable with
+> `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
+
 ## Shape of a configuration
 
 Every task has TWO config objects, both `BaseConfig` subclasses
@@ -26,7 +34,7 @@ recursively at construction):
 
 Configs are plain nested classes — change by subclassing (new task) or by
 attribute assignment before env construction (scripts do CLI overrides this
-way). There is no YAML/CLI framework; `scripts/train_mujoco.py:52-67` is the
+way). There is no YAML/CLI framework; `scripts/train.py:52-67` is the
 pattern to copy.
 
 ## Registration (gym/envs/__init__.py)
@@ -73,7 +81,11 @@ the flat plane (heightfield/trimesh/curriculum/measure_heights),
 `max_*_velocity`, `thickness`, `default_dof_drive_mode`, `self_collisions`.
 When a config edit "does nothing", check this list first.
 
-## Domain randomization axes (status: UNVERIFIED under MuJoCo)
+## Historical domain-randomization status (July 2026)
+
+Current startup friction/mass and episodic PD-gain support, plus the still
+unimplemented full-batch startup API, are documented in
+`genAI_skills/DEVELOPMENT_NOTES.md`. The old investigation below is retired.
 
 - `randomize_friction = True`, `friction_range = [0.5, 1.0]` (mini_cheetah,
   `mini_cheetah_config.py:83-84`); humanoid `[0.5, 1.25]` +
@@ -83,8 +95,8 @@ When a config edit "does nothing", check this list first.
   call only `_get_env_origins` and `_process_dof_props`
   (`mujoco_backend_base.py:223-230`) — **friction/mass randomization almost
   certainly does not reach the MuJoCo sim**. This is exactly the two unchecked
-  boxes at the bottom of MIGRATION_PLAN.md. Verification experiment lives in
-  `q2-phase4-parity-campaign` Phase 3. Do not claim DR works until it's proven.
+  boxes in the retired migration plan. The Phase 3 verification experiment is
+  historical; use the current native DR tests and development notes.
 - `push_robots` (periodic base-velocity kicks) IS backend-agnostic
   (`set_all_root_states`, re-enabled by `2c5d64d`).
 
@@ -120,7 +132,7 @@ removes the function from the computed set entirely
    values: `njmax = 200` (warp demanded 160 post-fusestatic; overflow =
    silently dropped contacts), `ccd_iterations = 50` (100 halves throughput).
 5. Update the relevant task configs + this skill's table if load-bearing.
-6. Re-run `uv run python -m pytest tests/unit_tests/ -q`.
+6. Re-run `uv run --frozen python -m pytest tests/unit_tests/ -q`.
 
 ## Known config bugs/smells (open 2026-07-10)
 

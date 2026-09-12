@@ -5,6 +5,14 @@ description: MuJoCo and mujoco-warp domain knowledge as it applies to Q2 — qua
 
 # MuJoCo Backend Reference (as applied in Q2)
 
+> Historical reference: the remaining narrative describes the July 2026
+> migration; its dated APIs, statuses, and checklists are not current execution
+> requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
+> [repository skills](../../../.agents/skills/), and
+> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> The retired migration plan is recoverable with
+> `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
+
 Definitions once: **MJCF** = MuJoCo's XML model format; **MjSpec** = mutable
 in-memory model description (edit, then `compile()` → `MjModel`); **warp** =
 NVIDIA Warp, the kernel framework `mujoco_warp` (a.k.a. mjwarp) builds on;
@@ -32,7 +40,7 @@ add a fifth, you're probably in the wrong layer.
 forces. Q2 does this in both backends' `step()`. Also note Q2 takes
 `cfrc_ext[..., 3:6]` (the force half) and the values are body-frame — contact
 *thresholds* tuned on IsaacGym world-frame forces may need revisiting
-(MIGRATION_PLAN "Gotchas").
+(retired migration plan "Gotchas").
 
 ## The URDF → MjSpec pipeline (Q2-specific, `mujoco_backend_base.py:88-172`)
 
@@ -110,7 +118,7 @@ curves; see the two-window lockstep test.
   per-step cost: 50→100 halved training throughput (13.2k→7.1k steps/s,
   measured 2026-07-11). Configure both via `cfg.mjspec_attributes` /
   `cfg.mjspec_option_attributes` (q2-config-system).
-- Sliced views like `qpos[:, 7:]` are non-contiguous; MIGRATION_PLAN flags
+- Sliced views like `qpos[:, 7:]` are non-contiguous; retired migration plan flags
   verifying writes propagate through `mjw.forward` — the contract tests cover
   this for dof state.
 - No viewer exists for warp; headless only.
@@ -137,7 +145,7 @@ Facts verified against `port` @ `bc2bd96`, mujoco≥3.6 / mujoco-warp≥3.6 pins
 2026-07-10. Re-verify:
 
 ```bash
-uv run python -c "import mujoco; print(mujoco.__version__)"
+uv run --frozen python -c "import mujoco; print(mujoco.__version__)"
 sed -n "88,175p" gym/envs/base/mujoco_backend_base.py     # pipeline drift
 grep -n "rne_postconstraint\|fusestatic\|njmax" gym/envs/base/*.py
 ```

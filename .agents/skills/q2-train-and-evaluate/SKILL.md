@@ -5,7 +5,7 @@ description: Run, resume, inspect, play back, benchmark, and evaluate Q2 policie
 
 # Q2 Train and Evaluate
 
-Read `AGENTS.md`, `scripts/train.py --help`, the selected task config,
+Read `genAI_skills/AGENTS.md`, `scripts/train.py --help`, the selected task config,
 and the relevant evaluation script. Use current CLI help rather than a copied
 flag list; this workflow changes during active tuning.
 
@@ -15,7 +15,7 @@ Record before execution:
 
 - commit and dirty-worktree state;
 - task, backend, device, seed, environment count, control/sim frequency;
-- `rollout_batch_size`, optimizer `batch_size`, gradient steps, and iterations;
+- `algorithm.rollout_size`, optimizer `batch_size`, gradient steps, and iterations;
 - config/CLI overrides and whether W&B is enabled;
 - the predicted outcome or acceptance threshold.
 
@@ -42,12 +42,14 @@ physics failures, not log noise.
 Run VSim only through its process environment:
 
 ```bash
-uv run --env-file .env.vsim scripts/train.py --task TASK --backend vsim --device cuda:0 --headless
+uv run --frozen --extra vsim --env-file .env.vsim scripts/train.py --task TASK --backend vsim --device cuda:0 --headless
 ```
 
 Use `--disable_wandb` for local discriminators. Otherwise configure credentials
-through the documented user-local config or explicit CLI values; never commit
-them.
+through local W&B authentication. Set project/entity in `user/wandb_config.json`
+using `user/wandb_config_default.json`, or pass `--wandb_project` and
+`--wandb_entity`. Do not commit credentials. Ordinary W&B logging remains
+supported; orphaned sweep configurations were retired.
 
 ## Resume and locate artifacts
 
@@ -69,11 +71,13 @@ them.
 - Use `scripts/eval_policy.py` for deterministic, artifact-producing policy
   evaluation. Keep commands, reset distribution, seed, episode duration, and
   environment count fixed across transfer cells.
-- Use `scripts/pendulum_fidelity.py` and
-  `scripts/mini_cheetah_fidelity.py` to isolate physics before involving RL.
-- Use the checked-in benchmark/evaluation shell wrappers for campaign or
-  hardware scorecards; inspect their environment variables and output paths
-  before launch.
+- Use `scripts/eval_go2_policy.py` for labeled Go2 policy/checkpoint comparisons
+  and `notebooks/go2_policy_evaluation.py` for the report.
+- Use `tools/benchmark_simulation.py`, `tools/profile_simulation.py`, and
+  `tools/compare_policy_observations.py` as documented in `tools/README.md`.
+- For a physics question, begin with native contract/physics tests and a focused
+  policy-free probe with a predicted invariant. Historical campaign and manual
+  fidelity programs are retired; recover them from git only for a specific need.
 
 ## Interpret results
 
@@ -88,4 +92,5 @@ them.
   selection was declared in advance.
 - Do not claim correctness from a gait video, aggregate reward, or throughput
   alone. Link claims to tests, saved artifacts, and predicted acceptance
-  criteria. Update `MIGRATION_PLAN.md` when campaign evidence changes.
+  criteria. Update `genAI_skills/DEVELOPMENT_NOTES.md` when consequential
+  evidence or supported limitations change.

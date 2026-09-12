@@ -5,6 +5,14 @@ description: Load-bearing design decisions, invariants, and known weak points of
 
 # Q2 Architecture Contract
 
+> Historical reference: the remaining narrative describes the July 2026
+> migration; its dated APIs, statuses, and checklists are not current execution
+> requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
+> [repository skills](../../../.agents/skills/), and
+> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> The retired migration plan is recoverable with
+> `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
+
 ## The system in one diagram
 
 ```
@@ -28,7 +36,7 @@ task_registry (gym/utils/task_registry.py)
                     otherwise (incl. macOS) → MuJocoCPUBackend
 ```
 
-**Why this design:** the port strategy (MIGRATION_PLAN.md) was to cut a clean seam
+**Why this design:** the port strategy (retired migration plan) was to cut a clean seam
 (`SimBackend`) so the physics engine can be swapped while runners, algorithms, task
 logic, and reward functions stay byte-identical. IsaacGym stays functional until the
 MuJoCo path is validated end-to-end (Phase 4). Concrete tasks must never import an

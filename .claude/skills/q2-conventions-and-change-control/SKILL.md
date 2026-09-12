@@ -1,14 +1,22 @@
 ---
 name: q2-conventions-and-change-control
-description: Q2's house style, non-negotiables with their rationale and originating incidents, branch topology and merge state, commit/PR conventions, gates every change must pass, and the docs of record (MIGRATION_PLAN.md, README_MUJOCO.md) with maintenance rules. Load before committing, opening a PR, restructuring code, editing the plan/READMEs, or deciding which branch to base work on. NOT a test manual (q2-testing-and-validation) and NOT setup (q2-build-and-env).
+description: Q2's house style, non-negotiables with their rationale and originating incidents, branch topology and merge state, commit/PR conventions, gates every change must pass, and the current docs of record (genAI_skills/AGENTS.md, genAI_skills/DEVELOPMENT_NOTES.md, genAI_skills/README_MUJOCO.md) with maintenance rules. Load before committing, opening a PR, restructuring code, editing the plan/READMEs, or deciding which branch to base work on. NOT a test manual (q2-testing-and-validation) and NOT setup (q2-build-and-env).
 ---
 
 # Q2 Conventions & Change Control
 
+> Historical reference: the remaining narrative describes the July 2026
+> migration; its dated APIs, statuses, and checklists are not current execution
+> requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
+> [repository skills](../../../.agents/skills/), and
+> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> The retired migration plan is recoverable with
+> `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
+
 ## Non-negotiables (each with its why)
 
 1. **No `try/except` in dev code — fail fast and obviously.**
-   Stated in MIGRATION_PLAN.md "Style Guidelines". Rationale: research code
+   Stated in retired migration plan "Style Guidelines". Rationale: research code
    with silent fallbacks produces wrong *results*, not crashes — the worst
    failure mode. Historical enforcement: `ebc2925` deliberately REMOVED a
    try/except that silently fell back warp→CPU backend.
@@ -16,10 +24,10 @@ description: Q2's house style, non-negotiables with their rationale and originat
    `ImportError` guards around `isaacgym` imports and the per-import guards in
    `gym/envs/__init__.py` — these gate *optional dependency presence*, never
    behavior.
-2. **Ruff, always, at session end**: `uv run ruff format . && uv run ruff
+2. **Ruff, always, at session end**: `uv run --frozen ruff format . && uv run --frozen ruff
    check .` (line length 88, py311 target, E722 ignored — see pyproject).
    Pre-commit runs ruff-format + ruff + merge-conflict + large-file hooks;
-   install with `uv run pre-commit install`.
+   install with `uv run --frozen pre-commit install`.
 3. **No files > 100 KB** — enforced twice (pre-commit `check-added-large-files
    --maxkb=100`, CI `basic_checks.yml` on every push). Origin: robot
    meshes/logs bloating history. Side effect to know: the regression suite's
@@ -49,7 +57,7 @@ Naming convention for new branches: `<initials>/<topic>`.
 
 ## Gates for a change (run through all that apply)
 
-1. `uv run python -m pytest tests/unit_tests/ -q` green before AND after
+1. `uv run --frozen python -m pytest tests/unit_tests/ -q` green before AND after
    (CI will not save you — it runs nothing on `port`; see
    q2-testing-and-validation).
 2. Touched a backend's step/reset/state path → the contract tests are the
@@ -59,9 +67,8 @@ Naming convention for new branches: `<initials>/<topic>`.
 4. Changed behavior that affects training results (rewards, physics params,
    frequencies) → record before/after curves (see q2-research-methodology);
    never bury it in an unrelated commit.
-5. Completed/started a migration phase or discovered a new gotcha → update
-   `MIGRATION_PLAN.md` in the same PR (it has a "Notes and known gotchas"
-   section and per-phase ✅ marks — keep them truthful).
+5. Changed a supported limitation or consequential finding → update
+   `genAI_skills/DEVELOPMENT_NOTES.md`. The migration-phase checklist is retired.
 6. Ruff + no new files > 100 KB + no debug flags left on.
 
 ## Commit & PR conventions
@@ -80,10 +87,11 @@ Naming convention for new branches: `<initials>/<topic>`.
 
 | Doc | Role | Maintenance rule |
 |---|---|---|
-| `MIGRATION_PLAN.md` | technical plan + style rules + gotchas + phase status | update in the same change that alters status; never let ✅ marks lie |
-| `README_MUJOCO.md` | user-facing quickstart/CLI/platform notes | update when CLI flags or platform recipes change |
-| `README.md` | legacy stub pointing at pkGym lineage | leave alone until Phase 4 rebranding |
-| `CLAUDE.md` + `.claude/skills/` | agent-facing knowledge | every skill ends with re-verification commands — run them before trusting volatile facts; update skills when they drift |
+| `genAI_skills/AGENTS.md` | current repository-wide rules | keep durable rules and supported paths current |
+| `genAI_skills/DEVELOPMENT_NOTES.md` | current limitations and evidence boundaries | preserve consequential findings and failed/invalid evidence |
+| `genAI_skills/README_MUJOCO.md` | user-facing quickstart/CLI/platform notes | update when CLI flags or platform recipes change |
+| `README.md` | public entrypoint overview | preserve user-facing structure and update supported commands |
+| `genAI_skills/CLAUDE.md` + `.agents/skills/` | current agent guidance | keep procedural references current; `.claude/skills/` preserves historical context |
 
 ## When NOT to use this skill
 
@@ -93,13 +101,13 @@ Naming convention for new branches: `<initials>/<topic>`.
 
 ## Provenance and maintenance
 
-Compiled 2026-07-10 from MIGRATION_PLAN.md, pyproject.toml,
+Compiled 2026-07-10 from retired migration plan, pyproject.toml,
 .pre-commit-config.yaml, .github/, and git history of `port`/`jt/port`.
 Re-verify:
 
 ```bash
 git branch -a -v --sort=-committerdate | head -8      # topology drift
 git log --oneline port..origin/jt/port | wc -l        # jt/port merged yet?
-sed -n "/Style Guidelines/,/Architecture/p" MIGRATION_PLAN.md
+git show ce5a436:claude_files/MIGRATION_PLAN.md       # historical style/architecture provenance
 cat .pre-commit-config.yaml
 ```

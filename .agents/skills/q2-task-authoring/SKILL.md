@@ -5,7 +5,7 @@ description: Add or modify a Q2 robot, environment, task variant, asset, config,
 
 # Q2 Task Authoring
 
-Read `AGENTS.md`, the nearest existing task and config, the appropriate base
+Read `genAI_skills/AGENTS.md`, the nearest existing task and config, the appropriate base
 robot class/config, `gym/envs/__init__.py`, `robot_layout.py`, and task-focused
 tests. Copy the nearest semantic example, not merely the newest file.
 
@@ -94,4 +94,4 @@ uv run --frozen scripts/train.py --task TASK --backend mujoco --device cpu --num
 
 4. Exercise Warp and VSim only after CPU correctness, with their real contract
    tests and exact-name routing checks. A skipped optional-backend test is not
-   a pass. Update `README_MUJOCO.md` if the public task list changes.
+   a pass. Update `genAI_skills/README_MUJOCO.md` if the public task list changes.

@@ -5,6 +5,14 @@ description: The RL domain knowledge pack for Q2 — how observations/actions ar
 
 # Legged RL Reference (Q2 conventions)
 
+> Historical reference: the remaining narrative describes the July 2026
+> migration; its dated APIs, statuses, and checklists are not current execution
+> requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
+> [repository skills](../../../.agents/skills/), and
+> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> The retired migration plan is recoverable with
+> `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
+
 ## Observation/action plumbing
 
 - The runner asks the env for observations by NAME list:

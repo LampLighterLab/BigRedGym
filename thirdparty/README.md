@@ -47,7 +47,7 @@ renewed. Internet access is required during activation:
 The final line should be `vsim activation probe succeeded`. Verify the setup:
 
 ```bash
-bash scripts/run_vsim_tests.sh
+bash tests/support/run_vsim_tests.sh
 ```
 
 After the tests pass, run normal commands from the repository root:

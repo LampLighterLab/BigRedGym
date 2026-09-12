@@ -5,9 +5,10 @@ description: Implement, modify, or review Q2 physics backends and their task-fac
 
 # Q2 Backend Development
 
-Read `AGENTS.md`, `gym/envs/base/sim_backend.py`,
+Read `genAI_skills/AGENTS.md`, `gym/envs/base/sim_backend.py`,
 `gym/envs/base/robot_layout.py`, the affected backend, and its contract tests.
-Read the relevant current section of `MIGRATION_PLAN.md` for parity decisions.
+Read `genAI_skills/DEVELOPMENT_NOTES.md` for supported limitations and
+evidence boundaries.
 
 ## Preserve the public contract
 
@@ -20,7 +21,8 @@ Read the relevant current section of `MIGRATION_PLAN.md` for parity decisions.
   engine stores positions and velocities separately, gather into a persistent
   assembled buffer and scatter public reset writes back to native storage.
 - Follow write-then-commit resets. Do not refresh native root state over a
-  pending public `root_states` write between DOF and root commits.
+  pending public `root_states` write; commit the combined state once through
+  `reset_state(mask)`.
 - Keep task quaternions scalar-last `[x, y, z, w]`; convert once at the
   backend boundary.
 - Interpret input torques as canonical full-DOF generalized forces. Apply
@@ -83,10 +85,11 @@ uv run --frozen python -m pytest -q
 For VSim changes also run:
 
 ```bash
-bash scripts/run_vsim_tests.sh
+bash tests/support/run_vsim_tests.sh
 ```
 
 A GPU-specific test skipped on a CPU machine is not evidence that the GPU path
 works. For physics claims, add a predicted invariant, lockstep comparison, or
 fidelity probe. For state/reset/contact bugs, land the regression test with
-the fix and update `MIGRATION_PLAN.md` if campaign evidence changes.
+the fix and update `genAI_skills/DEVELOPMENT_NOTES.md` when supported limitations
+or consequential evidence change.

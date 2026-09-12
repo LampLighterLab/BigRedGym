@@ -1,6 +1,6 @@
 import numpy as np
 
-from scripts.compare_policy_observations import (
+from tools.compare_policy_observations import (
     component_statistics,
     field_statistics,
     joint_first_episode_mask,

@@ -35,8 +35,8 @@ instead.
 Clone the repository and create the Python 3.11 environment:
 
 ```bash
-git clone git@github.com:LampLighterLab/QGym.git
-cd QGym
+git clone https://github.com/LampLighterLab/BigRedGym.git
+cd BigRedGym
 uv python install 3.11
 uv venv --python 3.11
 uv sync --frozen
@@ -90,7 +90,7 @@ and Python 3.11, plus an NVIDIA GPU, the system `libczmq4` package, and vendor
 files that cannot be committed to this repository.
 
 Place these files under `thirdparty/vlearn/` as described in
-[`thirdparty/README.md`](thirdparty/README.md):
+[`thirdparty/README.md`](../thirdparty/README.md):
 
 - `vlearn-0.3.14+cu130-cp311-cp311-linux_x86_64.whl`
 - `License.key`
@@ -126,7 +126,7 @@ The final line should be `vsim activation probe succeeded`. Next, verify the
 license and backend integration:
 
 ```bash
-bash scripts/run_vsim_tests.sh
+bash tests/support/run_vsim_tests.sh
 ```
 
 After the tests pass, run VSim commands from the repository root with
@@ -147,7 +147,7 @@ official SDK. The checkout preserves native CRC libraries missing from upstream
 wheels; its Python dependencies are locked normally.
 
 Fetch the SDK, then build native Cyclone DDS 0.10.2 and export
-`CYCLONEDDS_HOME` using [`README_DEPLOY.md`](README_DEPLOY.md):
+`CYCLONEDDS_HOME` using [`README_DEPLOY.md`](../README_DEPLOY.md):
 
 ```bash
 uv run --frozen python scripts/fetch_unitree_sdk.py
@@ -178,9 +178,8 @@ uv run --frozen scripts/train.py --task mini_cheetah --device cuda:0 --num_envs 
 
 Training follows the task's domain-randomization config exactly. There is no
 training CLI override: physical DR changes native backend topology and should
-be an explicit, reviewable part of the environment definition. Campaign and
-evaluation tools make private config copies when they need controlled
-ablations.
+be an explicit, reviewable part of the environment definition. Evaluation tools make private config copies when they need controlled
+ablations. Historical campaign drivers have been retired.
 
 The config makes each axis's sampling cadence explicit:
 
@@ -207,6 +206,10 @@ to disable it. The task explicitly binds the allowed episodic tensors; the DR
 object then owns their nominal copies and current scales. This keeps nominal
 DR state out of the environment and prevents config strings from reaching
 arbitrary task attributes.
+
+The current startup API still accepts environment indices. Its proposed
+full-batch simplification is unimplemented and separate from episodic mask-based
+resets; see [development notes](DEVELOPMENT_NOTES.md).
 
 ### Resume or play with the saved configuration
 
@@ -245,8 +248,16 @@ then-current task config.
 ### Test
 
 ```bash
-uv run --frozen python -m pytest tests/unit_tests/ -v
+uv run --frozen python -m pytest -q
+uv run --frozen python -m pytest gym -q
+uv run --frozen python -m pytest learning -q
 ```
+
+The default suite includes a small real PPO update/checkpoint smoke; it does
+not establish policy learning quality. Warp, licensed VSim, and Unitree SDK
+tests require explicitly selected optional groups. See the
+[test catalog](../tests/TEST_CATALOG.md) for coverage and
+[development notes](DEVELOPMENT_NOTES.md) for remaining limitations.
 
 ### Evaluate Go2Trot policy changes
 
@@ -304,152 +315,34 @@ produce both basic and randomized evaluations. Checkpoints must match the
 current task's observation and network schema; an old incompatible checkpoint
 is rejected during loading instead of being partially evaluated.
 
-### Measure VSim environment-set overhead
+### Benchmark and profile simulation
 
-Use the nominal Go2Trot topology benchmark to separate native simulation,
-state refresh, tensor assembly, and empty-reset costs. It fixes both control
-and physics to **100 Hz** and varies set sharing while keeping physical DR
-disabled and all physical parameters nominal:
-
-```bash
-uv run --frozen --env-file .env.vsim -m scripts.benchmark_vsim_environment_sets \
-    --num-envs 4096 --sets 1 --output logs/vsim_sets/one_set.json
-uv run --frozen --env-file .env.vsim -m scripts.benchmark_vsim_environment_sets \
-    --num-envs 4096 --sets 64 --output logs/vsim_sets/64_sets.json
-uv run --frozen --env-file .env.vsim -m scripts.benchmark_vsim_environment_sets \
-    --num-envs 4096 --sets 4096 --output logs/vsim_sets/per_env_sets.json
-```
-
-Run cells sequentially. Each cell uses a fresh process, restores and settles
-the robot before every timed trial, and synchronizes the whole CUDA device at
-trial boundaries. JSON records the source/config, native set sizes, solver
-iterations, warmup, repeated timings, and state finiteness. Component timings
-are isolated measurements and should not be summed. Add `--profile` to save a
-GPU trace, or `--no-graphs` to test graph behavior with the same physical model.
-
-The vendor's DR examples also use one environment per set: native static
-properties are shared within each set. The benchmark's grouped nominal worlds
-are a diagnostic; sharing sampled parameters during training would change the
-physical-domain sampling scheme. The corresponding licensed correctness tests
-check nominal topology equivalence, reset isolation, and per-world contact
-normalization at 100 Hz:
+The retained [developer tools](../tools/README.md) provide controlled simulation
+benchmarks, paired-result comparisons, profiling, and policy-observation
+comparisons. They run separately from policy training:
 
 ```bash
-bash scripts/run_vsim_tests.sh -k vsim_domain_randomization_regression
+uv run --frozen -m tools.benchmark_simulation run --backend cpu \
+    --task pendulum --num-envs 8 --profile task_timeout \
+    --output logs/benchmarks/pendulum_cpu.json
 ```
 
-### Simulation and learning regression tools
+Use a fresh process per measurement and match source/configuration, hardware,
+frequencies, reset schedule, and workload before comparing timings. The VSim
+`--sets` option varies nominal sharing as a diagnostic; it does not implement a
+pool of randomized training domains. Profiled timings are excluded from speed
+gates. See the tools guide for GPU examples and profiler prerequisites.
 
-The [streamlining plan](STREAMLINING_PLAN.md) defines the calibration and
-acceptance protocol. The simulation worker fixes control and physics at 100 Hz,
-warms the selected path, restores state between batches, and saves timings and
-state evidence. Run each cell in a fresh process with no competing GPU jobs:
+### W&B logging
 
-```bash
-uv run --frozen -m scripts.benchmark_simulation run --backend warp \
-    --task go2trot --num-envs 4096 --profile task_timeout \
-    --output logs/streamlining/speed/warp.json
-uv run --frozen --env-file .env.vsim -m scripts.benchmark_simulation run \
-    --backend vsim --task go2trot --num-envs 4096 --sets 1 \
-    --profile task_timeout --output logs/streamlining/speed/vsim.json
-```
-
-Use `--sets 4096` for the nominal VSim topology discriminator. Other profiles
-include `backend_step`, `task_empty`, and `backend_reset_*` / `task_reset_*`
-with `empty`, `one`, `sparse`, or `all` masks. Calibrate batch length, then
-freeze it. The `compare` subcommand takes `--reference` and `--candidate`
-lists of at least five alternating fresh-process results, plus `--output`.
-Incompatible protocols and profiler timings are rejected; an inconclusive or
-failing comparison exits unsuccessfully.
-
-Capture Python/native host stacks and native CUDA work in separate runs:
-
-```bash
-uv sync --frozen --extra vsim --group profiling
-uv run --frozen --env-file .env.vsim -m scripts.profile_simulation \
-    --tool py-spy --backend vsim --profile task_timeout \
-    --output logs/streamlining/profiles/vsim_host
-uv run --frozen --env-file .env.vsim -m scripts.profile_simulation \
-    --tool nsys --backend vsim --profile task_timeout \
-    --output logs/streamlining/profiles/vsim_cuda
-```
-
-For Warp, use `--backend warp`; omit `--extra vsim` on installations without
-the licensed backend. Nsight Systems must be installed separately. Host
-capture needs permission to trace its child process. Open `host.flamegraph.svg`
-directly, or load `host.speedscope.json` in Speedscope; inspect `cuda.nsys-rep`
-in Nsight Systems. Setup and warmup are excluded from the filtered profiles.
-Host stack sample widths and summed GPU kernel times are different measurements.
-
-The pendulum worker uses the real PPO training entry point, evaluates fixed
-checkpoints on a native physical-state grid, records applied torques, and checks
-fresh-runner checkpoint restoration and one additional update:
-
-```bash
-uv run --frozen -m scripts.regression_pendulum_training --backend mujoco \
-    --device cuda:0 --output logs/streamlining/pendulum/warp_seed7
-uv run --frozen --env-file .env.vsim -m scripts.regression_pendulum_training \
-    --backend vsim --device cuda:0 --output logs/streamlining/pendulum/vsim_seed7
-```
-
-These commands calibrate the proposed learning targets; `--require-learning`
-makes the physical acceptance criteria blocking once the profile is frozen.
-All three frequencies are explicitly 100 Hz.
-
-### Run a domain-randomization campaign
-
-For a reduced 100 Hz restart after the backend frame/reset corrections:
-
-```bash
-uv run --frozen --env-file .env.vsim \
-    scripts/run_full_domain_randomization_campaign.py \
-    --output logs/baselines_100hz_20260906 \
-    --backends cpu warp vsim --bundles off all --exclude-training cpu:all \
-    --skip-speed --seeds 7 --train-iterations 500 --checkpoints 100 250 500 \
-    --eval-domains nominal combined_in --cpu-workers 2 \
-    --stages train eval summarize --evaluate-after-training
-```
-
-This trains five cells: nominal CPU/Warp/VSim and full DR on Warp/VSim, with
-50 evaluations. Each completed training cell releases its evaluations without
-waiting for all training to finish. In-range evaluation follows the saved
-training parameter ranges. This single-seed screen is preliminary; see
-`MIGRATION_PLAN.md` for the protocol and promotion gates.
-
-The default full campaign compares DR off, friction only, PD gains only, link
-mass only, and all axes across MuJoCo CPU, MuJoCo Warp, and VSim. It trains
-three seeds through iteration 1000, preserves checkpoints at 100, 250, 500,
-750, and 1000, and evaluates intermediate and final policies in controlled
-nominal, in-range, and stress domains. This is a multi-day run on the current
-workstation.
-
-```bash
-uv run --frozen --extra vsim --env-file .env.vsim \
-    scripts/run_full_domain_randomization_campaign.py \
-    --output logs/dr_full_fresh
-```
-
-Resume a campaign after interruption with `--resume` only while its execution
-sources and protocol are unchanged. The runner rejects source or protocol drift
-rather than mixing incompatible evidence. Follow progress and view completed
-results while it runs with:
-
-```bash
-Q2_DR_CAMPAIGN_DIR=logs/baselines_100hz_20260906 \
-    uv run --frozen marimo edit notebooks/go2_domain_randomization_campaign.py
-```
-
-The report labels reward as a training diagnostic. Policy decisions use
-physical evaluation metrics, paired seeds, nominal-regression checks, and
-worst-decile behavior.
-
-`logs/dr_full_20260813_nj256` is a deliberately closed partial campaign: all 25
-runtime cells and 23 valid training cells completed, but held-out evaluations
-were not run. Its report is useful for backend cost and trainability; it does
-not select a DR bundle or claim robustness. Warp off/seed 27 is excluded because
-its final training diagnostics became non-finite. Wrap-up changes after the
-collection invalidate that directory's execution-source hash, so start a new
-output directory instead of resuming it.
+Ordinary W&B logging remains supported. Copy the template
+[`user/wandb_config_default.json`](../user/wandb_config_default.json) to the local
+`user/wandb_config.json` and set `entity` and `project`, or provide
+`--wandb_entity` and `--wandb_project` to `scripts/train.py`. The CLI values
+override the local configuration. W&B is enabled only when both names are set
+and `--disable_wandb` is absent; authentication uses the normal local W&B setup.
+Do not put credentials in the template. Orphaned sweep examples and historical
+campaign launchers are no longer maintained workflows.
 
 ## Notes
 
@@ -460,7 +353,7 @@ expected and not an error.
 ## CLI Reference
 
 ```
-uv run scripts/train.py [OPTIONS]
+uv run --frozen scripts/train.py [OPTIONS]
 
   --task TEXT          Task name (required). See "Available Tasks" below.
   --device TEXT        "cpu" or "cuda:0" (default: cpu)
@@ -472,7 +365,7 @@ uv run scripts/train.py [OPTIONS]
   --checkpoint INT    Checkpoint iteration (default: latest)
   --original_cfg      Load environment and runner configs from the selected run
   --headless          Disable GUI viewer
-  --disable_wandb     Disable Weights & Biases logging (default: on)
+  --disable_wandb     Disable configured Weights & Biases logging
 ```
 
 ## Available Tasks
@@ -503,10 +396,12 @@ BaseTask
          └── ConcreteTask   ← rewards, observations
 ```
 
-Backend is selected automatically based on `--device`:
+With `--backend mujoco` (the default), the backend is selected by `--device`:
 
 - `cpu` → MuJocoCPUBackend (macOS always uses this)
 - `cuda:0` → MuJocoWarpBackend
+
+Use `--backend vsim --device cuda:0` to select the licensed VSim backend.
 
 ## Canonical Robot Layout
 
@@ -526,9 +421,9 @@ The layout also assigns exact names to semantic groups such as `feet`,
 `front_left_leg`, or `wheel_joints`. Tasks resolve these groups to tensor
 indices during initialization instead of relying on backend order, positional
 slices, or naming substrings. See
-[`gym/envs/base/robot_layout.py`](gym/envs/base/robot_layout.py) for the
+[`gym/envs/base/robot_layout.py`](../gym/envs/base/robot_layout.py) for the
 implementation and
-[`gym/envs/mini_cheetah/mini_cheetah_config.py`](gym/envs/mini_cheetah/mini_cheetah_config.py)
+[`gym/envs/mini_cheetah/mini_cheetah_config.py`](../gym/envs/mini_cheetah/mini_cheetah_config.py)
 for a complete example.
 
 ### DOF and body groups
@@ -641,7 +536,7 @@ ordering stability or named semantics matter.
 
 No backend-specific layout code should be added for a new robot. After adding
 the task class and configs, register all four declarations in
-[`gym/envs/__init__.py`](gym/envs/__init__.py): the task class, environment
+[`gym/envs/__init__.py`](../gym/envs/__init__.py): the task class, environment
 config, runner config, and public task name. Add focused tests that:
 
 - construct `RobotLayout.from_cfg()` and assert the canonical names and group
@@ -666,7 +561,8 @@ uv run --frozen scripts/train.py --task my_robot --backend mujoco \
 
 Works out of the box with `--device cpu`. The CPU backend uses plain
 `mujoco.mj_step` with one MjData per environment (Python loop).
-Performance scales linearly with `--num_envs`.
+Worlds are stepped serially; measure throughput for the task and environment
+count you intend to use.
 
 GPU training (`--device cuda:0`) is not available on macOS.
 
@@ -692,7 +588,8 @@ Same as macOS. Use `--device cpu`.
 
 Requires the NVIDIA driver and the `gpu` extra (`uv sync --frozen --extra gpu`).
 Use `--device cuda:0` for GPU-accelerated vectorized physics.
-Typically 10-15x faster than CPU for large `--num_envs` (4096+).
+Measure throughput for the actual task and workload; performance depends on
+environment count, contacts, solver configuration, and hardware.
 
 The GUI viewer is not available with the Warp backend. Use `--headless`.
 
@@ -719,7 +616,14 @@ Q2/
 ├── learning/                            ← RL algorithms, runners, storage
 ├── resources/robots/                    ← URDF files
 ├── scripts/
-│   └── train.py                         ← main training script
-├── tests/unit_tests/                    ← supported local test gate
+│   ├── train.py                         ← public training
+│   ├── play.py                          ← interactive playback
+│   ├── eval_policy.py                   ← deterministic evaluation
+│   ├── eval_go2_policy.py               ← policy/checkpoint comparisons
+│   └── fetch_unitree_sdk.py             ← optional hardware SDK setup
+├── tools/                              ← benchmark, profiler, observation comparison
+├── tests/unit_tests/                    ← automated regression gate
+├── tests/support/                       ← PPO worker and local VSim launcher
+├── genAI_skills/                        ← developer guidance and evidence notes
 └── pyproject.toml
 ```

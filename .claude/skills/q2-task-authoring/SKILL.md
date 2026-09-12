@@ -5,6 +5,14 @@ description: End-to-end runbook for adding a new robot or task to Q2 — URDF re
 
 # Q2 Task Authoring
 
+> Historical reference: the remaining narrative describes the July 2026
+> migration; its dated APIs, statuses, and checklists are not current execution
+> requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
+> [repository skills](../../../.agents/skills/), and
+> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> The retired migration plan is recoverable with
+> `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
+
 Pick the base: **FixedRobot** (base bolted to the world; contacts disabled
 entirely) or **LeggedRobot** (free joint + ground plane + contact machinery).
 Copy the nearest existing task: `pendulum` (fixed), `mini_cheetah` (legged),
@@ -56,7 +64,7 @@ Check the actual body names the backend sees before writing contact lists
 mini_cheetah has no `foot` bodies, only `*_shank`):
 
 ```bash
-uv run python -c "
+uv run --frozen python -c "
 from gym.utils.task_registry import task_registry; import gym.envs
 env_cfg, train_cfg = task_registry.get_cfgs('mini_cheetah')   # swap in your task
 env_cfg.env.num_envs = 2                                       # default is 4096 MjData allocs!
@@ -109,7 +117,7 @@ in `task_dict` but absent at runtime (its module imports isaacgym). Confirm
 registration (verified command):
 
 ```bash
-uv run python -c "import gym.envs; from gym.utils.task_registry import task_registry; print(sorted(task_registry.task_classes.keys()))"
+uv run --frozen python -c "import gym.envs; from gym.utils.task_registry import task_registry; print(sorted(task_registry.task_classes.keys()))"
 ```
 
 ## 6. Packaging
@@ -120,9 +128,9 @@ mistake to your task.
 
 ## 7. Definition of done (in order)
 
-1. `uv run python -m pytest tests/unit_tests/ -q` still green.
+1. `uv run --frozen python -m pytest tests/unit_tests/ -q` still green.
 2. Smoke train, CPU, tiny:
-   `uv run scripts/train_mujoco.py --task my_robot --device cpu --num_envs 16 --max_iterations 5 --headless --disable_wandb`
+   `uv run --frozen scripts/train.py --task my_robot --device cpu --num_envs 16 --max_iterations 5 --headless --disable_wandb`
    — no crash, rewards become non-nan after first episodes, sane steps/s.
 3. Reward shape check: every `_reward_*` returns `[num_envs]` (crashes here are
    usually missing `dim=` in a reduction).
@@ -131,11 +139,11 @@ mistake to your task.
    ground / limits parsed" pair. If your robot has termination contacts, copy
    `test_legged_termination.py`'s pattern.
 5. Short real training on CPU; inspect with
-   `uv run scripts/play_mujoco.py --task my_robot`.
-6. GPU: only after reading `q2-phase4-parity-campaign` (warp `root_states`
-   staleness makes GPU training untrustworthy until fixed) — and expect to need
-   `njmax`/`ccd_iterations` tuning for contact-rich robots.
-7. `uv run ruff format . && uv run ruff check .`
+   `uv run --frozen scripts/play.py --task my_robot`.
+6. GPU: use `.agents/skills/q2-backend-development/` and
+   `.agents/skills/q2-testing-and-debugging/` for current validation. The old
+   Phase 4 checklist is retired; retain explicit contact-capacity checks.
+7. `uv run --frozen ruff format . && uv run --frozen ruff check .`
 
 ## When NOT to use this skill
 

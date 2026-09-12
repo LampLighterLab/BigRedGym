@@ -28,12 +28,12 @@ MINI_CHEETAH_URDF = os.path.join(
 def vsim_guard():
     """Fail clearly when the explicitly requested VSim group cannot run.
 
-    Run via scripts/run_vsim_tests.sh (sets Q2_VSIM_TESTS, LD_LIBRARY_PATH,
+    Run via tests/support/run_vsim_tests.sh (sets Q2_VSIM_TESTS, LD_LIBRARY_PATH,
     VL_WORKING_DIRECTORY).
     """
     if os.environ.get("Q2_VSIM_TESTS") != "1":
         pytest.fail(
-            "VSim tests must be launched with scripts/run_vsim_tests.sh",
+            "VSim tests must be launched with tests/support/run_vsim_tests.sh",
             pytrace=False,
         )
     try:

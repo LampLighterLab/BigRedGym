@@ -14,9 +14,9 @@ Before changing code:
 2. Read the nearest implementation, its config, and its tests. Do not treat an
    old comment, benchmark, pass count, or branch status as current without
    checking it.
-3. Use `MIGRATION_PLAN.md` for current migration/parity work and
-   `README_MUJOCO.md` for user-facing setup and CLI guidance. Prefer current
-   code and tests when either document has drifted.
+3. Use `genAI_skills/DEVELOPMENT_NOTES.md` for current limitations and evidence
+   boundaries, and `genAI_skills/README_MUJOCO.md` for setup and CLI guidance.
+   Prefer current code and tests when either document has drifted.
 4. Load the relevant repository skill from `.agents/skills/` for specialized
    workflows.
 
@@ -35,9 +35,12 @@ fixes should remain separately reviewable.
 - `learning/`: actors, critics, algorithms, runners, storage, normalization,
   and logging. `PPO2` plus `OnPolicyRunner` is the main on-policy path; other
   runners and critics include legacy and research code.
-- `scripts/`: training, playback, deterministic evaluation, fidelity probes,
-  and campaign wrappers. `train.py` and `play.py` are the public entry points
-  for every supported backend.
+- `scripts/`: public training, playback, deterministic policy evaluation, and
+  optional SDK setup. `train.py` and `play.py` serve every supported backend.
+- `tools/`: simulation benchmarking, profiling, and policy-observation comparison;
+  see `tools/README.md`.
+- `tests/support/`: a small PPO checkpoint worker and the local VSim test launcher.
+- `genAI_skills/`: developer guidance and concise evidence/limitation notes.
 - `tests/unit_tests/`: cross-cutting correctness gate, including backend
   contracts, physics invariants, state liveness, canonical routing, task
   behavior, and full-stack RL behavior.
@@ -73,14 +76,14 @@ uv run --frozen python -c "import torch, mujoco_warp; print(torch.cuda.is_availa
 ```
 
 VSim is optional, CUDA-only, licensed, and machine-local. Follow
-`thirdparty/vlearn/README.md`, install with `uv sync --locked --extra vsim`,
-and launch processes with `uv run --env-file .env.vsim ...`. Validate it with
-`bash scripts/run_vsim_tests.sh`; the default test gate deselects VSim unless
+`thirdparty/README.md`, install with `uv sync --frozen --extra vsim`,
+and launch processes with `uv run --frozen --extra vsim --env-file .env.vsim ...`. Validate it with
+`bash tests/support/run_vsim_tests.sh`; the default test gate deselects VSim unless
 it is explicitly requested.
 
 On macOS, headless MuJoCo CPU works normally. The passive viewer must run
 under `mjpython` with a compatible dylib-bearing Python; use the recipe in
-`README_MUJOCO.md` or pass `--headless`.
+`genAI_skills/README_MUJOCO.md` or pass `--headless`.
 
 ## Architectural Contracts
 
@@ -138,7 +141,7 @@ quaternion conversion, or contact routing requires a focused regression test.
   penalties with a mean unless the intended magnitude genuinely scales with
   robot DOF count.
 - Keep rollout collection and optimization geometry distinct.
-  `rollout_batch_size` controls collected samples/temporal horizon;
+  `algorithm.rollout_size` controls collected samples/temporal horizon;
   `batch_size` controls PPO optimizer minibatches. Backend comparisons are not
   controlled if either rollout horizon or sample count differs unintentionally.
 - Inference must use clean observations and evaluation mode. Observation
@@ -192,7 +195,8 @@ small, deterministic, independent of simulator/full-stack setup, and useful as
 an example of the implementation's interface. Put backend fixtures,
 cross-package contracts, task construction, and integration behavior under
 `tests/unit_tests/`. MuJoCo Warp tests use the `warp` marker and licensed VSim
-tests use the `vsim` marker; request those groups explicitly.
+tests use the `vsim` marker; optional SDK tests use `unitree`. Request these
+groups explicitly.
 
 Additional evidence by change type:
 
@@ -207,17 +211,18 @@ Additional evidence by change type:
 - Physics or parity claim: a predicted invariant or fidelity probe, not only a
   viewer impression or final aggregate reward.
 
-GitHub CI uses uv and runs the portable default suite, explicit colocated
-suites, Ruff, and a package build. It does not run smoke training, MuJoCo Warp,
-or licensed VSim; run those applicable local gates before handoff.
+GitHub CI uses uv and runs the portable default suite (including a tiny PPO
+update/checkpoint smoke), explicit colocated suites, Ruff, and a package build.
+It does not establish learning quality or run MuJoCo Warp, licensed VSim, or
+Unitree integration; run applicable local gates before handoff.
 
 ## Documentation and Skills
 
-- Update `README_MUJOCO.md` when setup, platform support, or public CLI changes.
-- Update `MIGRATION_PLAN.md` when parity evidence, campaign gates, backend
-  status, or migration decisions change. Keep failed experiments and invalid
-  evidence visible.
-- Keep `AGENTS.md` limited to durable repository-wide rules.
+- Update `genAI_skills/README_MUJOCO.md` when setup, platform support, or public CLI changes.
+- Update `genAI_skills/DEVELOPMENT_NOTES.md` when supported limitations,
+  consequential findings, or evidence boundaries change. Keep failed experiments
+  and invalid evidence visible without restoring a campaign chronology.
+- Keep `genAI_skills/AGENTS.md` limited to durable repository-wide rules.
 - Keep `.agents/skills/` procedural and source-linked. Avoid hard-coded branch
   heads, pass counts, performance numbers, or open/closed statuses that can be
   discovered from current sources.
