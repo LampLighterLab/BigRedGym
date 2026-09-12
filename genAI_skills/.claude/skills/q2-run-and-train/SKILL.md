@@ -1,0 +1,152 @@
+---
+name: q2-run-and-train
+description: How to run, watch, and play back training in Q2 — train_mujoco.py/play_mujoco.py command anatomy, task list, log directory and checkpoint conventions, wandb setup, keyboard teleop, sweeps. Load when asked to train a policy, resume/evaluate a run, find checkpoints or logs, hook up wandb, or drive the robot interactively. NOT for environment install (q2-build-and-env), config field semantics (q2-config-system), or interpreting bad training results (q2-debugging-playbook).
+---
+
+# Q2 Run & Train
+
+> Historical reference: the remaining narrative describes the July 2026
+> migration; its dated APIs, statuses, and checklists are not current execution
+> requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
+> [repository skills](../../../.agents/skills/), and
+> [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope).
+> The retired migration plan is recoverable with
+> `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
+
+## Train
+
+```bash
+# CPU, with viewer
+uv run --frozen scripts/train.py --task pendulum --device cpu --num_envs 256
+# CPU headless, no wandb
+uv run --frozen scripts/train.py --task mini_cheetah --device cpu --num_envs 64 --headless --disable_wandb
+# GPU (Linux + CUDA; first run JIT-compiles warp kernels — be patient)
+uv run --frozen scripts/train.py --task mini_cheetah --device cuda:0 --num_envs 4096 --headless
+# VSim backend code remains; machine-local setup and its test launcher are deferred.
+```
+
+`--backend {mujoco,vsim}` selects the engine (default mujoco). vsim is
+CUDA-only, needs the process started with `.env.vsim` (LD_LIBRARY_PATH must
+exist before the loader runs), and delivered **~317k steps/s on mini_cheetah
+@ 4096 envs vs warp's ~29.3k — 10.8×** (2026-07-12, RTX 4080). Keyboard
+teleop is MuJoCo-viewer-only (`--no-keyboard` with vsim).
+
+For current GPU validation and corrected state contracts, use
+`.agents/skills/q2-testing-and-debugging/` and
+[limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope). The July Phase 4 warning is historical.
+
+Full CLI (`scripts/train.py`, verified): `--task` (required), `--device`
+(default `cpu`), `--num_envs`, `--max_iterations`, `--seed`, `--batch_size`,
+`--headless`, `--disable_wandb`, `--wandb_project`, `--wandb_entity`.
+Unset `--seed` draws a random one (0–10000) and stores it in both cfgs.
+
+Tasks: `gym/envs/__init__.py` `task_dict` lists 11, but **10 actually register
+in a MuJoCo-only env** (verified 2026-07-10): `pendulum`, `sac_pendulum`,
+`psd_pendulum`, `cartpole`, `mini_cheetah`, `mini_cheetah_ref`,
+`mini_cheetah_osc`, `sac_mini_cheetah`, `humanoid`, `humanoid_running`.
+`lander` silently drops out — its module imports isaacgym, and registration
+imports are individually try/except-guarded, so failing tasks vanish instead
+of erroring. (genAI_skills/README_MUJOCO.md lists only the 7 mainline ones.) Only pendulum
+and mini_cheetah/mini_cheetah_ref have logged MuJoCo training runs so far;
+humanoid on MuJoCo is unproven as of 2026-07-10.
+
+What the script does (in order): registers tasks → applies CLI overrides →
+`convert_frequencies_to_params` (frequencies → decimation/dts) →
+`set_log_dir_name` → seeds → wandb setup → `make_env_mujoco` (backend selected by
+device) → `randomize_episode_counters` (desynchronizes resets across envs) →
+runner → snapshots source into the log dir → `runner.learn()`.
+
+## Where output lands
+
+```
+logs/<experiment_name>/<MonDD_HH-MM-SS_><run_name>/
+    model_0.pt, model_<save_interval>.pt, …, model_<final>.pt
+    files/gym/**.py, files/learning/**.py     ← source snapshot (.py/.json only)
+logs/wandb/run-<timestamp>-<id>/              ← wandb offline copies, incl. files/output.log
+```
+
+- `experiment_name`/`run_name` come from `train_cfg.runner`; dir name pattern is
+  set in `task_registry.set_log_dir_name` (`gym/utils/task_registry.py:139-152`).
+- Checkpoints are `model_<iteration>.pt`, saved every
+  `train_cfg.runner.save_interval` iterations plus at the end. On-policy
+  checkpoint dict: `actor_state_dict`, `critic_state_dict`, both optimizer
+  states, `iter` (`learning/runners/on_policy_runner.py:212-222`).
+- A run directory containing only `model_0.pt` means training died/was killed in
+  the first iterations — check `logs/wandb/run-*/files/output.log` for the
+  traceback.
+- Everything under `logs/` is gitignored.
+
+## Weights & Biases
+
+- Default is ON but silently disabled unless `user/wandb_config.json` exists
+  (copy `user/wandb_config_default.json`, fill `entity` + `project`) or
+  `--wandb_entity`/`--wandb_project` are passed
+  (`gym/utils/logging_and_saving/wandb_singleton.py:19-49`).
+- `--disable_wandb` forces off. The run name in wandb = log dir basename.
+
+## Console output
+
+Per-iteration block printed by `learning/utils/logger/Logger.py`. Key readings:
+- **Mean rewards are `nan` until the first episodes complete** — expected, not a
+  bug (episode-windowed averages, window = 100 episodes).
+- `steps/s` = `step_counter * num_envs / iteration_counter / collection_time`.
+  Historical reference points (dated, RTX 4080 / 2026-04): pendulum ~16,600
+  steps/s CPU @ 256 envs; ~255,000 steps/s GPU @ 4096 envs.
+- `num_steps_per_env` is derived, not configured:
+  `max(1, batch_size // num_envs)` (`on_policy_runner.py`, commit `936a4cc`) —
+  changing `--num_envs` automatically rescales rollout length to hold batch size.
+
+## Play back a trained policy
+
+```bash
+uv run --frozen scripts/play.py --task mini_cheetah                      # latest run, latest checkpoint
+uv run --frozen scripts/play.py --task mini_cheetah --load_run May08_12-34-56_ --checkpoint 1500
+uv run --frozen scripts/play.py --task pendulum --no-keyboard --headless
+```
+
+- Resolution: `--load_run` defaults to the newest dir under
+  `logs/<experiment_name>/` (by mtime); `--checkpoint -1` picks the
+  highest-numbered `model_*.pt` (`gym/utils/helpers.py:132-168`).
+- Play-time overrides applied automatically: `episode_length_s = 50`, command
+  resampling off, `push_robots` off, `reset_to_range` init
+  (`scripts/play.py:61-69`).
+- **Keyboard teleop is ON by default** (`--no-keyboard` to disable), CPU-backend
+  passive viewer only. Bindings
+  (`gym/utils/interfaces/MujocoKeyboardInterface.py`): Up/Down = vel_x (max
+  +4.0/−1.0), `,`/`.` = strafe ±1.0, Left/Right = yaw ±2.0, R = reset all envs,
+  Esc/close = quit. Steps of 1/5 max; commands seeded with vel_x = 1.0. A
+  `CommandVisualizer` overlay draws the commanded vs actual velocity.
+- The specialized pendulum phase/energy plotting command is retired. Use
+  `scripts/play.py` for supported playback; it does not reproduce those plots.
+
+## Sweeps and legacy scripts
+
+The old sweep launcher is absent and its orphaned configurations were retired.
+Ordinary W&B logging and `user/wandb_config_default.json` remain supported.
+`scripts/train.py` and `scripts/play.py` are the current backend-neutral
+entrypoints; their historical IsaacGym-only implementations described in this
+skill are no longer active. Recorded-evaluation commands and their report
+are absent; current support is described in the validation scope linked above.
+
+## When NOT to use this skill
+
+- Install/venv problems → `q2-build-and-env`.
+- What a config field means / how to change one → `q2-config-system`.
+- Run trains but behaves wrongly → `.agents/skills/q2-testing-and-debugging/`;
+  the Phase 4 campaign remains a historical reference only.
+
+## Provenance and maintenance
+
+Verified 2026-07-10 against `port` @ `bc2bd96`. Re-verify:
+
+```bash
+uv run --frozen python - <<'EOF'
+import ast, pathlib
+tree = ast.parse(pathlib.Path("scripts/train.py").read_text())
+print([n.args[0].value for n in ast.walk(tree) if isinstance(n, ast.Call)
+       and getattr(n.func, "attr", "") == "add_argument"])
+EOF
+uv run --frozen python -c "import gym.envs; from gym.utils.task_registry import task_registry; print(sorted(task_registry.task_classes.keys()))"
+grep -n "task_dict = {" -A 30 gym/envs/__init__.py        # task list drift
+grep -n "save_interval\|model_" learning/runners/on_policy_runner.py | head
+```
