@@ -1,6 +1,6 @@
 ---
 name: q2-phase4-parity-campaign
-description: Historical July 2026 Phase 4 campaign specification, retained for provenance only. Its checklist is retired; use the current .agents skills and genAI_skills/DEVELOPMENT_NOTES.md for backend validation and evidence boundaries.
+description: Historical July 2026 Phase 4 campaign specification, retained for provenance only. Its checklist is retired; use the current .agents skills and genAI_skills/README_MUJOCO.md#limitations-and-validation-scope for backend validation and evidence boundaries.
 ---
 
 # Historical campaign: Warp Parity → Phase 4 Close-out (retired)
@@ -9,7 +9,7 @@ description: Historical July 2026 Phase 4 campaign specification, retained for p
 > migration; its dated APIs, statuses, and checklists are not current execution
 > requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
 > [repository skills](../../../.agents/skills/), and
-> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope).
 > The retired migration plan is recoverable with
 > `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
 
@@ -202,7 +202,7 @@ diverging ⇒ obs/plumbing problem → debugging playbook, staleness family.
    later `main`). This closes the "zero CI on port" hole.
 6. Historical close-out called for migration-plan checkbox updates and
    archaeology entries. That checklist is retired; current changes update
-   `genAI_skills/DEVELOPMENT_NOTES.md` and `genAI_skills/README_MUJOCO.md` as relevant.
+   [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope) and `genAI_skills/README_MUJOCO.md` as relevant.
 
 ---
 

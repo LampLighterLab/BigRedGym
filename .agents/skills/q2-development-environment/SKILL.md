@@ -41,10 +41,11 @@ Require the final command to print `True`. If it does not, inspect
 `nvidia-smi`, the PyTorch build, and device visibility; do not add a CPU
 fallback.
 
-For VSim, follow `thirdparty/README.md` exactly. Install the local wheel
-with `uv sync --frozen --extra vsim`; start every process with
-`uv run --frozen --extra vsim --env-file .env.vsim ...`; validate using
-`bash tests/support/run_vsim_tests.sh`. Do not print or inspect license contents.
+For VSim, read `thirdparty/README.md` and the [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope).
+The backend and tests remain, but machine-local installation and the test
+launcher are deferred. Establish those prerequisites before attempting VSim
+execution; do not invoke a missing launcher or report unrun tests as passing.
+Do not print or inspect license contents.
 
 ## Diagnose by boundary
 
@@ -63,9 +64,9 @@ with `uv sync --frozen --extra vsim`; start every process with
 - macOS viewer errors: use `mjpython` with the Homebrew-Python recipe in
   `genAI_skills/README_MUJOCO.md`, or validate headless behavior.
 - CI mismatch: inspect `.github/workflows/` directly. CI runs the uv-managed
-  portable suite (including a tiny PPO checkpoint smoke), colocated suites,
-  Ruff, and a package build. It does not establish learning quality or cover
-  Warp, licensed VSim, or Unitree integration.
+  portable suite, colocated suites, Ruff, and a package build. There is no
+  maintained end-to-end PPO update/checkpoint regression. CI does not establish
+  learning quality or cover Warp, licensed VSim, or Unitree integration.
 
 ## Change dependencies
 

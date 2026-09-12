@@ -1,13 +1,14 @@
 ---
 name: q2-train-and-evaluate
-description: Run, resume, inspect, play back, benchmark, and evaluate Q2 policies with MuJoCo CPU, MuJoCo Warp, or optional VSim. Use for training commands, CLI overrides, W&B, log and checkpoint discovery, deterministic inference, cross-backend transfer, fidelity probes, hardware-oriented scorecards, campaign evidence, or diagnosing whether two runs are comparable.
+description: Run, resume, inspect, and play back Q2 policies with MuJoCo CPU or MuJoCo Warp, and plan controlled policy validation. Use for training commands, CLI overrides, W&B, log and checkpoint discovery, deterministic inference, or diagnosing whether two runs are comparable. Optional VSim code remains, but its machine-local setup is deferred.
 ---
 
 # Q2 Train and Evaluate
 
 Read `genAI_skills/AGENTS.md`, `scripts/train.py --help`, the selected task config,
-and the relevant evaluation script. Use current CLI help rather than a copied
-flag list; this workflow changes during active tuning.
+and `scripts/play.py --help`. Use current CLI help rather than a copied flag
+list. Recorded evaluation, comparison, benchmark, and profiler commands are
+absent; see the [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope).
 
 ## Prepare a controlled run
 
@@ -39,11 +40,9 @@ uv run --frozen scripts/train.py --task TASK --backend mujoco --device cuda:0 --
 The first Warp run may compile kernels. Treat constraint-capacity warnings as
 physics failures, not log noise.
 
-Run VSim only through its process environment:
-
-```bash
-uv run --frozen --extra vsim --env-file .env.vsim scripts/train.py --task TASK --backend vsim --device cuda:0 --headless
-```
+VSim backend code and tests remain, but machine-local installation and the
+test launcher are deferred. Consult `thirdparty/README.md` and the validation
+scope linked above before planning a licensed run.
 
 Use `--disable_wandb` for local discriminators. Otherwise configure credentials
 through local W&B authentication. Set project/entity in `user/wandb_config.json`
@@ -66,15 +65,13 @@ supported; orphaned sweep configurations were retired.
 ## Play and evaluate
 
 - Use `scripts/play.py` for interactive playback. MuJoCo Warp is
-  headless; use MuJoCo CPU for its passive viewer. VSim has its own viewer and
-  keyboard integration.
-- Use `scripts/eval_policy.py` for deterministic, artifact-producing policy
-  evaluation. Keep commands, reset distribution, seed, episode duration, and
-  environment count fixed across transfer cells.
-- Use `scripts/eval_go2_policy.py` for labeled Go2 policy/checkpoint comparisons
-  and `notebooks/go2_policy_evaluation.py` for the report.
-- Use `tools/benchmark_simulation.py`, `tools/profile_simulation.py`, and
-  `tools/compare_policy_observations.py` as documented in `tools/README.md`.
+  headless; use MuJoCo CPU for its passive viewer. VSim's viewer/keyboard code
+  remains, with local execution deferred as described above.
+- No maintained recorded-evaluation CLI, policy report, benchmark, or profiler
+  is present. When a task calls for new measurements, define a focused protocol
+  and its implementation within that task's scope. Keep commands, reset
+  distribution, seed, episode duration, and environment count fixed across
+  comparisons.
 - For a physics question, begin with native contract/physics tests and a focused
   policy-free probe with a predicted invariant. Historical campaign and manual
   fidelity programs are retired; recover them from git only for a specific need.
@@ -92,5 +89,5 @@ supported; orphaned sweep configurations were retired.
   selection was declared in advance.
 - Do not claim correctness from a gait video, aggregate reward, or throughput
   alone. Link claims to tests, saved artifacts, and predicted acceptance
-  criteria. Update `genAI_skills/DEVELOPMENT_NOTES.md` when consequential
+  criteria. Update [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope) when consequential
   evidence or supported limitations change.

@@ -9,21 +9,22 @@ description: Q2's test suites and evidence standards — what each suite covers,
 > migration; its dated APIs, statuses, and checklists are not current execution
 > requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
 > [repository skills](../../../.agents/skills/), and
-> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope).
 > The retired migration plan is recoverable with
 > `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
 
-## The one command that matters
+Current validation follows the repository skill linked above. VSim backend
+code and tests remain, but local setup and the launcher are deferred. The
+current portable suite has no end-to-end PPO update/checkpoint regression.
+
+## The one command that matters (historical)
 
 ```bash
 uv run --frozen python -m pytest tests/unit_tests/ -q
 # expected (2026-07-12, branch vsim): 158 passed, 62 skipped in ~30 s
 # (skips = by-design device combos + opt-in vsim tests)
-bash tests/support/run_vsim_tests.sh
-# vsim suite (opt-in: license + CUDA): 46 passed in ~8 s
-# (contract 22, physics 2, parity 2, legged 11, termination 1, liveness 1,
-#  asset 5, pendulum-fixture extras; sets Q2_VSIM_TESTS/LD_LIBRARY_PATH/
-#  VL_WORKING_DIRECTORY — vsim tests NEVER run in CI: node-locked license)
+# Historical VSim result: 46 passed in ~8 s with the then-installed license
+# and CUDA setup. The local setup and test launcher are now deferred.
 ```
 
 The 21 skips are structural, not missing coverage: the CPU-backend contract

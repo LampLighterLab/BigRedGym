@@ -44,13 +44,12 @@ renewed. Internet access is required during activation:
 )
 ```
 
-The final line should be `vsim activation probe succeeded`. Verify the setup:
+The final line should be `vsim activation probe succeeded`. This checks engine
+activation only. The VSim backend code, optional extra, and marked tests remain
+in the repository, but the local test launcher and support workflow are deferred.
+See [validation scope](../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope).
 
-```bash
-bash tests/support/run_vsim_tests.sh
-```
-
-After the tests pass, run normal commands from the repository root:
+Run normal commands from the repository root:
 
 ```bash
 uv run --frozen --extra vsim --env-file .env.vsim scripts/train.py --task mini_cheetah \

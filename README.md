@@ -65,11 +65,9 @@ Optional arguments:
 --original_cfg: Load environment and runner configs saved with the selected run.
 ```
 
-For deterministic checkpoint comparisons and recorded evaluation metrics, see
-[scripts/eval_go2_policy.py](scripts/eval_go2_policy.py) and
-[the evaluation guide](genAI_skills/README_MUJOCO.md#evaluate-go2trot-policy-changes).
-The automated regression suite runs with `uv run --frozen python -m pytest -q`;
-developer benchmarking and profiling commands are in [tools/README.md](tools/README.md).
+The automated regression suite runs with `uv run --frozen python -m pytest -q`.
+See [limitations and validation scope](genAI_skills/README_MUJOCO.md#limitations-and-validation-scope)
+for what the retained tests cover.
 
 # Note on AI-generated files
 Some of the code has been worked on by an AI agent, in the case where code segments have been heavily edited by AI, the AI-generated files in [genAI_skills](genAI_skills/) may be of some value in understanding the code, especially [README_MUJOCO.md](genAI_skills/README_MUJOCO.md).

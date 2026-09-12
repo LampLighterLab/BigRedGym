@@ -7,7 +7,7 @@ description: Implement, modify, or review Q2 physics backends and their task-fac
 
 Read `genAI_skills/AGENTS.md`, `gym/envs/base/sim_backend.py`,
 `gym/envs/base/robot_layout.py`, the affected backend, and its contract tests.
-Read `genAI_skills/DEVELOPMENT_NOTES.md` for supported limitations and
+Read [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope) for supported limitations and
 evidence boundaries.
 
 ## Preserve the public contract
@@ -82,14 +82,12 @@ Start with targeted tests, then run:
 uv run --frozen python -m pytest -q
 ```
 
-For VSim changes also run:
-
-```bash
-bash tests/support/run_vsim_tests.sh
-```
+VSim backend code and tests remain, but machine-local setup and the test
+launcher are deferred. Consult the limitations and validation scope linked
+above; record VSim as unvalidated until that setup is available.
 
 A GPU-specific test skipped on a CPU machine is not evidence that the GPU path
 works. For physics claims, add a predicted invariant, lockstep comparison, or
 fidelity probe. For state/reset/contact bugs, land the regression test with
-the fix and update `genAI_skills/DEVELOPMENT_NOTES.md` when supported limitations
+the fix and update [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope) when supported limitations
 or consequential evidence change.

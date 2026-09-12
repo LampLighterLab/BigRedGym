@@ -28,12 +28,13 @@ MINI_CHEETAH_URDF = os.path.join(
 def vsim_guard():
     """Fail clearly when the explicitly requested VSim group cannot run.
 
-    Run via tests/support/run_vsim_tests.sh (sets Q2_VSIM_TESTS, LD_LIBRARY_PATH,
-    VL_WORKING_DIRECTORY).
+    Local VSim test support is deferred. Reestablish the licensed CUDA process
+    environment before enabling this group with Q2_VSIM_TESTS=1.
     """
     if os.environ.get("Q2_VSIM_TESTS") != "1":
         pytest.fail(
-            "VSim tests must be launched with tests/support/run_vsim_tests.sh",
+            "Local VSim test support is deferred; restore and validate the "
+            "licensed test setup before enabling Q2_VSIM_TESTS=1",
             pytrace=False,
         )
     try:

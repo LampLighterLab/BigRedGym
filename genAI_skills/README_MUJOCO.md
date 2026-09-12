@@ -122,15 +122,12 @@ replace or renew `License.key`. The activation requires internet access:
 )
 ```
 
-The final line should be `vsim activation probe succeeded`. Next, verify the
-license and backend integration:
+The final line should be `vsim activation probe succeeded`. This checks engine
+activation only. VSim backend code, its optional extra, and marked tests remain;
+the local test launcher and support workflow are deferred. See
+[limitations and validation scope](#limitations-and-validation-scope).
 
-```bash
-bash tests/support/run_vsim_tests.sh
-```
-
-After the tests pass, run VSim commands from the repository root with
-`.env.vsim`:
+Run VSim commands from the repository root with `.env.vsim`:
 
 ```bash
 uv run --frozen --extra vsim --env-file .env.vsim scripts/train.py --task mini_cheetah \
@@ -178,8 +175,8 @@ uv run --frozen scripts/train.py --task mini_cheetah --device cuda:0 --num_envs 
 
 Training follows the task's domain-randomization config exactly. There is no
 training CLI override: physical DR changes native backend topology and should
-be an explicit, reviewable part of the environment definition. Evaluation tools make private config copies when they need controlled
-ablations. Historical campaign drivers have been retired.
+be an explicit, reviewable part of the environment definition. Historical
+campaign drivers have been retired.
 
 The config makes each axis's sampling cadence explicit:
 
@@ -209,7 +206,7 @@ arbitrary task attributes.
 
 The current startup API still accepts environment indices. Its proposed
 full-batch simplification is unimplemented and separate from episodic mask-based
-resets; see [development notes](DEVELOPMENT_NOTES.md).
+resets; see [limitations and validation scope](#limitations-and-validation-scope).
 
 ### Resume or play with the saved configuration
 
@@ -253,85 +250,12 @@ uv run --frozen python -m pytest gym -q
 uv run --frozen python -m pytest learning -q
 ```
 
-The default suite includes a small real PPO update/checkpoint smoke; it does
-not establish policy learning quality. Warp, licensed VSim, and Unitree SDK
-tests require explicitly selected optional groups. See the
-[test catalog](../tests/TEST_CATALOG.md) for coverage and
-[development notes](DEVELOPMENT_NOTES.md) for remaining limitations.
-
-### Evaluate Go2Trot policy changes
-
-Use the controlled Go2Trot evaluator to compare policies or checkpoint
-progression.
-Each label must point to a checkpoint or a run directory containing
-`model_<iteration>.pt` files:
-
-```bash
-uv run --frozen scripts/eval_go2_policy.py \
-    --policy baseline=logs/go2trot/BASELINE_RUN \
-    --policy current=logs/go2trot/CURRENT_RUN \
-    --iterations 100 250 500
-```
-
-The evaluator defaults to `--backend mjx`, which is the public shorthand here
-for Q2's MuJoCo Warp backend on `cuda:0` (it does not invoke the separate
-Google DeepMind MJX package). Use `--backend mujoco` for MuJoCo CPU, or launch
-with `uv run --frozen --extra vsim --env-file .env.vsim ... --backend vsim` for VSim on `cuda:0`.
-The GPU default requires the `gpu` extra described above.
-
-Go2Trot bounds each full desired joint position (default offset, gait reference,
-and policy residual) to the robot's joint limits before PD control. Observations
-and action-history rewards use the applied residual; PPO keeps the separate raw
-policy sample. Evaluation artifacts record raw outputs before the step and
-applied commands after this projection. Policies trained before this boundary
-was introduced need reevaluation or retraining under the current control path.
-
-The default protocol evaluates 200 randomized initial states, balanced across
-ten fixed stand, walk, strafe, turn, and combined-command cases. It records
-command tracking, survival, base stability, gait timing, phase-binned foot
-contact, vertical contact force, and clearance at 1 and 3 m/s, actuator effort,
-and physical power. The report presents the phase signals as polar plots, with
-foot-force means and standard deviations across evaluated environments. The
-report also compares the task and inherited config sources saved inside each
-run directory, highlighting changed lines relative to the selected reference
-policy. Go2Trot evaluations also record every configured actor and critic
-observation, the raw policy output, and the scaled action applied to the task.
-The interactive observation/action explorer provides summary statistics, time
-traces, phase-binned profiles, distributions, and pairwise relationship plots.
-Its value-space control switches consistently between task-normalized values
-and task units using `cfg.scaling` from each checkpoint's saved original config.
-The artifacts and JSON summaries are written under `logs/go2_evaluation/`.
-
-Open the comparison report with:
-
-```bash
-GO2_EVAL_DIR=logs/go2_evaluation \
-    uv run --frozen marimo edit notebooks/go2_policy_evaluation.py
-```
-
-Use the same evaluator settings for every label. Add `--reset_mode
-reset_to_basic` for an identical-state diagnostic, or repeat `--reset_mode` to
-produce both basic and randomized evaluations. Checkpoints must match the
-current task's observation and network schema; an old incompatible checkpoint
-is rejected during loading instead of being partially evaluated.
-
-### Benchmark and profile simulation
-
-The retained [developer tools](../tools/README.md) provide controlled simulation
-benchmarks, paired-result comparisons, profiling, and policy-observation
-comparisons. They run separately from policy training:
-
-```bash
-uv run --frozen -m tools.benchmark_simulation run --backend cpu \
-    --task pendulum --num-envs 8 --profile task_timeout \
-    --output logs/benchmarks/pendulum_cpu.json
-```
-
-Use a fresh process per measurement and match source/configuration, hardware,
-frequencies, reset schedule, and workload before comparing timings. The VSim
-`--sets` option varies nominal sharing as a diagnostic; it does not implement a
-pool of randomized training domains. Profiled timings are excluded from speed
-gates. See the tools guide for GPU examples and profiler prerequisites.
+The default suite covers portable correctness contracts; it does not contain a
+PPO update/checkpoint or pendulum-control smoke test. Warp, licensed VSim, and
+Unitree SDK tests are outside the default gate. See the
+[test catalog](../tests/TEST_CATALOG.md) for retained coverage and
+[limitations and validation scope](#limitations-and-validation-scope) for
+remaining gaps and optional-backend support.
 
 ### W&B logging
 
@@ -343,6 +267,36 @@ override the local configuration. W&B is enabled only when both names are set
 and `--disable_wandb` is absent; authentication uses the normal local W&B setup.
 Do not put credentials in the template. Orphaned sweep examples and historical
 campaign launchers are no longer maintained workflows.
+
+## Limitations and validation scope
+
+Floating-base tasks use a flat ground plane. Heightfields, triangle-mesh terrain,
+and projectile support are not implemented; MuJoCo fixed-base tasks disable
+contacts. Startup friction and mass/inertia randomization remain fixed for each
+environment's lifetime. The startup API still takes environment indices:
+**full-batch startup DR remains unimplemented**. This is separate from the
+implemented episodic reset-mask and atomic state-reset behavior.
+
+Native backend, state/reset, task, and focused learning-code tests remain. Hosted
+CI runs the portable and colocated suites, Ruff, and a package build; it has no
+PPO update/checkpoint or pendulum-control smoke test. Passing native physics or
+configuration tests does not establish policy learning quality or checkpoint
+resume correctness. Independent storage/GAE, timeout handling, and normalizer
+update/freeze/save/load coverage remain areas for review. The strict deployment
+observation-parity expected failure remains explicit debt.
+
+VSim backend code, its optional dependency extra, and marked tests remain, but
+the local test launcher and support workflow are deferred. Hosted CI does not
+run VSim, MuJoCo Warp, or Unitree integration. Optional vendor installation and
+activation instructions describe prerequisites; they do not establish current
+backend validation. Record which optional checks actually executed.
+
+Standalone policy evaluators, comparison reports, benchmark/profile tools, and
+their analysis helpers are no longer included. Training, playback,
+`--original_cfg`, and ordinary W&B logging remain available. The retired pendulum
+calibration failed its learning threshold; its removal supplies no passing
+learning-quality evidence. Historical reports were generated, ignored artifacts
+and are not guaranteed to exist in a checkout.
 
 ## Notes
 
@@ -618,12 +572,8 @@ Q2/
 ├── scripts/
 │   ├── train.py                         ← public training
 │   ├── play.py                          ← interactive playback
-│   ├── eval_policy.py                   ← deterministic evaluation
-│   ├── eval_go2_policy.py               ← policy/checkpoint comparisons
 │   └── fetch_unitree_sdk.py             ← optional hardware SDK setup
-├── tools/                              ← benchmark, profiler, observation comparison
 ├── tests/unit_tests/                    ← automated regression gate
-├── tests/support/                       ← PPO worker and local VSim launcher
-├── genAI_skills/                        ← developer guidance and evidence notes
+├── genAI_skills/                        ← developer guidance and validation scope
 └── pyproject.toml
 ```

@@ -9,7 +9,7 @@ description: Executable runbook for integrating a NEW physics engine backend int
 > migration; its dated APIs, statuses, and checklists are not current execution
 > requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
 > [repository skills](../../../.agents/skills/), and
-> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope).
 > The retired migration plan is recoverable with
 > `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
 
@@ -174,7 +174,7 @@ undocumented pause; see q2-debugging-playbook row 2).
 - Pendulum AND mini_cheetah train; steps/s recorded; warmup documented.
 - `select_backend` wiring is fail-fast; `q2-run-and-train` device table,
   `q2-build-and-env` platform matrix, `q2-architecture-contract` diagram, and
-  `genAI_skills/DEVELOPMENT_NOTES.md` updated when supported limitations or
+  [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope) updated when supported limitations or
   consequential evidence change.
 - Convention sheet filled in the module docstring; new engine gotchas get a
   `<engine>-backend-reference` skill if they run past a page (MuJoCo's did).

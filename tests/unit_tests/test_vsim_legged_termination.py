@@ -4,7 +4,7 @@ Full-env variant of test_legged_termination.py with backend="vsim":
 drops a mini_cheetah upside-down and asserts base contact force appears —
 validates the per-link contact sensors end-to-end through the task layer.
 
-Opt-in: runs only under tests/support/run_vsim_tests.sh (license + CUDA).
+Retained licensed CUDA tests; local VSim test support is deferred.
 """
 
 from copy import deepcopy

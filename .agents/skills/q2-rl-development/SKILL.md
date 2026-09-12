@@ -82,7 +82,7 @@ Re-run frequency conversion rather than editing derived values.
    losses/KL, throughput, and domain-relevant physical metrics. Do not select
    only on aggregate reward or a viewer impression.
 6. Record consequential failed or invalid evidence in
-   `genAI_skills/DEVELOPMENT_NOTES.md`. Keep tuning changes numerically explicit
+   [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope). Keep tuning changes numerically explicit
    and separate from algorithm/refactor changes.
 
 Validate with focused learning tests and then:
@@ -90,3 +90,7 @@ Validate with focused learning tests and then:
 ```bash
 uv run --frozen python -m pytest -q
 ```
+
+The current portable suite does not exercise real PPO updates or checkpoint
+save/load/resume. Treat those checks as separate validation work when
+required by a change; see the [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope).

@@ -1,6 +1,6 @@
 ---
 name: q2-conventions-and-change-control
-description: Q2's house style, non-negotiables with their rationale and originating incidents, branch topology and merge state, commit/PR conventions, gates every change must pass, and the current docs of record (genAI_skills/AGENTS.md, genAI_skills/DEVELOPMENT_NOTES.md, genAI_skills/README_MUJOCO.md) with maintenance rules. Load before committing, opening a PR, restructuring code, editing the plan/READMEs, or deciding which branch to base work on. NOT a test manual (q2-testing-and-validation) and NOT setup (q2-build-and-env).
+description: Q2's house style, non-negotiables with their rationale and originating incidents, branch topology and merge state, commit/PR conventions, gates every change must pass, and the current docs of record (genAI_skills/AGENTS.md and genAI_skills/README_MUJOCO.md) with maintenance rules. Load before committing, opening a PR, restructuring code, editing the plan/READMEs, or deciding which branch to base work on. NOT a test manual (q2-testing-and-validation) and NOT setup (q2-build-and-env).
 ---
 
 # Q2 Conventions & Change Control
@@ -9,7 +9,7 @@ description: Q2's house style, non-negotiables with their rationale and originat
 > migration; its dated APIs, statuses, and checklists are not current execution
 > requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
 > [repository skills](../../../.agents/skills/), and
-> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope).
 > The retired migration plan is recoverable with
 > `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
 
@@ -68,7 +68,7 @@ Naming convention for new branches: `<initials>/<topic>`.
    frequencies) → record before/after curves (see q2-research-methodology);
    never bury it in an unrelated commit.
 5. Changed a supported limitation or consequential finding → update
-   `genAI_skills/DEVELOPMENT_NOTES.md`. The migration-phase checklist is retired.
+   [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope). The migration-phase checklist is retired.
 6. Ruff + no new files > 100 KB + no debug flags left on.
 
 ## Commit & PR conventions
@@ -88,7 +88,7 @@ Naming convention for new branches: `<initials>/<topic>`.
 | Doc | Role | Maintenance rule |
 |---|---|---|
 | `genAI_skills/AGENTS.md` | current repository-wide rules | keep durable rules and supported paths current |
-| `genAI_skills/DEVELOPMENT_NOTES.md` | current limitations and evidence boundaries | preserve consequential findings and failed/invalid evidence |
+| [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope) | current limitations and evidence boundaries | preserve consequential findings and failed/invalid evidence |
 | `genAI_skills/README_MUJOCO.md` | user-facing quickstart/CLI/platform notes | update when CLI flags or platform recipes change |
 | `README.md` | public entrypoint overview | preserve user-facing structure and update supported commands |
 | `genAI_skills/CLAUDE.md` + `.agents/skills/` | current agent guidance | keep procedural references current; `.claude/skills/` preserves historical context |

@@ -92,6 +92,8 @@ uv run --frozen python -m pytest -q
 uv run --frozen scripts/train.py --task TASK --backend mujoco --device cpu --num_envs 8 --max_iterations 2 --headless --disable_wandb
 ```
 
-4. Exercise Warp and VSim only after CPU correctness, with their real contract
-   tests and exact-name routing checks. A skipped optional-backend test is not
-   a pass. Update `genAI_skills/README_MUJOCO.md` if the public task list changes.
+4. Exercise Warp after CPU correctness with real contract tests and exact-name
+   routing checks. VSim code and tests remain, but local setup and its test
+   launcher are deferred; see the [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope).
+   A skipped or unrun optional-backend test is not a pass. Update
+   `genAI_skills/README_MUJOCO.md` if the public task list changes.

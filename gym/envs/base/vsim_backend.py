@@ -22,7 +22,7 @@ Convention sheet (all spike-verified 2026-07-12, see q2-backend-integration):
   (SimBackend contract; see MuJocoWarpBackend for the scar this encodes).
 
 Runtime env: LD_LIBRARY_PATH=<site-packages>/vlearn/lib and
-VL_WORKING_DIRECTORY=<dir with License.key> (see tests/support/run_vsim_tests.sh).
+VL_WORKING_DIRECTORY=<dir with License.key> (see thirdparty/README.md).
 """
 
 import os

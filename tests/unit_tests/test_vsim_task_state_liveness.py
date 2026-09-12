@@ -4,7 +4,7 @@ Fixture-swap of test_task_state_liveness.py (see its docstring for why this
 class of test exists — the warp root_states scar).  Asserts the task's
 CACHED root_states / rigid-body tensors update in place after step().
 
-Opt-in: runs only under tests/support/run_vsim_tests.sh (license + CUDA).
+Retained licensed CUDA tests; local VSim test support is deferred.
 """
 
 from copy import deepcopy

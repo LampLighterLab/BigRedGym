@@ -9,7 +9,7 @@ description: How to run, watch, and play back training in Q2 — train_mujoco.py
 > migration; its dated APIs, statuses, and checklists are not current execution
 > requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
 > [repository skills](../../../.agents/skills/), and
-> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope).
 > The retired migration plan is recoverable with
 > `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
 
@@ -22,8 +22,7 @@ uv run --frozen scripts/train.py --task pendulum --device cpu --num_envs 256
 uv run --frozen scripts/train.py --task mini_cheetah --device cpu --num_envs 64 --headless --disable_wandb
 # GPU (Linux + CUDA; first run JIT-compiles warp kernels — be patient)
 uv run --frozen scripts/train.py --task mini_cheetah --device cuda:0 --num_envs 4096 --headless
-# vsim backend (licensed engine; needs `uv sync --frozen --extra vsim` + .env.vsim):
-uv run --frozen --extra vsim --env-file .env.vsim scripts/train.py --task mini_cheetah --backend vsim --device cuda:0 --num_envs 4096 --headless
+# VSim backend code remains; machine-local setup and its test launcher are deferred.
 ```
 
 `--backend {mujoco,vsim}` selects the engine (default mujoco). vsim is
@@ -34,7 +33,7 @@ teleop is MuJoCo-viewer-only (`--no-keyboard` with vsim).
 
 For current GPU validation and corrected state contracts, use
 `.agents/skills/q2-testing-and-debugging/` and
-`genAI_skills/DEVELOPMENT_NOTES.md`. The July Phase 4 warning is historical.
+[limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope). The July Phase 4 warning is historical.
 
 Full CLI (`scripts/train.py`, verified): `--task` (required), `--device`
 (default `cpu`), `--num_envs`, `--max_iterations`, `--seed`, `--batch_size`,
@@ -126,8 +125,8 @@ The old sweep launcher is absent and its orphaned configurations were retired.
 Ordinary W&B logging and `user/wandb_config_default.json` remain supported.
 `scripts/train.py` and `scripts/play.py` are the current backend-neutral
 entrypoints; their historical IsaacGym-only implementations described in this
-skill are no longer active. Use `scripts/eval_policy.py` and
-`scripts/eval_go2_policy.py` for supported recorded evaluation.
+skill are no longer active. Recorded-evaluation commands and their report
+are absent; current support is described in the validation scope linked above.
 
 ## When NOT to use this skill
 

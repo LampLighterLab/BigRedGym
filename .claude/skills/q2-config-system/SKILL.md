@@ -9,7 +9,7 @@ description: Q2's configuration system — BaseConfig class trees (env cfg + run
 > migration; its dated APIs, statuses, and checklists are not current execution
 > requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
 > [repository skills](../../../.agents/skills/), and
-> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope).
 > The retired migration plan is recoverable with
 > `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
 
@@ -85,7 +85,7 @@ When a config edit "does nothing", check this list first.
 
 Current startup friction/mass and episodic PD-gain support, plus the still
 unimplemented full-batch startup API, are documented in
-`genAI_skills/DEVELOPMENT_NOTES.md`. The old investigation below is retired.
+[limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope). The old investigation below is retired.
 
 - `randomize_friction = True`, `friction_range = [0.5, 1.0]` (mini_cheetah,
   `mini_cheetah_config.py:83-84`); humanoid `[0.5, 1.25]` +
@@ -96,7 +96,7 @@ unimplemented full-batch startup API, are documented in
   (`mujoco_backend_base.py:223-230`) — **friction/mass randomization almost
   certainly does not reach the MuJoCo sim**. This is exactly the two unchecked
   boxes in the retired migration plan. The Phase 3 verification experiment is
-  historical; use the current native DR tests and development notes.
+  historical; use the current native DR tests and validation scope linked above.
 - `push_robots` (periodic base-velocity kicks) IS backend-agnostic
   (`set_all_root_states`, re-enabled by `2c5d64d`).
 

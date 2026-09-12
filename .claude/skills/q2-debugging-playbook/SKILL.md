@@ -9,7 +9,7 @@ description: Symptom→triage table for Q2's known failure modes — startup NaN
 > migration; its dated APIs, statuses, and checklists are not current execution
 > requirements. For current work, follow [AGENTS.md](../../../genAI_skills/AGENTS.md),
 > [repository skills](../../../.agents/skills/), and
-> [DEVELOPMENT_NOTES.md](../../../genAI_skills/DEVELOPMENT_NOTES.md).
+> [limitations and validation scope](../../../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope).
 > The retired migration plan is recoverable with
 > `git show ce5a436:claude_files/MIGRATION_PLAN.md`. Commands use the repository root.
 
@@ -32,7 +32,7 @@ Work the table top-down; run the discriminating experiment before theorizing.
 
 | Symptom | Likely cause | Confirm / fix |
 |---|---|---|
-| `OSError: libTurboActivate.so` on `import vlearn` | Process started without `.env.vsim` (loader reads LD_LIBRARY_PATH at exec; in-process fixes are impossible — libgym's NEEDED entries are SONAME-less) | `uv run --frozen --extra vsim --env-file .env.vsim …` or `bash tests/support/run_vsim_tests.sh` |
+| `OSError: libTurboActivate.so` on `import vlearn` | Process started without `.env.vsim` (loader reads LD_LIBRARY_PATH at exec; in-process fixes are impossible — libgym's NEEDED entries are SONAME-less) | Historical fix required the loader environment at process start; current VSim local setup and test launcher are deferred (see validation scope above) |
 | `libczmq.so.4: cannot open` | System dep new in vlearn 0.3.11 | `sudo apt install libczmq4` |
 | `FATAL: License validation failed` | VL_WORKING_DIRECTORY not pointing at the dir with License.key/TurboActivate.dat, or license expired (0.3.11a0 ran on a 1-day trial 2026-07-12) | check `.env.vsim`; re-activate (human) |
 | Robot launches skyward at spawn (z ≈ +5 m) | Spawn pose penetrates the ground → `maxDepenetrationVelocity` (10 m/s) kick. Tasks reset before stepping; RAW backend fixtures must spawn clear of leg length | spawn higher (see `legged_vsim_backend` conftest comment) |

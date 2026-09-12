@@ -6,7 +6,7 @@ a static-weight check that validates contact-force frame and sign: the total
 vertical contact force on a settled robot must carry its weight
 (MINI_CHEETAH mass ≈ 8.292 kg → ≈ 81.3 N).
 
-Opt-in: runs only under tests/support/run_vsim_tests.sh (license + CUDA).
+Retained licensed CUDA tests; local VSim test support is deferred.
 """
 
 import pytest

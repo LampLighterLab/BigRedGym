@@ -2,11 +2,10 @@
 
 This catalog records the purpose and review disposition of the portable unit
 tests and the colocated `gym` and `learning` tests. It is a behavior review, not
-a test-count target. Generated collected cases, parameter IDs, markers,
-fixtures, source hashes, and available timing evidence live in
-`logs/streamlining/test_inventory.json`; generated artifacts are not committed.
-Current limitations and historical evidence boundaries are recorded in
-[DEVELOPMENT_NOTES.md](../genAI_skills/DEVELOPMENT_NOTES.md).
+a test-count target. Historical case inventories and timing reports were
+generated, ignored artifacts and are not included in this checkout. Current
+limitations and evidence boundaries are recorded in
+[limitations and validation scope](../genAI_skills/README_MUJOCO.md#limitations-and-validation-scope).
 
 ## Reading the review
 
@@ -88,39 +87,16 @@ call, and teardown, and compare matching source/dependency revisions.
 | [test_mini_cheetah_ref_vsim_config.py](unit_tests/test_mini_cheetah_ref_vsim_config.py) | Position-limit penalty normalization, squared rather than fourth-power yaw error, and axis-aligned command support. Hand-calculated rewards and sampled distribution properties. | **Keep.** Revisit the probabilistic sample threshold only with the intended command distribution; the class name does not imply a licensed engine dependency. |
 | [test_coupling.py](../gym/envs/mit_humanoid/test_coupling.py) | Humanoid coupling matches an external recorded numeric example; sampled history advances selected worlds without touching others. External reference and isolation sentinels. | **Keep.** Preserve reference provenance. The history expectation uses `torch.roll`, so selection sentinels and explicit newest-slot checks carry the independent value. |
 
-## Evaluation, physical metrics, and analysis
+## Saved configuration
 
 | File | Protected behavior and oracle | Disposition and overlap |
 |---|---|---|
-| [test_legged_eval_metrics.py](unit_tests/test_legged_eval_metrics.py) | Named command coverage, full applied targets, known tracking/contact/saturation metrics, fixed commands after resets, and balanced impulse scheduling. Hand-built signals and explicit numerical expectations. | **Keep.** Consolidate trivial command-position constants only if command support and balance remain checked. |
-| [test_legged_signal_analysis.py](unit_tests/test_legged_signal_analysis.py) | Synthetic height drift, a balanced trot, per-world mass normalization, and foot-relative clearance yield known metrics. Independent signal constructions. | **Keep.** Provides interpretation oracles that real-rollout smoke tests cannot supply. |
-| [test_compare_policy_observations.py](unit_tests/test_compare_policy_observations.py) | Comparison excludes samples after either run terminates and aggregates named components correctly. Hand-calculated masks and zero-gap metamorphic case. | **Keep.** Identical-input checks alone are weak; retain the nontrivial mask/aggregation cases and add shifted inputs only when changing distance formulas. |
-| [test_eval_applied_actions.py](unit_tests/test_eval_applied_actions.py) | Actual evaluator artifact distinguishes bounded applied commands from extreme raw policy outputs at 100 Hz. Controlled policy with a real CPU task and saved NPZ. | **Keep.** Complements task-side bounds by checking the data consumer and artifact contract. |
-| [test_policy_io.py](../gym/utils/test_policy_io.py) | Observation/action units, canonical component/history labels, first-episode masks, and phase-bin statistics. Hand-calculated conversions and masks. | **Keep.** Reassess shape-rejection-only coverage if the underlying analysis API changes; keep valid-data unit and ordering assertions. |
-
-## Evaluation CLI and saved configuration
-
-| File | Protected behavior and oracle | Disposition and overlap |
-|---|---|---|
-| [test_eval_policy.py](unit_tests/test_eval_policy.py) | Balanced friction/parameter samples, pre-setup physical configuration, nominal fallback, config-copy isolation, and explicit simulation-frequency evaluation. Controlled arrays and recording registry fakes. | **Keep.** Extracted from retired campaign/validator suites; setup interactions do not establish policy quality or native DR application. |
-| [test_train_cli.py](unit_tests/test_train_cli.py) | Public training consumes explicit task DR config and rejects the campaign-only CLI override. Real parser behavior. | **Keep.** Protects the intentional public CLI boundary; ordinary W&B options remain supported. |
-| [test_eval_go2_policy.py](unit_tests/test_eval_go2_policy.py) | Explicit/latest checkpoint selection, engine/device mapping, and policy-I/O recording command construction. Temporary files and CLI interaction checks. | **Keep; consolidate parser-only cases if helpful.** No claim of actual policy quality from command construction. |
 | [test_original_cfg.py](unit_tests/test_original_cfg.py) | Saved config inheritance loads without contaminating live modules, selected run stays pinned, and carried snapshots take precedence. Real temporary Python modules/files. | **Keep.** Protects reproducibility; source-config loading is not model/optimizer checkpoint-resume coverage. |
-| [test_run_config_diff.py](../gym/utils/test_run_config_diff.py) | Config diff follows only relevant imports and honors carried snapshots. Controlled file trees and expected diffs. | **Keep.** Snapshot precedence overlaps the loader at a different consumer; share fixtures only if they stay simple. |
-
-## Benchmark and profiler protocols
-
-| File | Protected behavior and oracle | Disposition and overlap |
-|---|---|---|
-| [test_benchmark_simulation.py](unit_tests/test_benchmark_simulation.py) | Paired timing gates distinguish improvement, regression, noise, insufficient pairs, incompatible workloads, and profiled results. Different requested initial physics invalidates a comparison; roundoff in derived contact readings does not. Actual CPU workloads restore repeatable state and schedule exactly the intended per-world reset rate. Extracted scheduler and VSim partition/proxy cases preserve the retained helper contracts. Controlled samples plus physical/state replay oracles. | **Keep.** The synthetic gate tests do not assert CI machine speed; the real workload cases protect reset and restore controls. CPU replay does not prove restoration of opaque native VSim solver history. |
-| [test_profile_simulation.py](unit_tests/test_profile_simulation.py) | Host profiles retain timed-stack weights in data and escaped SVG output; CUDA summaries distinguish overlapping work from elapsed time; capture commands preserve the bounded protocol; both profilers mark results ineligible for speed gates. Synthetic records, parsed SVG, and a temporary SQLite database provide numerical and artifact oracles. | **Keep.** Rejecting actual marked artifacts catches accidental use of profiler overhead in speed comparisons. Command construction does not establish that a real profiler captured the requested region. |
 
 ## Learning, inference, math, and logging
 
 | File | Protected behavior and oracle | Disposition and overlap |
 |---|---|---|
-| [test_ppo_checkpoint.py](unit_tests/test_ppo_checkpoint.py) | Real PPO actor/critic updates, finite checkpoint tensors, fresh-runner model/optimizer restoration, matching inference, and continued optimizer steps. A small subprocess worker isolates global runner state. | **Keep.** Extracted from the retired calibration program; no learned catch-rate or normalizer-lifecycle claim. |
-| [test_pendulum_control.py](unit_tests/test_pendulum_control.py) | Registered pendulum constructs its actual PPO runner, uniform reset matches an explicit grid, extreme policies saturate applied torque and advance state, and reward integration respects weights and termination. Real task plus independent numeric expectations. | **Keep.** Direct product regressions survive retirement of the old evaluator/artifact protocol. |
 | [test_runner_inference.py](unit_tests/test_runner_inference.py) | Supported runner inference paths use clean observations and runner reset reuses the task-owned mask. Recording fake actors and mask sentinels. | **Consolidate later** equivalent runner cases while retaining off-policy action transformation. These tests do not prove optimizer, storage, or save/load behavior. |
 | [test_normalize.py](../learning/modules/utils/test_normalize.py) | Running mean/variance combination and normalization on known input. Hand-calculated scalar moments. | **Keep; coverage gap remains** for update-versus-freeze timing and serialization/resume, especially repeated optimizer passes over the same rollout. |
 | [test_usecase.py](../learning/utils/PBRS/test_usecase.py) | Potential-based shaping produces known rewards across pre/post-step potentials. Small real interface example with numeric expectations. | **Keep.** It is not a substitute for PPO/GAE return tests. |
@@ -147,24 +123,18 @@ call, and teardown, and compare matching source/dependency revisions.
 
 ## Tooling cleanup
 
-Retired campaign, trajectory, specialized parity, and calibration programs no
-longer have active test entries. Their exclusive matrix, scheduler, provenance,
-reporting, CLI, and private-math tests were removed with those programs.
-Coverage for supported behavior was extracted first:
+Campaign, trajectory, specialized parity, calibration, policy-evaluation,
+benchmark/profile, and analysis programs and their exclusive tests are retired.
+The extracted evaluator, trainer-CLI, PPO checkpoint, and pendulum-control tests
+are also absent; no replacement coverage is claimed. Core DR override checks
+remain in `test_domain_randomization.py`, and saved-configuration loading remains
+covered by `test_original_cfg.py`.
 
-- Evaluator configuration, sampling, and config-copy checks live in
-  `test_eval_policy.py`; public trainer parsing lives in `test_train_cli.py`.
-- Core DR override checks joined `test_domain_randomization.py`.
-- Reset scheduling and VSim nominal-set helper checks joined
-  `test_benchmark_simulation.py`; benchmark/profile code lives under `tools/`.
-- Real PPO checkpoint and pendulum-control coverage lives in
-  `test_ppo_checkpoint.py` and `test_pendulum_control.py`, supported by
-  `tests/support/ppo_checkpoint_worker.py`.
-- `tests/support/run_vsim_tests.sh` launches maintained licensed-backend tests.
-
-Native physics, state/reset contracts, task/config behavior, learning code,
-assets, and deployment behavior were not removed by this tooling cleanup.
-Earlier fixture-isolation fixes and independent signed-gravity checks remain.
+Native physics, state/reset contracts, retained task/config tests, focused
+learning-code tests, assets, and deployment coverage remain. Earlier
+fixture-isolation fixes and independent signed-gravity checks remain. VSim
+backend code, its optional extra, and marked tests are retained, while the local
+test launcher and support workflow are deferred.
 
 ## Historical baseline: 2026-09-07
 
@@ -175,13 +145,10 @@ and 47 VSim cases passing. The 16 Unitree cases were collected but unexecuted.
 These are historical source/dependency measurements, not current pass counts
 or timing limits; retired cases are included in those totals.
 
-Recorded reports remain under `logs/streamlining/`, including
-`portable_test_durations.json`, `gym_test_durations.json`,
-`learning_test_durations.json`, `benchmark_test_durations.json`,
-`warp_test_durations.json`, `vsim_test_durations.json`, and `test_inventory.json`.
-They distinguish collection from execution and include setup/call/teardown cost.
-Generated reports are ignored artifacts; measure the changed suite afresh before
-making timing or coverage claims.
+Those measurements were recorded in generated reports under
+`logs/streamlining/`. The reports were ignored artifacts and are not included in
+this checkout. Measure the current suite afresh before making timing or coverage
+claims.
 
 ## Gates, debt, and next reviews
 
@@ -204,19 +171,15 @@ config cleanup and its passing test result, not by deleting the check. Never
 reinterpret unexecuted optional tests as passes.
 
 Before broader removals, address fixture/global-state isolation, then review
-duplicate cases against a concrete counterexample. The focused PPO checkpoint regression
-provides real update/checkpoint execution; independent storage/GAE,
+duplicate cases against a concrete counterexample. There is no PPO
+update/checkpoint or pendulum-control smoke test in CI. Independent storage/GAE,
 timeout/termination, and normalizer update/freeze/save/load cases remain review
-work. The direct pendulum reward-integration check does not replace independent
-GAE/timeout-return coverage. A smoke update is not evidence of pendulum learning. The historical 100 Hz
-calibration below failed, and its retirement leaves no passing learning-quality
-gate.
+work. Retained native tests do not establish learning quality or model/optimizer
+checkpoint restoration.
 
-The separate seed-7 GPU calibration failed the proposed learning threshold:
+The historical seed-7 GPU calibration failed its proposed learning threshold:
 both Warp and VSim caught only 38 of 256 initial states (14.84%) after
 400 updates, despite finite training/evaluation and successful checkpoint
-restoration and continuation. The policies predominantly damped motion toward
-the downward equilibrium. Keep that failed quality evidence alongside the
-passing execution smoke; do not lower the threshold to turn it into a pass.
-The recorded analysis in `logs/streamlining/pendulum/diagnosis.md` separates
-reward/horizon and exploration hypotheses from demonstrated backend errors.
+restoration and continuation in that historical run. The policies predominantly
+damped motion toward the downward equilibrium. This remains failed quality
+evidence; it does not describe an active execution or learning-quality gate.
