@@ -4,32 +4,13 @@
 
 ### Install required packages
 
-Simulation and training use `uv sync` and do not require the Unitree
-SDK. Go2 hardware deployment uses the optional **`unitree_sdk` extra on Linux
-x86_64/aarch64** and the repository's Python 3.11 `.venv`.
-
-`pyproject.toml` pins the [official Unitree SDK repository](https://github.com/unitreerobotics/unitree_sdk2_python)
-to a Git commit; `uv.lock` records its Python dependencies. From the repository
-root, fetch that revision into the gitignored `thirdparty/unitree_sdk2_python/`:
+To deploy a policy on the robot from your computer, you need to install the additional libraries ```cyclonedds``` and ```unitree-sdk2py```. To do this, run the following in the terminal:
 
 ```bash
-uv run python scripts/fetch_unitree_sdk.py
+uv run --frozen scripts/fetch_unitree_sdk.py
 ```
 
-The script checks an existing checkout and refuses to overwrite a different
-revision or local changes. `uv` installs this checkout as an editable package
-when `--extra unitree_sdk` is selected. Keep the checkout in place: upstream's wheel
-packaging omits `utils/lib/crc_*.so`, while the editable install retains these
-native libraries needed to construct command messages. No manual `uv pip
-install` is needed. Installing the built Q2 wheel's extra alone does not supply
-this local source; use the repository setup described here. Run the fetch script
-before installation to validate the pin, and do not use `--no-editable`, which
-would rebuild the incomplete upstream wheel.
-
-The SDK requires the Python binding `cyclonedds==0.10.2`. On Python 3.11 this
-builds from source and needs the native Cyclone DDS library first. Install Git,
-CMake, and a C compiler, then build [Cyclone DDS 0.10.2](https://github.com/eclipse-cyclonedds/cyclonedds/tree/0.10.2)
-in a user-owned directory:
+Then run this:
 
 ```bash
 mkdir -p "$HOME/.local/src"
@@ -46,27 +27,19 @@ cmake --build "$HOME/.local/src/cyclonedds-0.10.2/build" \
     --config RelWithDebInfo --target install --parallel 4
 ```
 
-Keep `CYCLONEDDS_HOME` exported when installing **and running** deployment code;
-add the export to your shell configuration for future terminals. Then, from the
-Q2 repository root:
+Then run this:
 
 ```bash
-uv sync --extra unitree_sdk
-uv run --extra unitree_sdk python -c \
-    "from unitree_sdk2py.core.channel import ChannelFactoryInitialize; from go2_deploy.utility.deploy_utility import default_lowcmd; default_lowcmd(); print('Unitree SDK and DDS imports OK')"
-uv run --extra unitree_sdk python -m pytest -q -m unitree
+uv sync --frozen --extra unitree_sdk
 ```
 
-These checks import DDS, construct a command message, and test local threading;
-they do not connect to a robot or send commands. The default pytest gate excludes
-`unitree` tests and still checks the observation utilities without the SDK.
+The output should be something along the lines of:
 
-If installation reports `Could not locate cyclonedds`, check that
-`CYCLONEDDS_HOME` points to the native **install** directory. See the
-[binding's source-install instructions](https://pypi.org/project/cyclonedds/0.10.2/)
-for details. Use `--extra unitree_sdk` on deployment `uv run` commands too: a plain
-`uv sync` intentionally removes optional packages. Combine extras as
-needed, for example `--extra gpu --extra unitree_sdk`.
+```
+Built unitree-sdk2py @ <location>
+Built cyclonedds==0.10.2
+...
+```
 
 ### Set up ethernet connection
 

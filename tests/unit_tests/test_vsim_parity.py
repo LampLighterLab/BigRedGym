@@ -10,7 +10,7 @@ bounds are stated here and never silently widened:
    initial conditions — relative deviation < 20% while the reference
    envelope is above 0.05 J (the late tail is dominated by tiny residuals).
 
-Opt-in: runs only under scripts/run_vsim_tests.sh (license + CUDA).
+Retained licensed CUDA tests; local VSim test support is deferred.
 """
 
 import math
