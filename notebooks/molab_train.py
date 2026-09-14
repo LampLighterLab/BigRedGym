@@ -347,7 +347,8 @@ def _(Path, RUNS_TO_ZIP, WORK, iteration, mo, runs, zipfile):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    **Disconnect the runtime when you are done or it keeps consuming compute.**
+    Now you've trained a policy, and downloaded its log! Now try and running `play.py` locally on your machine - how does it look?
+    What can you improve?
     """)
     return
 
