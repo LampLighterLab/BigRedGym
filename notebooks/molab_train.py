@@ -1,6 +1,13 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = ["marimo"]
+#
+# [tool.marimo.runtime]
+# # Run this like a normal notebook: top to bottom, one cell at a time. "lazy"
+# # turns marimo's reactive execution off, so editing a parameter only marks the
+# # cells below it stale instead of instantly re-firing them -- which matters a
+# # lot when the cell below clones a repo or launches a training run.
+# on_cell_change = "lazy"
 # ///
 """QGym cloud training as a marimo notebook (runs on MoLab).
 
@@ -14,6 +21,11 @@ checkpoints as a zip.
 Only marimo itself is imported here; the repo and its dependencies live in a
 separate uv environment driven through subprocess, exactly as in the Colab
 notebook. Disconnect the runtime when you are done or it keeps burning compute.
+
+How to use it: run the cells in order. Parameters live in their own cell above
+each step -- edit the constants, run that cell, then run the step below it. A
+step that fails raises, so a red cell means stop and read the log rather than
+carry on. Nothing runs on its own, and nothing re-runs behind your back.
 """
 
 import marimo
@@ -27,29 +39,27 @@ def _():
     import os
     import re
     import subprocess
-    import sys
     import textwrap
     import zipfile
     from pathlib import Path
 
     import marimo as mo
 
-    return Path, mo, os, re, subprocess, sys, textwrap, zipfile
+    return Path, mo, os, re, subprocess, textwrap, zipfile
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    # QGym training in the cloud
+    # BigRedGym Training in the Cloud!
 
     | Section | Does |
     |---|---|
-    | 1 Setup | Clones/updates the repo and installs the locked GPU deps with uv |
+    | 1 Setup | Clones/Updates the repo and installs the locked GPU deps with `uv` |
     | 2 Train | Runs `scripts/train.py`, streaming the log below the cell |
     | 3 Download | Zips a run's checkpoints and hands you the download |
 
-    Pick a **GPU** runtime before running anything. Each section has its own
-    button, so re-running the notebook does not restart training.
+    For each cell below, run it using **Shift + Enter**, or hit the small yellow play button on the top right.
     """)
     return
 
@@ -84,47 +94,45 @@ def _(Path, os):
         if k not in _shadowing and not (k.startswith("UV_") and k != "UV_CACHE_DIR")
     }
     ENV["UV_PYTHON"] = "3.11"
+
+    print(f"work dir : {WORK}")
+    print(f"repo     : {REPO}")
     return ENV, REPO, WORK
 
 
 @app.cell(hide_code=True)
-def _(REPO, WORK, mo):
-    mo.md(f"""
+def _(mo):
+    mo.md("""
     ## 1 Setup
-
-    Working directory `{WORK}` &middot; repo `{REPO}`
+    
+    Here we clone the repository from [GitHub](https://github.com/LampLighterLab/BigRedGym). Notice that we
+    must specify the branch as `main`, along with the repository itself, so we can clone the right one. In the future,
+    you should substitute the URL for your fork and whatever branch you are developing policies on.
     """)
     return
 
 
 @app.cell
-def _(mo):
-    branch = mo.ui.text(value="jt/sdk", label="branch", full_width=True)
-    repo_url = mo.ui.text(
-        value="https://github.com/LampLighterLab/QGym.git",
-        label="repo",
-        full_width=True,
-    )
-    setup_button = mo.ui.run_button(label="Clone / update + install")
-    mo.vstack([branch, repo_url, setup_button])
-    return branch, repo_url, setup_button
+def _():
+    # --- edit, run this cell, then run the next one --------------------------
+    BRANCH = "main"
+    REPO_URL = "https://github.com/LampLighterLab/BigRedGym.git"
+    return BRANCH, REPO_URL
 
 
 @app.cell
-def _(ENV, REPO, branch, mo, repo_url, setup_button, subprocess, textwrap):
-    mo.stop(not setup_button.value, mo.md("*Press the button to set up.*"))
-
-    _setup = textwrap.dedent(f"""
+def _(BRANCH, ENV, REPO, REPO_URL, subprocess, textwrap):
+    _script = textwrap.dedent(f"""
         set -euo pipefail
 
         command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
 
         if [ -d {REPO}/.git ]; then
-            git -C {REPO} fetch origin {branch.value}
-            git -C {REPO} checkout {branch.value}
+            git -C {REPO} fetch origin {BRANCH}
+            git -C {REPO} checkout {BRANCH}
             git -C {REPO} pull --ff-only
         else
-            git clone --branch {branch.value} {repo_url.value} {REPO}
+            git clone --branch {BRANCH} {REPO_URL} {REPO}
         fi
 
         cd {REPO}
@@ -132,111 +140,100 @@ def _(ENV, REPO, branch, mo, repo_url, setup_button, subprocess, textwrap):
         # --extra gpu pulls mujoco-warp (CUDA); --no-dev skips pytest/ruff/marimo.
         uv sync --frozen --extra gpu --no-dev || uv sync --extra gpu --no-dev
     """)
-    subprocess.run(["bash", "-c", _setup], check=True, env=ENV)
+    # check=True: this ensures that the environment was built properly, so we know we're good to proceed.
+    subprocess.run(["bash", "-c", _script], check=True, env=ENV)
+    print("\nsetup done")
+    return
 
+
+@app.cell
+def _(ENV, REPO, subprocess):
+    # Sanity check: imports resolve and the GPU is visible. If `cuda` is False,
+    # make sure that you are using the right GPU runtime. If you have questions
+    # on this, please post on ED.
     _check = (
         "import torch, mujoco, mujoco_warp; "
         "print('torch', torch.__version__, '| mujoco', mujoco.__version__, "
         "'| cuda', torch.cuda.is_available(), "
-        "'|', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'NO GPU')"
+        "'|', torch.cuda.get_device_name(0) "
+        "if torch.cuda.is_available() else 'NO GPU')"
     )
-    _probe = subprocess.run(
-        ["uv", "run", "--frozen", "--extra", "gpu", "--no-dev", "python", "-c", _check],
+    subprocess.run(
+        [
+            "uv", "run", "--frozen", "--extra", "gpu", "--no-dev",
+            "python", "-c", _check,
+        ],
         cwd=REPO,
         env=ENV,
         check=True,
-        capture_output=True,
-        text=True,
     )
-    setup_done = True
-    mo.md(f"""
-    ```
-    {_probe.stdout.strip()}
-    ```
-    Ready. If `cuda` is False, switch the runtime to a GPU one and re-run.
-    """)
-    return (setup_done,)
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     ## 2 Train
+
+    Here, as this is running on GPU, we use `MuJoCo-Warp`, which makes use of the parallel
+    nature of the GPU that the server comes with, in this case an RTX Blackwell 6000, with over 96 GB of VRAM!
+
+    Below, we specify the task that we actually want to train on. Notice we have to specify
+    the task *and* the device to train on.
     """)
     return
 
 
 @app.cell
-def _(mo):
-    task = mo.ui.text(
-        value="go2trot", label="task (go2trot | mini_cheetah | humanoid | pendulum ...)"
-    )
-    max_iterations = mo.ui.number(1, 1_000_000, value=300, label="max_iterations")
-    num_envs = mo.ui.number(1, 262_144, value=4096, label="num_envs")
-    device = mo.ui.text(value="cuda:0", label="device")
-    experiment_name = mo.ui.text(
-        value="", label="experiment_name (blank: task default)"
-    )
-    resume = mo.ui.checkbox(False, label="resume newest run for this experiment")
-    use_wandb = mo.ui.checkbox(False, label="log to wandb (needs WANDB_API_KEY)")
-    train_button = mo.ui.run_button(label="Train")
-
-    mo.vstack(
-        [
-            mo.hstack([task, device], widths=[2, 1], gap=1),
-            mo.hstack([max_iterations, num_envs], widths=[1, 1], gap=1),
-            experiment_name,
-            resume,
-            use_wandb,
-            train_button,
-        ]
-    )
+def _():
+    # --- edit, run this cell, then **run the next one** --------------------------
+    TASK = "go2trot"  # go2trot | mini_cheetah | humanoid | pendulum ...
+    DEVICE = "cuda:0" # specifies which GPU to use - do not edit this line unless you know what this means!
+    NUM_ENVS = 4096 # we specify multiples of 2 to compensate for the hardware.
+    MAX_ITERATIONS = 550
+    EXPERIMENT_NAME = ""  # blank -> the task's default
+    RESUME = False  # resume the newest run for this experiment (if you stopped a training run)
+    USE_WANDB = False  # don't worry about this for now, we'll go over it later in the course.
     return (
-        device,
-        experiment_name,
-        max_iterations,
-        num_envs,
-        resume,
-        task,
-        train_button,
-        use_wandb,
+        DEVICE,
+        EXPERIMENT_NAME,
+        MAX_ITERATIONS,
+        NUM_ENVS,
+        RESUME,
+        TASK,
+        USE_WANDB,
     )
 
 
 @app.cell
 def _(
+    DEVICE,
     ENV,
+    EXPERIMENT_NAME,
+    MAX_ITERATIONS,
+    NUM_ENVS,
     REPO,
-    device,
-    experiment_name,
-    max_iterations,
-    mo,
-    num_envs,
-    resume,
-    setup_done,
+    RESUME,
+    TASK,
+    USE_WANDB,
     subprocess,
-    sys,
-    task,
-    train_button,
-    use_wandb,
 ):
-    mo.stop(not train_button.value, mo.md("*Press **Train** to start.*"))
-    mo.stop(not setup_done, mo.md("Run section 1 first."))
-
-    _cmd = ["uv", "run", "--frozen", "--extra", "gpu", "--no-dev", "scripts/train.py"]
-    _cmd += ["--task", task.value, "--device", device.value, "--headless"]
-    _cmd += ["--num_envs", str(int(num_envs.value))]
-    _cmd += ["--max_iterations", str(int(max_iterations.value))]
-    if experiment_name.value.strip():
-        _cmd += ["--experiment_name", experiment_name.value.strip()]
-    if resume.value:
+    # --- run this cell to train the policy! notice the outputs, what do you think they mean? --------------------------
+    _cmd = ["uv", "run", "--frozen", "--extra", "gpu", "--no-dev"]
+    _cmd += ["scripts/train.py"]
+    _cmd += ["--task", TASK, "--device", DEVICE, "--headless"]
+    _cmd += ["--num_envs", str(int(NUM_ENVS))]
+    _cmd += ["--max_iterations", str(int(MAX_ITERATIONS))]
+    if EXPERIMENT_NAME.strip():
+        _cmd += ["--experiment_name", EXPERIMENT_NAME.strip()]
+    if RESUME:
         _cmd += ["--resume"]
-    if not use_wandb.value:
+    if not USE_WANDB:
         _cmd += ["--disable_wandb"]
 
     print(" ".join(_cmd), "\n", flush=True)
-    # First warp run JIT-compiles kernels (minutes, cached afterwards). Output is
-    # streamed line by line into this cell's console so you can watch progress.
+    # Streamed line by line rather than captured, so the log appears while
+    # training runs instead of all at once at the end.
     _proc = subprocess.Popen(
         _cmd,
         cwd=REPO,
@@ -249,8 +246,8 @@ def _(
     for _line in _proc.stdout:
         print(_line, end="")
     if _proc.wait() != 0:
-        sys.exit(f"training exited with code {_proc.returncode}")
-    mo.md("Training finished. Download the checkpoints below.")
+        raise RuntimeError(f"training exited with code {_proc.returncode}")
+    print("\ntraining finished")
     return
 
 
@@ -265,6 +262,7 @@ def _(mo):
 
     Nothing here depends on section 2, so you can zip a run while training
     continues -- or in a runtime where the checkpoints are already on disk.
+    Re-run the listing cell to pick up checkpoints written since you last ran it.
     """)
     return
 
@@ -286,59 +284,62 @@ def _(Path, re):
 
 
 @app.cell
-def _(REPO, find_runs, mo):
-    _logs = REPO / "logs"
-    _runs = find_runs(_logs)
-    mo.stop(not _runs, mo.md(f"No checkpoints found under `{_logs}`."))
-
-    run_pick = mo.ui.multiselect(
-        options={f"{r.parent.name}/{r.name}": r for r in _runs},
-        value=[f"{_runs[0].parent.name}/{_runs[0].name}"],
-        label="runs to include (newest first)",
-        full_width=True,
-    )
-    zip_button = mo.ui.run_button(label="Build zip")
-    mo.vstack([run_pick, zip_button])
-    return run_pick, zip_button
+def _(REPO, find_runs, iteration):
+    runs = find_runs(REPO / "logs")
+    if not runs:
+        print(f"no checkpoints under {REPO / 'logs'} yet -- train first")
+    for _run in runs:
+        _ckpts = sorted(_run.glob("model_*.pt"), key=iteration)
+        print(
+            f"{_run.parent.name}/{_run.name}: {len(_ckpts)} ckpt, "
+            f"iters {iteration(_ckpts[0])}..{iteration(_ckpts[-1])}"
+        )
+    return (runs,)
 
 
 @app.cell
-def _(Path, WORK, iteration, mo, run_pick, zip_button, zipfile):
-    mo.stop(not zip_button.value, mo.md("*Press **Build zip** to package the runs.*"))
-    mo.stop(not run_pick.value, mo.md("Select at least one run."))
+def _():
+    # --- edit, run this cell, then run the next one --------------------------
+    # None -> the newest run only. Otherwise a list of the `experiment/run`
+    # names printed above, e.g. ["go2trot/Sep10_12-00-00_go2trot"].
+    RUNS_TO_ZIP = None
+    return (RUNS_TO_ZIP,)
 
-    _picked = list(run_pick.value)
+
+@app.cell
+def _(Path, RUNS_TO_ZIP, WORK, iteration, mo, runs, zipfile):
+    if not runs:
+        raise RuntimeError("no checkpoints to zip -- run section 2 first")
+    if RUNS_TO_ZIP is None:
+        _picked = runs[:1]
+    else:
+        _wanted = set(RUNS_TO_ZIP)
+        _picked = [r for r in runs if f"{r.parent.name}/{r.name}" in _wanted]
+        _missing = _wanted - {f"{r.parent.name}/{r.name}" for r in _picked}
+        if _missing:
+            raise RuntimeError(f"no such run(s): {sorted(_missing)}")
+
     _name = f"{_picked[0].name}.zip" if len(_picked) == 1 else "qgym_checkpoints.zip"
     _zip = WORK / "exports" / _name
     _zip.parent.mkdir(parents=True, exist_ok=True)
 
-    _lines = []
     # Checkpoints are already-compressed tensors; ZIP_STORED keeps this fast.
     with zipfile.ZipFile(_zip, "w", compression=zipfile.ZIP_STORED) as _zf:
         for _run in _picked:
-            _ckpts = sorted(_run.glob("model_*.pt"), key=iteration)
             for _f in sorted(_run.rglob("*")):
                 if _f.is_file():
                     _arc = Path(_run.parent.name) / _run.name / _f.relative_to(_run)
                     _zf.write(_f, _arc)
-            _span = (
-                f", iters {iteration(_ckpts[0])}..{iteration(_ckpts[-1])}"
-                if _ckpts
-                else ""
+            _ckpts = sorted(_run.glob("model_*.pt"), key=iteration)
+            print(
+                f"added {_run.parent.name}/{_run.name}: {len(_ckpts)} ckpt, "
+                f"iters {iteration(_ckpts[0])}..{iteration(_ckpts[-1])}"
             )
-            _lines.append(
-                f"`{_run.parent.name}/{_run.name}`: {len(_ckpts)} ckpt{_span}"
-            )
+    print(f"\n{_zip.name} -- {_zip.stat().st_size / 1e6:.1f} MB")
 
-    _lines.append(f"\n**{_zip.name}** &mdash; {_zip.stat().st_size / 1e6:.1f} MB")
-    mo.vstack(
-        [
-            mo.md("\n\n".join(_lines)),
-            # Lazy read: the archive is only slurped into memory when you click.
-            mo.download(
-                data=lambda p=_zip: p.read_bytes(), filename=_zip.name, label="Download"
-            ),
-        ]
+    # Lazy read: the archive is only slurped into memory when you click.
+    mo.download(
+        data=lambda p=_zip: p.read_bytes(), filename=_zip.name, label="Download"
     )
     return
 
@@ -346,7 +347,8 @@ def _(Path, WORK, iteration, mo, run_pick, zip_button, zipfile):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    **Disconnect the runtime when you are done or it keeps consuming compute.**
+    Now you've trained a policy, and downloaded its log! Now try and running `play.py` locally on your machine - how does it look?
+    What can you improve?
     """)
     return
 
