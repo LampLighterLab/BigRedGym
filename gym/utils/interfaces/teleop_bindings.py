@@ -84,7 +84,8 @@ class TeleopCommands:
         self.increment_z = (self.max_height_up - self.max_height_down) * 0.1
 
         env.commands[:] = 0.0
-        env.commands[:, 0] = 1.0  # seed forward velocity so motion is visible
+        env.commands[:, 0] = 0.0  # seed forward velocity so motion is visible
+        env.commands[:, 3] = 0.4  # start near a natural standing height
         if hasattr(env.cfg, "commands"):
             env.cfg.commands.resampling_time = env.max_episode_length_s + 1
 
