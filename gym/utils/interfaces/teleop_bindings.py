@@ -92,6 +92,7 @@ class TeleopCommands:
     def apply(self, action: str) -> None:
         """Apply one discrete press of ``action`` (see BINDINGS)."""
         c = self.env.commands
+        print(f"[teleop] action={action!r} commands={c[0].tolist()} actual_height={self.env.base_height[0, 0].item():.3f}") # print button press to command window
         if action == "forward":
             c[:, 0] = torch.clamp(c[:, 0] + self.increment_x, max=self.max_vel_forward)
         elif action == "back":
