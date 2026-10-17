@@ -93,13 +93,13 @@ class TeleopCommands:
         """Apply one discrete press of ``action`` (see BINDINGS)."""
         c = self.env.commands
         if action in ("up", "down"):
-            c[:, 0:3] = 0.0  # drop any residual/randomized velocity+yaw so height-only
-                            # teleop reads cleanly, even after a mid-session env reset
-            print(f"[teleop] action={action!r} commands={c[0].tolist()} actual_height={self.env.base_height[0, 0].item():.3f}")
-        else:
-            print(f"[teleop] action={action!r} commands={c[0].tolist()} actual_height={self.env.base_height[0, 0].item():.3f}")
-
-        print(f"[teleop] action={action!r} commands={c[0].tolist()} actual_height={self.env.base_height[0, 0].item():.3f}") # print button press to command window
+            c[:, 0:3] = 0.0 
+        sim_time = self.env.common_step_counter / self.env.cfg.control.ctrl_frequency
+        print(
+            f"[teleop] t={sim_time:.2f}s action={action!r} "
+            f"commands={c[0].tolist()} "
+            f"actual_height={self.env.base_height[0, 0].item():.3f}"
+        )
         if action == "forward":
             c[:, 0] = torch.clamp(c[:, 0] + self.increment_x, max=self.max_vel_forward)
         elif action == "back":
