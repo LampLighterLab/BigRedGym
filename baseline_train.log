@@ -1,0 +1,1893 @@
+Setting seed: 1066
+WARNING: WandB is disabled and will not save or log.
+Setting seed: 1066
+[OnPolicyRunner] num_steps_per_env=4096 (batch_size=32768, num_envs=16)
+
+################################ Iteration 1/300 ################################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.30 
+                       action_rate2: -0.09 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.10 
+                        orientation: 1.22 
+                      swing_contact: -0.03 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.20 
+                   tracking_lin_vel: 1.67 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.78 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 2.03 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.32 
+                mean_surrogate_loss: 0.09 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1778.32 
+                         total time: 49.19 (sim: 36.85, learn:12.32)
+                                ETA: 4:05:08
+
+
+################################ Iteration 2/300 ################################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.30 
+                       action_rate2: -0.09 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.10 
+                        orientation: 1.21 
+                      swing_contact: -0.03 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.17 
+                   tracking_lin_vel: 1.57 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.64 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 2.13 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.17 
+                mean_surrogate_loss: 0.00 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1711.67 
+                         total time: 50.34 (sim: 38.29, learn:12.03)
+                                ETA: 4:07:10
+
+
+################################ Iteration 3/300 ################################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.31 
+                       action_rate2: -0.09 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.09 
+                        orientation: 1.22 
+                      swing_contact: -0.03 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.07 
+                   tracking_lin_vel: 1.39 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.36 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 2.41 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.14 
+                mean_surrogate_loss: -0.01 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1745.24 
+                         total time: 49.44 (sim: 37.55, learn:11.87)
+                                ETA: 4:05:48
+
+
+################################ Iteration 4/300 ################################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.31 
+                       action_rate2: -0.09 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.09 
+                        orientation: 1.22 
+                      swing_contact: -0.03 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.13 
+                   tracking_lin_vel: 1.46 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.47 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 2.40 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.13 
+                mean_surrogate_loss: -0.01 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1785.76 
+                         total time: 48.48 (sim: 36.70, learn:11.76)
+                                ETA: 4:03:31
+
+
+################################ Iteration 5/300 ################################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.31 
+                       action_rate2: -0.09 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.09 
+                        orientation: 1.23 
+                      swing_contact: -0.03 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.11 
+                   tracking_lin_vel: 1.36 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.36 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 2.46 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.11 
+                mean_surrogate_loss: -0.01 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1552.28 
+                         total time: 55.36 (sim: 42.22, learn:13.12)
+                                ETA: 4:08:35
+
+
+################################ Iteration 6/300 ################################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.32 
+                       action_rate2: -0.09 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.09 
+                        orientation: 1.21 
+                      swing_contact: -0.03 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.12 
+                   tracking_lin_vel: 1.40 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.39 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 2.47 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.11 
+                mean_surrogate_loss: -0.01 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1438.38 
+                         total time: 61.13 (sim: 45.56, learn:15.54)
+                                ETA: 4:16:23
+
+
+################################ Iteration 7/300 ################################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.32 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.09 
+                        orientation: 1.22 
+                      swing_contact: -0.03 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.13 
+                   tracking_lin_vel: 1.43 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.43 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 2.60 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.10 
+                mean_surrogate_loss: -0.01 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1237.31 
+                         total time: 66.31 (sim: 52.97, learn:13.33)
+                                ETA: 4:25:16
+
+
+################################ Iteration 8/300 ################################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.32 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.09 
+                        orientation: 1.21 
+                      swing_contact: -0.03 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.20 
+                   tracking_lin_vel: 1.60 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.66 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 2.80 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.09 
+                mean_surrogate_loss: -0.01 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1305.35 
+                         total time: 62.70 (sim: 50.21, learn:12.47)
+                                ETA: 4:29:27
+
+
+################################ Iteration 9/300 ################################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.32 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.09 
+                        orientation: 1.23 
+                      swing_contact: -0.03 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.21 
+                   tracking_lin_vel: 1.72 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.80 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 2.94 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.09 
+                mean_surrogate_loss: -0.01 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1597.83 
+                         total time: 52.40 (sim: 41.02, learn:11.37)
+                                ETA: 4:26:56
+
+
+############################### Iteration 10/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.32 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.08 
+                        orientation: 1.24 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.17 
+                   tracking_lin_vel: 1.44 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.49 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 3.16 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.09 
+                mean_surrogate_loss: -0.01 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1682.13 
+                         total time: 49.83 (sim: 38.96, learn:10.85)
+                                ETA: 4:23:30
+
+
+############################### Iteration 11/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.33 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.08 
+                        orientation: 1.22 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.20 
+                   tracking_lin_vel: 1.60 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.65 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 3.42 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.09 
+                mean_surrogate_loss: -0.01 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1592.72 
+                         total time: 53.15 (sim: 41.15, learn:11.99)
+                                ETA: 4:22:00
+
+
+############################### Iteration 12/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.33 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.08 
+                        orientation: 1.24 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.21 
+                   tracking_lin_vel: 1.55 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.62 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 3.67 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.09 
+                mean_surrogate_loss: -0.01 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1418.58 
+                         total time: 57.12 (sim: 46.20, learn:10.91)
+                                ETA: 4:22:11
+
+
+############################### Iteration 13/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.34 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.25 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.19 
+                   tracking_lin_vel: 1.50 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.54 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 3.98 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.09 
+                mean_surrogate_loss: -0.01 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1468.79 
+                         total time: 55.26 (sim: 44.62, learn:10.63)
+                                ETA: 4:21:30
+
+
+############################### Iteration 14/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.34 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.27 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.18 
+                   tracking_lin_vel: 1.64 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.70 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.11 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.09 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1177.59 
+                         total time: 66.02 (sim: 55.65, learn:10.35)
+                                ETA: 4:24:27
+
+
+############################### Iteration 15/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.34 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.28 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.20 
+                   tracking_lin_vel: 1.78 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.85 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.19 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.10 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1750.90 
+                         total time: 47.83 (sim: 37.43, learn:10.38)
+                                ETA: 4:21:06
+
+
+############################### Iteration 16/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.34 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.08 
+                        orientation: 1.33 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.24 
+                   tracking_lin_vel: 1.67 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.84 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 3.92 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.11 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1596.20 
+                         total time: 51.98 (sim: 41.06, learn:10.90)
+                                ETA: 4:19:18
+
+
+############################### Iteration 17/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.35 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.34 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.30 
+                   tracking_lin_vel: 1.76 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 4.00 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.21 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.10 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1663.48 
+                         total time: 50.58 (sim: 39.40, learn:11.15)
+                                ETA: 4:17:14
+
+
+############################### Iteration 18/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.35 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.35 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.22 
+                   tracking_lin_vel: 1.55 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.71 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.17 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.09 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1606.66 
+                         total time: 51.74 (sim: 40.79, learn:10.91)
+                                ETA: 4:15:35
+
+
+############################### Iteration 19/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.34 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.36 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.23 
+                   tracking_lin_vel: 1.51 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.70 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.22 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.09 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1811.45 
+                         total time: 46.96 (sim: 36.18, learn:10.76)
+                                ETA: 4:12:51
+
+
+############################### Iteration 20/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.35 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.36 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.25 
+                   tracking_lin_vel: 1.77 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.98 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.31 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.09 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1631.07 
+                         total time: 51.39 (sim: 40.18, learn:11.19)
+                                ETA: 4:11:21
+
+
+############################### Iteration 21/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.35 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.41 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.26 
+                   tracking_lin_vel: 1.55 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.82 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.25 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.09 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1659.30 
+                         total time: 51.48 (sim: 39.50, learn:11.95)
+                                ETA: 4:09:55
+
+
+############################### Iteration 22/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.35 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.42 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.29 
+                   tracking_lin_vel: 1.65 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.95 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.29 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.09 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1604.06 
+                         total time: 53.18 (sim: 40.86, learn:12.30)
+                                ETA: 4:08:54
+
+
+############################### Iteration 23/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.35 
+                       action_rate2: -0.10 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.42 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.32 
+                   tracking_lin_vel: 1.65 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 3.97 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.31 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.08 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1618.91 
+                         total time: 51.95 (sim: 40.48, learn:11.45)
+                                ETA: 4:07:39
+
+
+############################### Iteration 24/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.35 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.46 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.34 
+                   tracking_lin_vel: 1.69 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.06 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.44 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.10 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1625.57 
+                         total time: 51.04 (sim: 40.32, learn:10.70)
+                                ETA: 4:06:16
+
+
+############################### Iteration 25/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.36 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.47 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.33 
+                   tracking_lin_vel: 1.65 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 4.02 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.65 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.09 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1599.51 
+                         total time: 52.18 (sim: 40.97, learn:11.19)
+                                ETA: 4:05:07
+
+
+############################### Iteration 26/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.36 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.51 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.34 
+                   tracking_lin_vel: 1.68 
+                       trot_support: 0.01 
+                        termination: -0.00 
+                      total_rewards: 4.10 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.65 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.08 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1638.03 
+                         total time: 50.90 (sim: 40.01, learn:10.86)
+                                ETA: 4:03:46
+
+
+############################### Iteration 27/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.36 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.51 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.21 
+                   tracking_lin_vel: 1.66 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 3.96 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.45 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.08 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1537.64 
+                         total time: 54.62 (sim: 42.62, learn:11.97)
+                                ETA: 4:03:06
+
+
+############################### Iteration 28/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.36 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.54 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.33 
+                   tracking_lin_vel: 1.65 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.09 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.50 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.11 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1587.33 
+                         total time: 52.52 (sim: 41.29, learn:11.21)
+                                ETA: 4:02:03
+
+
+############################### Iteration 29/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.36 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.58 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.32 
+                   tracking_lin_vel: 1.75 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.22 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.58 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.09 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1317.46 
+                         total time: 62.37 (sim: 49.74, learn:12.60)
+                                ETA: 4:02:34
+
+
+############################### Iteration 30/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.37 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.60 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.25 
+                   tracking_lin_vel: 1.62 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.03 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.74 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.08 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1388.43 
+                         total time: 58.78 (sim: 47.20, learn:11.56)
+                                ETA: 4:02:26
+
+
+############################### Iteration 31/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.37 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.63 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.34 
+                   tracking_lin_vel: 1.69 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.21 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.63 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1318.02 
+                         total time: 60.77 (sim: 49.72, learn:11.02)
+                                ETA: 4:02:32
+
+
+############################### Iteration 32/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.37 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.63 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.35 
+                   tracking_lin_vel: 1.70 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.24 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.64 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.08 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1612.63 
+                         total time: 51.72 (sim: 40.64, learn:11.06)
+                                ETA: 4:01:18
+
+
+############################### Iteration 33/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.37 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.63 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.36 
+                   tracking_lin_vel: 1.61 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.15 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.89 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1687.63 
+                         total time: 49.36 (sim: 38.83, learn:10.50)
+                                ETA: 3:59:46
+
+
+############################### Iteration 34/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.37 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.65 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.35 
+                   tracking_lin_vel: 1.73 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.29 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.70 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.08 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1848.45 
+                         total time: 46.47 (sim: 35.45, learn:11.00)
+                                ETA: 3:57:54
+
+
+############################### Iteration 35/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.37 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.67 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.31 
+                   tracking_lin_vel: 1.73 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.26 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.68 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1799.28 
+                         total time: 46.85 (sim: 36.42, learn:10.40)
+                                ETA: 3:56:09
+
+
+############################### Iteration 36/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.37 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.68 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.36 
+                   tracking_lin_vel: 1.73 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.33 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.65 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.08 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1763.18 
+                         total time: 48.09 (sim: 37.17, learn:10.90)
+                                ETA: 3:54:36
+
+
+############################### Iteration 37/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.37 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.68 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.36 
+                   tracking_lin_vel: 1.83 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.42 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.55 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.10 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1832.89 
+                         total time: 46.50 (sim: 35.76, learn:10.72)
+                                ETA: 3:52:54
+
+
+############################### Iteration 38/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.38 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.70 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.40 
+                   tracking_lin_vel: 1.79 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.44 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.74 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.08 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1457.85 
+                         total time: 56.08 (sim: 44.95, learn:11.12)
+                                ETA: 3:52:21
+
+
+############################### Iteration 39/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.38 
+                       action_rate2: -0.11 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.71 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.36 
+                   tracking_lin_vel: 1.65 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.27 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.86 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1616.74 
+                         total time: 51.74 (sim: 40.54, learn:11.18)
+                                ETA: 3:51:18
+
+
+############################### Iteration 40/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.38 
+                       action_rate2: -0.12 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.70 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.40 
+                   tracking_lin_vel: 1.74 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.37 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.82 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.08 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1942.38 
+                         total time: 43.53 (sim: 33.74, learn:9.77)
+                                ETA: 3:49:22
+
+
+############################### Iteration 41/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.38 
+                       action_rate2: -0.12 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.72 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.35 
+                   tracking_lin_vel: 1.75 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.35 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.78 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.08 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1874.55 
+                         total time: 46.11 (sim: 34.96, learn:11.13)
+                                ETA: 3:47:46
+
+
+############################### Iteration 42/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.38 
+                       action_rate2: -0.12 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.73 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.38 
+                   tracking_lin_vel: 1.67 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.32 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.73 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.08 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1948.09 
+                         total time: 44.84 (sim: 33.64, learn:11.18)
+                                ETA: 3:46:05
+
+
+############################### Iteration 43/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.39 
+                       action_rate2: -0.12 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.71 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.38 
+                   tracking_lin_vel: 1.85 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.47 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.94 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1942.86 
+                         total time: 44.87 (sim: 33.73, learn:11.11)
+                                ETA: 3:44:26
+
+
+############################### Iteration 44/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.39 
+                       action_rate2: -0.12 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.71 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.39 
+                   tracking_lin_vel: 1.70 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.34 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.88 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1983.85 
+                         total time: 44.17 (sim: 33.03, learn:11.10)
+                                ETA: 3:42:46
+
+
+############################### Iteration 45/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.39 
+                       action_rate2: -0.12 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.73 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.39 
+                   tracking_lin_vel: 1.77 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.42 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.79 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.06 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1853.75 
+                         total time: 46.28 (sim: 35.35, learn:10.91)
+                                ETA: 3:41:20
+
+
+############################### Iteration 46/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.39 
+                       action_rate2: -0.12 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.73 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.36 
+                   tracking_lin_vel: 1.67 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.29 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.76 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1908.73 
+                         total time: 45.26 (sim: 34.33, learn:10.90)
+                                ETA: 3:39:50
+
+
+############################### Iteration 47/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.39 
+                       action_rate2: -0.12 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.74 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.34 
+                   tracking_lin_vel: 1.74 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.35 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.81 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1933.95 
+                         total time: 44.66 (sim: 33.89, learn:10.75)
+                                ETA: 3:38:19
+
+
+############################### Iteration 48/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.40 
+                       action_rate2: -0.12 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.75 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.43 
+                   tracking_lin_vel: 1.66 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.35 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.81 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1839.94 
+                         total time: 46.53 (sim: 35.62, learn:10.89)
+                                ETA: 3:37:00
+
+
+############################### Iteration 49/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.40 
+                       action_rate2: -0.12 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.74 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.34 
+                   tracking_lin_vel: 1.66 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.26 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.84 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1874.43 
+                         total time: 46.12 (sim: 34.96, learn:11.14)
+                                ETA: 3:35:40
+
+
+############################### Iteration 50/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.40 
+                       action_rate2: -0.12 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.75 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.43 
+                   tracking_lin_vel: 1.75 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.44 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.76 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.06 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1946.99 
+                         total time: 44.55 (sim: 33.66, learn:10.87)
+                                ETA: 3:34:13
+
+
+############################### Iteration 51/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.40 
+                       action_rate2: -0.12 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.74 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.44 
+                   tracking_lin_vel: 1.77 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.47 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.84 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1703.95 
+                         total time: 49.17 (sim: 38.46, learn:10.68)
+                                ETA: 3:33:11
+
+
+############################### Iteration 52/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.41 
+                       action_rate2: -0.12 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.75 
+                      swing_contact: -0.05 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.39 
+                   tracking_lin_vel: 1.80 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.45 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.88 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1500.57 
+                         total time: 54.70 (sim: 43.67, learn:11.01)
+                                ETA: 3:32:36
+
+
+############################### Iteration 53/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.41 
+                       action_rate2: -0.12 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.74 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.44 
+                   tracking_lin_vel: 1.85 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.54 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.81 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.08 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1500.32 
+                         total time: 54.07 (sim: 43.68, learn:10.35)
+                                ETA: 3:31:57
+
+
+############################### Iteration 54/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.41 
+                       action_rate2: -0.12 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.74 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.40 
+                   tracking_lin_vel: 1.72 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.37 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.83 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1788.04 
+                         total time: 48.99 (sim: 36.65, learn:12.32)
+                                ETA: 3:30:54
+
+
+############################### Iteration 55/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.41 
+                       action_rate2: -0.13 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.76 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.51 
+                   tracking_lin_vel: 1.69 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.45 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.89 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.08 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1649.11 
+                         total time: 50.40 (sim: 39.74, learn:10.65)
+                                ETA: 3:29:58
+
+
+############################### Iteration 56/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.41 
+                       action_rate2: -0.13 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.75 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.39 
+                   tracking_lin_vel: 1.76 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.40 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.85 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1530.35 
+                         total time: 54.08 (sim: 42.82, learn:11.24)
+                                ETA: 3:29:18
+
+
+############################### Iteration 57/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.42 
+                       action_rate2: -0.13 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.76 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.42 
+                   tracking_lin_vel: 1.67 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.34 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.74 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.06 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1712.05 
+                         total time: 49.73 (sim: 38.28, learn:11.43)
+                                ETA: 3:28:19
+
+
+############################### Iteration 58/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.42 
+                       action_rate2: -0.13 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.77 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.43 
+                   tracking_lin_vel: 1.87 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.55 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.90 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.08 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1735.97 
+                         total time: 49.20 (sim: 37.75, learn:11.41)
+                                ETA: 3:27:18
+
+
+############################### Iteration 59/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.42 
+                       action_rate2: -0.13 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.76 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.52 
+                   tracking_lin_vel: 1.78 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.55 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.89 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1766.70 
+                         total time: 48.52 (sim: 37.10, learn:11.41)
+                                ETA: 3:26:15
+
+
+############################### Iteration 60/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.43 
+                       action_rate2: -0.13 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.76 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.49 
+                   tracking_lin_vel: 1.80 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.53 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.97 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.06 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1641.75 
+                         total time: 51.10 (sim: 39.92, learn:11.16)
+                                ETA: 3:25:23
+
+
+############################### Iteration 61/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.43 
+                       action_rate2: -0.13 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.77 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.51 
+                   tracking_lin_vel: 1.77 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.53 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.85 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 131.22 
+                         total time: 510.84 (sim: 499.45, learn:11.38)
+                                ETA: 3:54:32
+
+
+############################### Iteration 62/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.43 
+                       action_rate2: -0.13 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.06 
+                        orientation: 1.78 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.47 
+                   tracking_lin_vel: 1.63 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.36 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.82 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.08 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1626.35 
+                         total time: 51.16 (sim: 40.30, learn:10.83)
+                                ETA: 3:53:03
+
+
+############################### Iteration 63/300 ###############################
+
+------------------------------------ Rewards ------------------------------------
+                        action_rate: -0.43 
+                       action_rate2: -0.13 
+                         ang_vel_xy: 0.00 
+                    min_base_height: 0.07 
+                        orientation: 1.78 
+                      swing_contact: -0.04 
+                            torques: -0.00 
+                   tracking_ang_vel: 1.42 
+                   tracking_lin_vel: 1.61 
+                       trot_support: 0.02 
+                        termination: -0.00 
+                      total_rewards: 4.29 
+
+------------------------------ Other Agent Metrics ------------------------------
+               average episode time: 4.72 
+
+----------------------------- Algorithm Performance -----------------------------
+                    mean_value_loss: 0.07 
+                mean_surrogate_loss: -0.02 
+                      learning_rate: 0.00 
+
+------------------------------------ Timings ------------------------------------
+                            steps/s: 1680.53 
+                         total time: 50.10 (sim: 39.00, learn:11.08)
+                                ETA: 3:51:32

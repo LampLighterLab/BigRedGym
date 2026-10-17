@@ -80,8 +80,8 @@ class TeleopCommands:
         self.increment_yaw = self.max_vel_yaw * 0.2
 
         self.max_height_up = 0.45    # near full stand
-        self.max_height_down = 0.15  # a meaningful crouch, still above the ground
-        self.increment_z = (self.max_height_up - self.max_height_down) * 0.1
+        self.max_height_down = 0.15 # a meaningful crouch, still above the ground
+        self.increment_z = (self.max_height_up - self.max_height_down) * 0.5
 
         env.commands[:] = 0.0
         env.commands[:, 0] = 0.0  # seed forward velocity so motion is visible
@@ -92,6 +92,13 @@ class TeleopCommands:
     def apply(self, action: str) -> None:
         """Apply one discrete press of ``action`` (see BINDINGS)."""
         c = self.env.commands
+        if action in ("up", "down"):
+            c[:, 0:3] = 0.0  # drop any residual/randomized velocity+yaw so height-only
+                            # teleop reads cleanly, even after a mid-session env reset
+            print(f"[teleop] action={action!r} commands={c[0].tolist()} actual_height={self.env.base_height[0, 0].item():.3f}")
+        else:
+            print(f"[teleop] action={action!r} commands={c[0].tolist()} actual_height={self.env.base_height[0, 0].item():.3f}")
+
         print(f"[teleop] action={action!r} commands={c[0].tolist()} actual_height={self.env.base_height[0, 0].item():.3f}") # print button press to command window
         if action == "forward":
             c[:, 0] = torch.clamp(c[:, 0] + self.increment_x, max=self.max_vel_forward)
