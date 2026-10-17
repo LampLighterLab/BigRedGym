@@ -665,8 +665,8 @@ class LeggedRobot(BaseTask):
 
     def _reward_tracking_height(self):
         """Tracking of commanded base height"""
-        height_error = torch.square(self.commands[:, 3] - self.base_height[:, 0])
-        return torch.exp(-height_error / self.cfg.reward_settings.tracking_sigma)
+        height_error = (self.commands[:, 3] - self.base_height[:, 0]) / self.scales["base_height"]
+        return self._sqrdexp(height_error)
 
     def _reward_feet_contact_forces(self):
         """penalize high contact forces"""
