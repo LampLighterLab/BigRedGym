@@ -20,7 +20,7 @@ class Go2TrotCfg(Go2Cfg):
         root_pos_range = [
             [0.0, 0.0],  # x
             [0.0, 0.0],  # y
-            [0.450, 0.50],  # z
+            [0.30, 0.40],  # z
             [0.0, 0.0],  # roll
             [0.0, 0.0],  # pitch
             [0.0, 0.0],  # yaw
@@ -60,11 +60,13 @@ class Go2TrotCfg(Go2Cfg):
     class commands(Go2Cfg.commands):
         # Standard deviation in m/s around the forward-command centers below.
         var = 0.1
+        num_commands = 4
 
         class ranges(Go2Cfg.commands.ranges):
             lin_vel_x = [-0.5, 0.0, 0.5, 1.0, 2.0]
             lin_vel_y = 0.5
             yaw_vel = 1.5
+            base_height = [0.1, 0.40]
 
     class push_robots(Go2Cfg.push_robots):
         toggle = True
@@ -104,6 +106,8 @@ class Go2TrotCfg(Go2Cfg):
         # Residual radians per policy unit, independent of observation ranges.
         dof_pos_target = 4 * [0.2, 0.3, 0.3]
         tau_ff = 4 * [23.7, 23.7, 45.43]
+        # vel_x, vel_y, yaw_vel, base_height
+        commands = [3, 1, 3, base_height]
 
 
 class Go2TrotRunnerCfg(Go2RunnerCfg):
@@ -168,7 +172,8 @@ class Go2TrotRunnerCfg(Go2RunnerCfg):
                 dof_pos_limits = 0.0
                 feet_contact_forces = 0.0
                 dof_near_home = 0.0
-                min_base_height = 0.5
+                min_base_height = 0.0
+                tracking_base_height = 2.0
                 action_rate = 0.1
                 action_rate2 = 0.05
                 trot_support = 3.0

@@ -38,7 +38,7 @@ def test_action_rate_sums_one_step_and_normalized_two_step_costs(targets, expect
 def test_yaw_tracking_uses_velocity_error_not_its_square():
     task = Go2Trot.__new__(Go2Trot)
     task.cfg = Go2TrotCfg()
-    task.commands = torch.zeros(3, 3)
+    task.commands = torch.zeros(3, 4)
     task.base_ang_vel = torch.tensor(
         [[0.0, 0.0, 0.0], [0.0, 0.0, 0.5], [0.0, 0.0, -0.5]]
     )
@@ -69,3 +69,30 @@ def test_reference_reward_tracks_measured_joints_with_normalized_symmetric_error
             - 0.1
         )
         assert task._reward_reference_traj().item() == pytest.approx(expected.item())
+
+
+def test_base_height_tracking_peaks_at_the_commanded_height_symmetrically():
+    task = Go2Trot.__new__(Go2Trot)
+    task.cfg = Go2TrotCfg()
+    task.scales = {"base_height": 0.3}
+    # One commanded height, approached from below, exactly, and from above.
+    task.commands = torch.zeros(3, 4)
+    task.commands[:, 3] = 0.30
+    task.base_height = torch.tensor([[0.24], [0.30], [0.36]])
+
+    reward = task._reward_tracking_base_height()
+
+    # Per-environment scalar: a base_height left as [N, 1] would broadcast
+    # against the command to [N, N] here instead.
+    assert reward.shape == (3,)
+    # Exact tracking is the optimum, and the term is a bonus in [0, 1].
+    assert reward[1].item() == pytest.approx(1.0)
+    assert torch.all(reward > 0.0)
+    # Two-sided, unlike _reward_min_base_height: overshooting the command
+    # costs exactly as much as falling short of it.
+    assert reward[0].item() == pytest.approx(reward[2].item())
+    expected = torch.exp(
+        torch.tensor(-((0.06 / 0.3) ** 2) / task.cfg.reward_settings.tracking_sigma)
+    )
+    assert reward[0].item() == pytest.approx(expected.item())
+    assert reward[0].item() < reward[1].item()

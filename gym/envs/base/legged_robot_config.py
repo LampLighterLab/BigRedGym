@@ -52,6 +52,7 @@ class LeggedRobotCfg(BaseConfig):
 
     class commands:
         resampling_time = 10.0  # time before command are changed[s]
+        num_commands = 3
 
         class ranges:
             lin_vel_x = [-1.0, 1.0]  # min max [m/s]

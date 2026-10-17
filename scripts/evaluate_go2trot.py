@@ -18,17 +18,22 @@ from gym.utils.helpers import class_to_dict, get_load_path, set_seed
 from gym.utils.task_registry import task_registry
 
 
+# (vx, vy, yaw_rate, base_height). Every case holds the nominal height so this
+# stays a velocity-tracking gate; the acceptance bounds below were fitted
+# against it. Tall/crouch cases need their own bounds before they belong here.
+NOMINAL_HEIGHT = 0.32
+
 COMMANDS = {
-    "stopped": (0.0, 0.0, 0.0),
-    "forward_slow": (0.5, 0.0, 0.0),
-    "forward": (1.0, 0.0, 0.0),
-    "forward_fast": (2.0, 0.0, 0.0),
-    "reverse": (-0.5, 0.0, 0.0),
-    "left": (0.0, 0.5, 0.0),
-    "right": (0.0, -0.5, 0.0),
-    "turn_left": (0.0, 0.0, 1.0),
-    "turn_right": (0.0, 0.0, -1.0),
-    "combined": (1.0, 0.3, 0.5),
+    "stopped": (0.0, 0.0, 0.0, NOMINAL_HEIGHT),
+    "forward_slow": (0.5, 0.0, 0.0, NOMINAL_HEIGHT),
+    "forward": (1.0, 0.0, 0.0, NOMINAL_HEIGHT),
+    "forward_fast": (2.0, 0.0, 0.0, NOMINAL_HEIGHT),
+    "reverse": (-0.5, 0.0, 0.0, NOMINAL_HEIGHT),
+    "left": (0.0, 0.5, 0.0, NOMINAL_HEIGHT),
+    "right": (0.0, -0.5, 0.0, NOMINAL_HEIGHT),
+    "turn_left": (0.0, 0.0, 1.0, NOMINAL_HEIGHT),
+    "turn_right": (0.0, 0.0, -1.0, NOMINAL_HEIGHT),
+    "combined": (1.0, 0.3, 0.5, NOMINAL_HEIGHT),
 }
 
 
@@ -227,6 +232,7 @@ def evaluate(env, runner, *, replicas=4, seconds=8.0, warmup=2.0):
                 "vx_m_s": COMMANDS[name][0],
                 "vy_m_s": COMMANDS[name][1],
                 "yaw_rad_s": COMMANDS[name][2],
+                "base_height_m": COMMANDS[name][3],
             },
             gait_frequency_hz=hz,
         )

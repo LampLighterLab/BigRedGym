@@ -7,6 +7,7 @@ after each step.
 """
 
 import copy
+import os
 import time
 
 import mujoco
@@ -159,6 +160,15 @@ class MuJocoCPUBackend(MuJocoBackendBase):
             if visual_model is not None and not headless
             else None
         )
+        # Detailed meshes live in the gitignored thirdparty/vlearn drop zone,
+        # which is licensed and absent from a plain clone. Fall back to the
+        # URDF's own collision geometry instead of failing to build the model.
+        if visual_model_path is not None and not os.path.exists(visual_model_path):
+            print(
+                f"visual model not found, rendering collision geometry instead: "
+                f"{visual_model_path}"
+            )
+            visual_model_path = None
 
         mjm = self._load_model(
             cfg,

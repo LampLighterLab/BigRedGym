@@ -72,6 +72,18 @@ def get_play_args(argv=None):
         "gym/utils/interfaces/MujocoKeyboardInterface.py for key bindings). "
         "Use --no-keyboard to disable.",
     )
+    parser.add_argument(
+        "--plot_height",
+        action="store_true",
+        default=False,
+        help="record commanded vs measured base height and write a PNG + CSV on exit",
+    )
+    parser.add_argument(
+        "--plot_env",
+        type=int,
+        default=0,
+        help="which environment to trace (default: the viewer's ref_env)",
+    )
     return parser.parse_args(argv)
 
 
@@ -130,16 +142,22 @@ def setup(args):
     return env, runner
 
 
-def play(env, runner):
+def play(env, runner, trace=None):
     n_steps = 10 * int(env.max_episode_length)
-    for _ in range(n_steps):
-        runner.set_actions(
-            runner.actor_cfg["actions"],
-            runner.get_inference_actions(),
-            runner.actor_cfg["disable_actions"],
-        )
-        env.step()
-        env.check_exit()
+    try:
+        for _ in range(n_steps):
+            runner.set_actions(
+                runner.actor_cfg["actions"],
+                runner.get_inference_actions(),
+                runner.actor_cfg["disable_actions"],
+            )
+            env.step()
+            if trace is not None:
+                trace.record()
+            env.check_exit()
+    finally:
+        if trace is not None:
+            trace.save()
 
 
 if __name__ == "__main__":
@@ -184,4 +202,13 @@ if __name__ == "__main__":
                 from gym.utils.interfaces.CommandVisualizer import CommandVisualizer
 
                 CommandVisualizer(env)
-        play(env, runner)
+        trace = None
+        if (
+            args.plot_height
+            and getattr(env, "commands", None) is not None
+            and env.commands.shape[1] > 3
+        ):
+            from gym.utils.logging_and_saving.height_trace import HeightTrace
+
+            trace = HeightTrace(env, env_index=args.plot_env)
+        play(env, runner, trace)

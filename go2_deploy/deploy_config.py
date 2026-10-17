@@ -36,13 +36,17 @@ class DeployConfig:
         "lin_vel_x": 2.0,  # m/s
         "lin_vel_y": 1.0,  # m/s
         "yaw_vel": 3.0,  # rad/s
+        # Base height is a one-sided range, not a symmetric limit: the right
+        # stick's [-1, 1] travel spans it. Keep it inside the trained command
+        # range (Go2TrotCfg.commands.ranges.base_height).
+        "base_height": [0.15, 0.40],  # m
     }
 
     # Specify size of observation vector. should not have to modify this
     obs_sizes = {
         "base_ang_vel": 3,
         "projected_gravity": 3,
-        "commands": 3,
+        "commands": 4,
         "dof_pos_obs": 12,
         "dof_vel": 12,
         "dof_accel": 12,

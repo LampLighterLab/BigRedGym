@@ -53,7 +53,7 @@ HELP_LINES = (
     "  I/K           forward / back",
     "  J/L           strafe left / strafe right",
     "  N/M           yaw left / yaw right",
-    "  Up/Down       up / down (command effects: student TODO)",
+    "  Up/Down       up / down",
     "  R             reset envs",
     "  Esc / window  quit",
     "  commands step in 1/5 increments of max",
@@ -79,8 +79,18 @@ class TeleopCommands:
         self.max_vel_yaw = 2.0
         self.increment_yaw = self.max_vel_yaw * 0.2
 
+        self.min_height = 0.1
+        self.max_height = 0.4
+        self.increment_height = (self.max_height - self.min_height) * 0.1
+
+        # Only tasks that declare a base-height command have a fourth channel;
+        # mini_cheetah, the humanoids and go2 keep the three velocity commands.
+        self.has_height_command = env.commands.shape[1] > 3
+
         env.commands[:] = 0.0
         env.commands[:, 0] = 1.0  # seed forward velocity so motion is visible
+        if self.has_height_command:
+            env.commands[:, 3] = 0.32  # seed initial robot height
         if hasattr(env.cfg, "commands"):
             env.cfg.commands.resampling_time = env.max_episode_length_s + 1
 
@@ -101,6 +111,16 @@ class TeleopCommands:
             c[:, 2] = torch.clamp(c[:, 2] + self.increment_yaw, max=self.max_vel_yaw)
         elif action == "yaw_right":
             c[:, 2] = torch.clamp(c[:, 2] - self.increment_yaw, min=-self.max_vel_yaw)
+        elif action == "up":
+            if self.has_height_command:
+                c[:, 3] = torch.clamp(
+                    c[:, 3] + self.increment_height, max=self.max_height
+                )
+        elif action == "down":
+            if self.has_height_command:
+                c[:, 3] = torch.clamp(
+                    c[:, 3] - self.increment_height, min=self.min_height
+                )
         elif action == "reset":
             self.env.timed_out[:] = True
             self.env.reset()

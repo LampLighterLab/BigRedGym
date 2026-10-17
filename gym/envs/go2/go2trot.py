@@ -103,12 +103,20 @@ class Go2Trot(LeggedRobot):
         )
         masked_update(self.commands[:, 0], forward, command_mask)
 
+        height = torch_rand_float(
+            self.command_ranges["base_height"][0],
+            self.command_ranges["base_height"][1],
+            (self.num_envs,),
+            device=self.device,
+        )
+        masked_update(self.commands[:, 3], height, command_mask)
+
         if 0 in self.cfg.commands.ranges.lin_vel_x:
             # Include forward-only, rotation-only, and stopped examples.
             drop = command_mask.unsqueeze(1) & (
                 torch.rand(self.num_envs, 1, device=self.device) >= 0.8
             )
-            self.commands[:, 1:].masked_fill_(drop, 0.0)
+            self.commands[:, 1:3].masked_fill_(drop, 0.0)
             drop = command_mask.unsqueeze(1) & (
                 torch.rand(self.num_envs, 1, device=self.device) >= 0.8
             )
@@ -116,7 +124,7 @@ class Go2Trot(LeggedRobot):
             drop = command_mask.unsqueeze(1) & (
                 torch.rand(self.num_envs, 1, device=self.device) >= 0.9
             )
-            self.commands.masked_fill_(drop, 0.0)
+            self.commands[:, :3].masked_fill_(drop, 0.0)
 
     def _reset_idx(self, reset_mask):
         super()._reset_idx(reset_mask)
@@ -231,3 +239,7 @@ class Go2Trot(LeggedRobot):
             ),
             dim=1,
         )
+
+    def _reward_tracking_base_height(self):
+        error = self.commands[:, 3] - self.base_height.squeeze(1)
+        return self._sqrdexp(error / self.scales["base_height"])

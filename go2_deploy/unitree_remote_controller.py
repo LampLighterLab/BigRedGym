@@ -44,6 +44,8 @@ class UnitreeRemoteController:
         self.lin_vel_x = 0.0
         self.lin_vel_y = 0.0
         self.yaw_vel = 0.0
+        # Mid-range until the first stick read, matching a centred Ry.
+        self.base_height = sum(self.cfg.command_limits["base_height"]) / 2.0
 
     def parse_button(self, data1, data2):
         self.R1[1] = self.R1[0]
@@ -101,6 +103,12 @@ class UnitreeRemoteController:
         )  # forward-backward
         self.lin_vel_y = self.Lx * self.cfg.command_limits["lin_vel_y"]  # left-right
         self.yaw_vel = self.Rx * self.cfg.command_limits["yaw_vel"]
+        # Ry is the one stick axis the velocity commands leave free; map its
+        # full travel onto the height range, so centred means mid-height.
+        height_low, height_high = self.cfg.command_limits["base_height"]
+        self.base_height = height_low + 0.5 * (self.Ry + 1.0) * (
+            height_high - height_low
+        )
 
     def parse(self, remoteData):
         self.parse_key(remoteData)
