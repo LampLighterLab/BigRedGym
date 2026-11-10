@@ -1,5 +1,4 @@
 import torch
-from go2_deploy.deploy_config import DeployConfig
 from gym.utils.torch_quat import quat_rotate_inverse
 
 # Unitree motor order: Front Right hip (haa), FR thigh (hfe), FR calf (kfe),
@@ -120,8 +119,8 @@ def action_to_lowcmd(main_controller, action_qgym_convention, kp_mult=1.0, kd_mu
     return lowcmd
 
 
-# Returns LowCmd_ of q, dq, kp, kd = 0
-def default_lowcmd():
+# Returns LowCmd_ of q, dq = 0 and the configured kp, kd
+def default_lowcmd(cfg):
     from unitree_sdk2py.idl.default import unitree_go_msg_dds__LowCmd_
     from unitree_sdk2py.utils.crc import CRC
 
@@ -131,8 +130,6 @@ def default_lowcmd():
     lowcmd.head[1] = 0xEF
     lowcmd.level_flag = 0xFF
     lowcmd.gpio = 0
-    cfg = DeployConfig()
-
     for i in range(20):
         lowcmd.motor_cmd[i].mode = 0x01
         lowcmd.motor_cmd[i].q = 0
@@ -152,10 +149,10 @@ def default_lowcmd():
 
 
 # Returns LowCmd_ of q, dq, kp = 0, kd > 0
-def emergency_lowcmd():
+def emergency_lowcmd(cfg):
     from unitree_sdk2py.utils.crc import CRC
 
-    lowcmd = default_lowcmd()
+    lowcmd = default_lowcmd(cfg)
     crc = CRC()
 
     for i in range(12):

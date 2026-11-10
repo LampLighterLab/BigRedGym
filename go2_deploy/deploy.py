@@ -6,6 +6,11 @@ import time
 def main():
     parser = argparse.ArgumentParser(description="Deploy a policy to a Unitree Go2.")
     parser.add_argument("interface", help="Robot network interface, e.g. eth0")
+    parser.add_argument(
+        "--bundle",
+        help="Policy bundle directory from scripts/export_go2_policy.py. "
+        "Without it, the actor is built from the latest training run in logs/.",
+    )
     args = parser.parse_args()
     if sys.platform != "linux":
         parser.error("Go2 deployment requires Linux (timerfd).")
@@ -24,6 +29,19 @@ def main():
 
     from go2_deploy.main_controller import MainController
     from go2_deploy.keyboard_handler import KeyboardHandler
+    from go2_deploy.rl_controller import RLController
+
+    # Load the policy before touching the robot, so a bad bundle fails here.
+    if args.bundle:
+        from go2_deploy.policy_bundle import load_bundle
+
+        policy, cfg = load_bundle(args.bundle)
+        print(f"Loaded policy bundle {args.bundle}")
+    else:
+        from go2_deploy.deploy_config import DeployConfig
+
+        policy, cfg = None, DeployConfig()
+    rl_controller = RLController(cfg, policy)
 
     # CycloneDDS 0.10.2 bug workaround
     channel.ChannelConfigHasInterface = channel.ChannelConfigHasInterface.replace(
@@ -34,7 +52,7 @@ def main():
         0,
         args.interface,
     )
-    controller = MainController()  # noqa: F841
+    controller = MainController(cfg, rl_controller)
     keyboard_handler = KeyboardHandler(controller)  # noqa: F841
 
     print(
