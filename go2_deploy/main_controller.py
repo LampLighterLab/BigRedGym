@@ -3,9 +3,7 @@ import threading
 import math
 
 from go2_deploy.state import State
-from go2_deploy.rl_controller import RLController
 from go2_deploy.unitree_remote_controller import UnitreeRemoteController, RCHandler
-from go2_deploy.deploy_config import DeployConfig
 from go2_deploy.utility import deploy_utility
 from go2_deploy.utility.csv_logger import CSVLogger
 from go2_deploy.utility.thread import RecurrentThread
@@ -28,7 +26,9 @@ from unitree_sdk2py.utils.crc import CRC
 
 
 class MainController:
-    def __init__(self):
+    # cfg and rl_controller must come from the same source (one bundle, or the
+    # default DeployConfig); every component below shares this one cfg.
+    def __init__(self, cfg, rl_controller):
         # Flags are monitored by watchdog_thread to switch between states
         self._state = State.EMERGENCY_STOP
         self._estop_flag = False
@@ -36,15 +36,13 @@ class MainController:
         self._intermediate_flag = False
         self._custom_ctrl_flag = False
 
-        self.rl_controller = RLController()
-        self.remote_controller = UnitreeRemoteController()
+        self.cfg = cfg
+        self.rl_controller = rl_controller
+        self.remote_controller = UnitreeRemoteController(cfg)
         self.rc_handler = RCHandler(self)
-        self.cfg = DeployConfig()
         self.csv_logger = CSVLogger(self)
 
-        self.obs_vec_size = 0
-        for obs in self.cfg.obs_vector:
-            self.obs_vec_size += self.cfg.obs_sizes[obs]
+        self.obs_vec_size = cfg.obs_dim()
 
         self._init_buffers()
         if self.cfg.task_name == "go2trot":
@@ -52,8 +50,8 @@ class MainController:
 
         self._init_unitree_clients()
 
-        self.default_lowcmd = deploy_utility.default_lowcmd()
-        self.emergency_lowcmd = deploy_utility.emergency_lowcmd()
+        self.default_lowcmd = deploy_utility.default_lowcmd(cfg)
+        self.emergency_lowcmd = deploy_utility.emergency_lowcmd(cfg)
 
         # Change kp, kd using keyboard/RC input
         self.kp_mult = 1.0
@@ -160,6 +158,9 @@ class MainController:
         self.phase = 2 * math.pi * self.phase_frequency * t % (2 * math.pi)
 
     # Read last lowstate msg, publish LowCmd_
+    # KNOWN RISK: if this process dies outright (OOM, kill) while in
+    # CUSTOM_CTRL, LowCmd_ stops and the RC's X can no longer reach us.
+    # See "Known risks" in README_DEPLOY.md.
     def _control_loop(self):
         t = time.monotonic()
         if self.cfg.task_name == "go2trot":

@@ -69,8 +69,17 @@ class DeployConfig:
     # s: how often terminal should print ctrl freq, instructions
     terminal_log_period = 2.0
 
-    # Check for unsafe config
+    # Set by policy_bundle.load_bundle(): the bundle's deploy_meta.json
+    bundle_meta = None
+
     def __init__(self):
+        self.validate()
+
+    def obs_dim(self):
+        return sum(self.obs_sizes[obs] for obs in self.obs_vector)
+
+    # Check for unsafe config
+    def validate(self):
         if self.ctrl_freq < 20:
             raise ValueError("ctrl_freq should be > 20")
         if self.kp <= 0:

@@ -90,6 +90,49 @@ If anything goes wrong, the emergency stop on the wireless controller is X or th
 - To stop running the script, return to `RECOVERY`, lie the robot on the ground, and press `Ctrl+C` in the terminal.
 - Logs of the robot data can be found in `logs/deploy/`.
 
+## Onboard deployment (Go2 EDU, wireless)
+
+The control loop can run on the Go2 EDU's Jetson, so DDS never leaves the
+robot's wired network and Wi-Fi only carries SSH. The RC works exactly as
+below (it reaches the code through `rt/lowstate`), with or without the PC.
+
+1. **Network.** eduroam won't work (per-user credentials, client isolation).
+   Over the ethernet cable, `ssh unitree@192.168.123.18` and check `iw dev`.
+   If the Jetson has Wi-Fi, start a hotspot:
+   `nmcli dev wifi hotspot ifname wlan0 ssid go2-lab password <pw>`; the PC
+   joins it and reaches the Jetson at `10.42.0.1`. Otherwise use a travel router.
+2. **One-time Jetson setup.** Install `uv` and `tmux`, `uv python install 3.11`
+   (JetPack ships 3.8), build CycloneDDS 0.10.2 as in Setup above. The first
+   deploy syncs the repo; `uv run` then installs the locked aarch64 wheels.
+3. **Export a policy bundle on the PC:**
+   `uv run --frozen python scripts/export_go2_policy.py --name trot_v1 [--run_name <run>]`
+   writes `logs/policies/trot_v1/` with `policy.pt` and `deploy_meta.json`.
+   The bundle carries the obs layout, every obs/action scale, the default
+   posture, gains, command limits, provenance and the network's hash, so the
+   scaling can't drift from the weights. Export right after training.
+4. **Deploy:**
+   `uv run --frozen python scripts/deploy_go2_remote.py --bundle logs/policies/trot_v1 --host unitree@10.42.0.1`
+   rsyncs the repo and bundle and starts `go2_deploy.deploy eth0 --bundle ...`
+   in a tmux session `go2_deploy` on the Jetson. Detach with `Ctrl+b d`;
+   rerun the command to reattach. `--dry_run` prints the commands.
+5. **Logs:** `... deploy_go2_remote.py --host unitree@10.42.0.1 --pull_logs`.
+   Each run's `meta.json` includes the full bundle metadata.
+
+One policy per run: to change policy, return to `RECOVERY`, stop the run,
+and deploy another bundle.
+
+## Known risks
+
+- **Deploy process dies in `CUSTOM_CTRL`/`INTERMEDIATE`.** If the Python
+  process exits outright (OOM, kill, Jetson crash), `LowCmd_` stops and the
+  RC's X can no longer reach our code, because the e-stop is implemented in
+  this process. Exceptions inside the control loop are caught by
+  `RecurrentThread` and do not cause this. Current mitigations: run in tmux
+  (an SSH drop does not kill it), and test hung or in a harness first.
+  Candidate fixes: a supervisor that publishes damping `LowCmd_` when the
+  process exits, or a separate minimal damping watchdog process that
+  watches for `LowCmd_` going stale.
+
 ## Remote controls
 
 - Switch modes

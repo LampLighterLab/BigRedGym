@@ -96,6 +96,9 @@ class CSVLogger:
                     "exp_moving_avg": cfg.exp_moving_avg,
                     "ema_smoothing_factor": cfg.ema_smoothing_factor,
                     "obs_vector": list(cfg.obs_vector),
+                    # Full policy bundle metadata (scaling, hash, provenance),
+                    # or None when the actor was built from training logs.
+                    "policy_bundle": cfg.bundle_meta,
                 },
                 f,
                 indent=2,
