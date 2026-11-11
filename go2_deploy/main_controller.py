@@ -397,7 +397,7 @@ class MainController:
         print("Current mode: " + self._state.name)
         print("Keyboard command [RC command]: meaning")
         print(
-            "<enter> [X]: emergency stop | q [B]: intermediate | c [A]: custom controller"  # noqa: E501
+            "<enter> [X]: emergency stop | c [A]: custom controller"  # noqa: E501
         )
         print(
             "i [Up]: increase kp (by 10%) | k [Down]: decrease kp | l [Right]: increase kd | j [Left]: decrease kd\n"  # noqa: E501
