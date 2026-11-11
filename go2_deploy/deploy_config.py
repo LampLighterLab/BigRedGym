@@ -1,5 +1,6 @@
 from gym.envs.go2.go2trot_config import Go2TrotCfg
 import torch
+import numpy as np
 
 
 class DeployConfig:
@@ -7,14 +8,15 @@ class DeployConfig:
 
     ctrl_freq = 100  # Hz
 
-    kp = 30.0  # Stiffness constant
-    kd = 2.0  # Damping constant
+    kp = 30.0  # Default stiffness constant
+    kd = 2.0  # Default damping constant
 
-    phase_frequency = 2.0  # Go2Trot gait frequency in Hz (cycles/s)
+    phase_frequency = 2.0  # footsteps per second in reference trajectory
 
     # Apply exponential moving average to actions
     exp_moving_avg = True
-    ema_smoothing_factor = 0.1
+    ema_time_const = 0.095      # seconds
+    ema_smoothing_factor = -np.expm1(-(1/ctrl_freq)/ema_time_const)     # alpha in EMA
 
     obs_vector = [
         "base_ang_vel",
@@ -25,7 +27,7 @@ class DeployConfig:
         "dof_pos_target",
         "phase_obs",
         "phase_frequency",
-    ]  # add later? foot contact
+    ]
 
     # Scale observations
     class DeployScaling(Go2TrotCfg.scaling):
