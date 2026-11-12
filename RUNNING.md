@@ -14,6 +14,9 @@ export CYCLONEDDS_HOME="$HOME/.local/opt/cyclonedds-0.10.2"
 uv sync --frozen --extra unitree_sdk
 uv run --frozen --extra unitree_sdk pytest -m unitree   # SDK tests
 ```
+On the Jetson, add `--no-dev` to `uv sync`/`uv run`. The dev group pulls in
+`mujoco-warp` → `warp-lang`, which has no wheel for the Jetson (aarch64, glibc 2.31).
+pytest is in that group too, so skip the SDK tests there.
 
 ## Deploying to the Go2
 - **Tethered (policy on PC):** `uv run --extra unitree_sdk python -m go2_deploy.deploy <nic>`
