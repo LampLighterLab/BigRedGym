@@ -37,13 +37,20 @@ def sync_commands(host, remote_dir, bundle):
 def launch_command(host, remote_dir, bundle, interface, cyclonedds_home):
     deploy = (
         f"cd {shlex.quote(remote_dir)} && "
+        # no rc files run (see below), so put uv's install dir on PATH here
+        'export PATH="$HOME/.local/bin:$PATH" && '
         f"export CYCLONEDDS_HOME={cyclonedds_home} && "
         "uv run --frozen --extra unitree_sdk python -m go2_deploy.deploy "
         f"{shlex.quote(interface)} --bundle {shlex.quote(remote_bundle_path(bundle))}; "
-        "exec bash"  # keep the pane open so errors stay readable
+        # keep the pane open so errors stay readable; --norc skips Unitree's
+        # interactive ROS-version prompt in ~/.bashrc
+        "exec bash --norc"
     )
+    # Run the pane in a bare bash, whatever the login shell is (zsh on some
+    # Jetsons) and whatever its rc files do.
+    pane = f"bash --noprofile --norc -c {shlex.quote(deploy)}"
     # -A attaches to a session that is already running instead of starting twice
-    tmux = f"tmux new-session -A -s {TMUX_SESSION} {shlex.quote(deploy)}"
+    tmux = f"tmux new-session -A -s {TMUX_SESSION} {shlex.quote(pane)}"
     return ["ssh", "-t", host, tmux]
 
 
