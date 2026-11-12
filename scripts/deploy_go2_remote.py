@@ -4,6 +4,12 @@
         --bundle logs/policies/trot_v1 --host unitree@10.42.0.1
     uv run --frozen python scripts/deploy_go2_remote.py \
         --host unitree@10.42.0.1 --pull_logs
+    uv run --frozen python scripts/deploy_go2_remote.py \
+        --bundle logs/policies/trot_v1 --host unitree@192.168.123.18 --install
+
+--install: make the bundle logs/policies/current on the Jetson and (re)install
+the go2_launcher service, so L1 + R1 on the remote starts it and L2 + R2 stops it
+(e-stop, then stand back up) (go2_deploy/launcher.py). Run it over the cable.
 
 The control loop runs entirely on the robot; the RC works whether or not this
 SSH session stays attached. Detach with Ctrl+b d, reattach by rerunning.
@@ -40,7 +46,9 @@ def launch_command(host, remote_dir, bundle, interface, cyclonedds_home):
         # no rc files run (see below), so put uv's install dir on PATH here
         'export PATH="$HOME/.local/bin:$PATH" && '
         f"export CYCLONEDDS_HOME={cyclonedds_home} && "
-        "uv run --frozen --extra unitree_sdk python -m go2_deploy.deploy "
+        # --no-dev: the dev group pulls mujoco-warp -> warp-lang, which has no
+        # wheel for the Jetson (aarch64, glibc 2.31)
+        "uv run --frozen --no-dev --extra unitree_sdk python -m go2_deploy.deploy "
         f"{shlex.quote(interface)} --bundle {shlex.quote(remote_bundle_path(bundle))}; "
         # keep the pane open so errors stay readable; --norc skips Unitree's
         # interactive ROS-version prompt in ~/.bashrc
@@ -52,6 +60,24 @@ def launch_command(host, remote_dir, bundle, interface, cyclonedds_home):
     # -A attaches to a session that is already running instead of starting twice
     tmux = f"tmux new-session -A -s {TMUX_SESSION} {shlex.quote(pane)}"
     return ["ssh", "-t", host, tmux]
+
+
+def install_command(host, remote_dir, bundle, cyclonedds_home):
+    name = shlex.quote(os.path.basename(os.path.normpath(bundle)))
+    unit = "/etc/systemd/system/go2_launcher.service"
+    script = (
+        f"cd {shlex.quote(remote_dir)} && "
+        f'PATH="$HOME/.local/bin:$PATH" CYCLONEDDS_HOME={cyclonedds_home} '
+        "uv sync --frozen --no-dev --extra unitree_sdk && "
+        f"ln -sfn {name} logs/policies/current && "
+        'sed -e "s|@USER@|$(id -un)|g" -e "s|@HOME@|$HOME|g" -e "s|@REPO@|$PWD|g" '
+        f"scripts/go2_launcher.service | sudo tee {unit} >/dev/null && "
+        "sudo systemctl daemon-reload && sudo systemctl enable go2_launcher && "
+        "sudo systemctl restart go2_launcher && "  # leaves a running deploy alone
+        f"echo 'Installed {name}: unplug, then hold L1 + R1 to start it.'"
+    )
+    # -t so sudo can ask for the Jetson's password
+    return ["ssh", "-t", host, f"bash --noprofile --norc -c {shlex.quote(script)}"]
 
 
 def pull_logs_command(host, remote_dir):
@@ -75,6 +101,7 @@ def main():
         "--cyclonedds_home", default="$HOME/.local/opt/cyclonedds-0.10.2"
     )
     parser.add_argument("--pull_logs", action="store_true", help="Only fetch logs")
+    parser.add_argument("--install", action="store_true", help="See above")
     parser.add_argument("--dry_run", action="store_true", help="Print commands only")
     args = parser.parse_args()
 
@@ -88,6 +115,12 @@ def main():
 
     for command in sync_commands(args.host, args.remote_dir, args.bundle):
         run(command, args.dry_run)
+    if args.install:
+        cmd = install_command(
+            args.host, args.remote_dir, args.bundle, args.cyclonedds_home
+        )
+        run(cmd, args.dry_run)
+        return
     run(
         launch_command(
             args.host,

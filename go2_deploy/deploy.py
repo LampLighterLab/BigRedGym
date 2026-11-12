@@ -1,4 +1,5 @@
 import argparse
+import signal
 import sys
 import time
 
@@ -27,6 +28,14 @@ def main():
             "<interface>."
         )
 
+    from go2_deploy.utility.csv_logger import new_run_dir
+    from go2_deploy.utility.terminal_log import TerminalLog
+
+    # First, so terminal.log also covers policy loading and connection errors
+    run_dir = new_run_dir()
+    terminal_log = TerminalLog(run_dir)
+    print(f"go2_deploy {' '.join(sys.argv[1:])}")
+
     from go2_deploy.main_controller import MainController
     from go2_deploy.keyboard_handler import KeyboardHandler
     from go2_deploy.rl_controller import RLController
@@ -52,7 +61,19 @@ def main():
         0,
         args.interface,
     )
-    controller = MainController(cfg, rl_controller)
+    controller = MainController(cfg, rl_controller, run_dir=run_dir)
+    terminal_log.state = lambda: controller._state.name
+
+    # SIGTERM (the launcher's L2 + R2) and SIGHUP (tmux kill-session): run the
+    # e-stop (lie down, stand back up) and exit, instead of dying mid-policy
+    stop_signal = []
+
+    def request_shutdown(signum, frame):
+        stop_signal.append(signal.Signals(signum).name)
+        controller.request_shutdown()
+
+    signal.signal(signal.SIGTERM, request_shutdown)
+    signal.signal(signal.SIGHUP, request_shutdown)
     keyboard_handler = KeyboardHandler(controller)  # noqa: F841
 
     print(
@@ -60,8 +81,9 @@ def main():
         + "always have access to the remote controller\n"
     )
 
-    while True:
-        time.sleep(1)
+    while not controller.shut_down:
+        time.sleep(0.2)
+    terminal_log.record_exit(f"stopped ({stop_signal[0]})")
 
 
 if __name__ == "__main__":

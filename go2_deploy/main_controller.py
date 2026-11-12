@@ -28,24 +28,27 @@ from unitree_sdk2py.utils.crc import CRC
 class MainController:
     # cfg and rl_controller must come from the same source (one bundle, or the
     # default DeployConfig); every component below shares this one cfg.
-    def __init__(self, cfg, rl_controller):
+    def __init__(self, cfg, rl_controller, run_dir=None):
         # Flags are monitored by watchdog_thread to switch between states
         self._state = State.EMERGENCY_STOP
         self._estop_flag = False
         self._recovery_flag = False
         self._intermediate_flag = False
         self._custom_ctrl_flag = False
+        self._shutdown_flag = False
+        self.shut_down = False  # set once a requested shutdown has finished
 
         self.cfg = cfg
         self.rl_controller = rl_controller
         self.remote_controller = UnitreeRemoteController(cfg)
         self.rc_handler = RCHandler(self)
-        self.csv_logger = CSVLogger(self)
+        self.csv_logger = CSVLogger(self, run_dir=run_dir)
 
         self.obs_vec_size = cfg.obs_dim()
 
         self._init_buffers()
         if self.cfg.task_name == "go2trot":
+            #NOTE: implement arbitrary file processing here - Joshua
             self._init_go2trot_buffers()
 
         self._init_unitree_clients()
@@ -243,7 +246,16 @@ class MainController:
     # This should be the only thread that calls the functions to
     # change states
     def _watchdog_loop(self):
-        if self._estop_flag:
+        if self.shut_down:
+            return
+        if self._shutdown_flag:
+            # Same lie-down-and-stand-up as X; deploy.py exits once it's done.
+            # In RECOVERY the robot is already standing under Unitree's control.
+            if self._state != State.RECOVERY:
+                self.emergency_stop()
+            self.csv_logger.close()
+            self.shut_down = True
+        elif self._estop_flag:
             self.emergency_stop()
         elif self._recovery_flag:
             self.switch_to_recovery()
@@ -273,6 +285,10 @@ class MainController:
     def request_intermediate(self):
         print("intermediate requested")
         self._intermediate_flag = True
+
+    def request_shutdown(self):
+        print("Shutdown requested: e-stop, stand back up, then exit")
+        self._shutdown_flag = True
 
     def request_custom_ctrl(self):
         print("custom ctrl requested")
