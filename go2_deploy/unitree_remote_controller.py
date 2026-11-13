@@ -96,9 +96,9 @@ class UnitreeRemoteController:
 
         # y direction on the joystick is the x direction of motion for the robot
         self.lin_vel_x = (
-            self.Ly * self.cfg.command_limits["lin_vel_x"]
+            -self.Ly * self.cfg.command_limits["lin_vel_x"]
         )  # forward-backward
-        self.lin_vel_y = self.Lx * self.cfg.command_limits["lin_vel_y"]  # left-right
+        self.lin_vel_y = -self.Lx * self.cfg.command_limits["lin_vel_y"]  # left-right
         self.yaw_vel = self.Rx * self.cfg.command_limits["yaw_vel"]
 
     def parse(self, remoteData):
