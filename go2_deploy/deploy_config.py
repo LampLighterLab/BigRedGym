@@ -20,7 +20,7 @@ class DeployConfig:
     obs_vector = custom_impl.CustomDeployConfig.obs_vector
 
     # Scale observations
-    class DeployScaling(Go2TrotCfg.scaling):
+    class DeployScaling(custom_impl.CustomDeployConfig.DeployScaling):
         pass
 
     # Set ranges of joystick commands

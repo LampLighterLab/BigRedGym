@@ -1,6 +1,6 @@
 import math
 import torch
-
+from gym.envs.go2.go2trot_config import Go2TrotCfg
 
 class CustomDeployConfig:
     obs_vector = [
@@ -19,6 +19,9 @@ class CustomDeployConfig:
         "phase_obs": 2,
         "phase_frequency": 1,
     }
+
+    class DeployScaling(Go2TrotCfg.scaling):
+        pass
 
 # Initialize any custom buffers your implementation uses (for 1 environment)
 def get_custom_buffers_dict():
