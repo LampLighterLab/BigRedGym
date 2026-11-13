@@ -1,6 +1,7 @@
-from gym.envs.go2.go2trot_config import Go2TrotCfg
 import torch
 import numpy as np
+from gym.envs.go2.go2trot_config import Go2TrotCfg
+from go2_deploy.utility.import_custom_impl import custom_impl
 
 
 class DeployConfig:
@@ -11,23 +12,12 @@ class DeployConfig:
     kp = 30.0  # Default stiffness constant
     kd = 2.0  # Default damping constant
 
-    phase_frequency = 2.0  # footsteps per second in reference trajectory
-
     # Apply exponential moving average to actions
     exp_moving_avg = True
     ema_time_const = 0.095      # seconds
     ema_smoothing_factor = -np.expm1(-(1/ctrl_freq)/ema_time_const)     # alpha in EMA
 
-    obs_vector = [
-        "base_ang_vel",
-        "projected_gravity",
-        "commands",
-        "dof_pos_obs",
-        "dof_vel",
-        "dof_pos_target",
-        "phase_obs",
-        "phase_frequency",
-    ]
+    obs_vector = custom_impl.CustomDeployConfig.obs_vector
 
     # Scale observations
     class DeployScaling(Go2TrotCfg.scaling):
@@ -40,7 +30,7 @@ class DeployConfig:
         "yaw_vel": 3.0,  # rad/s
     }
 
-    # Specify size of observation vector. should not have to modify this
+    # Specify size of observation vector pieces
     obs_sizes = {
         "base_ang_vel": 3,
         "projected_gravity": 3,
@@ -49,9 +39,8 @@ class DeployConfig:
         "dof_vel": 12,
         "dof_accel": 12,
         "dof_pos_target": 12,
-        "phase_obs": 2,
-        "phase_frequency": 1,
     }
+    obs_sizes.update(custom_impl.CustomDeployConfig.custom_obs_sizes)
 
     # Canonical FL, FR, RL, RR order; hip, thigh, calf within each leg.
     default_dof_pos = torch.tensor(

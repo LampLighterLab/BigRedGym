@@ -7,6 +7,8 @@ from go2_deploy.unitree_remote_controller import UnitreeRemoteController, RCHand
 from go2_deploy.utility import deploy_utility
 from go2_deploy.utility.csv_logger import CSVLogger
 from go2_deploy.utility.thread import RecurrentThread
+from go2_deploy.deploy_config import DeployConfig
+from go2_deploy.utility.import_custom_impl import custom_impl
 
 import torch
 from unitree_sdk2py.core.channel import (
@@ -23,7 +25,6 @@ from unitree_sdk2py.comm.motion_switcher.motion_switcher_client import (
     MotionSwitcherClient,
 )
 from unitree_sdk2py.utils.crc import CRC
-
 
 class MainController:
     # cfg and rl_controller must come from the same source (one bundle, or the
@@ -47,9 +48,7 @@ class MainController:
         self.obs_vec_size = cfg.obs_dim()
 
         self._init_buffers()
-        if self.cfg.task_name == "go2trot":
-            #NOTE: implement arbitrary file processing here - Joshua
-            self._init_go2trot_buffers()
+        self._init_custom_buffers()
 
         self._init_unitree_clients()
 
@@ -101,9 +100,11 @@ class MainController:
         self.sportmodestate_obs_count = 0
         self.action_count = 0
 
-    def _init_go2trot_buffers(self):
-        self.phase_frequency = self.cfg.phase_frequency
-        self.phase = 0.0
+    # initialize student-provided custom buffers
+    def _init_custom_buffers(self):
+        custom_buffers_dict = custom_impl.get_custom_buffers_dict()
+        for key, value in custom_buffers_dict.items():
+            setattr(self, key, value)
 
     # Unitree SDK pub/sub clients
     def _init_unitree_clients(self):
@@ -156,9 +157,10 @@ class MainController:
 
     # Main control loop ------------------------------------------
 
-    # Update the phase observation; the gait reference is a training reward only.
-    def _process_go2trot_buffers(self, t):
-        self.phase = 2 * math.pi * self.phase_frequency * t % (2 * math.pi)
+    # Process student-provided custom buffers in control loop
+    def _process_custom_buffers(self, t):
+        custom_impl.update_custom_buffers(self, t)
+
 
     # Read last lowstate msg, publish LowCmd_
     # KNOWN RISK: if this process dies outright (OOM, kill) while in
@@ -166,8 +168,8 @@ class MainController:
     # See "Known risks" in README_DEPLOY.md.
     def _control_loop(self):
         t = time.monotonic()
-        if self.cfg.task_name == "go2trot":
-            self._process_go2trot_buffers(t)
+
+        self._process_custom_buffers(t)
 
         with self.last_command_lock:
             self.last_command = torch.tensor(
@@ -363,7 +365,7 @@ class MainController:
 
         if self._state != State.INTERMEDIATE and self._state != State.RECOVERY:
             print(
-                "Must be in recovery or intermediate state"
+                "Must be in recovery or intermediate state "
                 + "to switch to custom controller!"
             )
             return

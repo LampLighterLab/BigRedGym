@@ -3,7 +3,6 @@ import signal
 import sys
 import time
 
-
 def main():
     parser = argparse.ArgumentParser(description="Deploy a policy to a Unitree Go2.")
     parser.add_argument("interface", help="Robot network interface, e.g. eth0")
