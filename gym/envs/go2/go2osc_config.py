@@ -69,6 +69,8 @@ class Go2OscCfg(Go2Cfg):
     class push_robots(Go2Cfg.push_robots):
         toggle = True
         interval_s = 10
+        # Control steps over which pushes grow to full size (0: no ramp).
+        ramp_steps = 0
 
     class asset(Go2Cfg.asset):
         penalize_contacts_on = ["calf", "hip"]
@@ -95,6 +97,20 @@ class Go2OscCfg(Go2Cfg):
         steady_sigma = 0.1
         steady_delay = 1.0
         steady_cap = 4.0
+        # Power-smoothness reward: relative deviation of joint power from its
+        # one-stride average, the average at least power_floor [W], squared
+        # and capped; off for power_smooth_delay [s] after a reset.
+        power_floor = 50.0
+        power_smooth_cap = 4.0
+        power_smooth_delay = 1.0
+        # Cost-of-transport reward: commanded speed at least this [m/s].
+        cot_min_speed = 0.5
+        # Flight reward: fewer than flight_min_feet active feet with load above
+        # contact_threshold [x body weight] is penalized, fully below
+        # flight_speed[0] and fading out at flight_speed[1] [m/s].
+        contact_threshold = 0.05
+        flight_min_feet = 2
+        flight_speed = [1.0, 1.5]
 
     class scaling(Go2Cfg.scaling):
         phase_vel = 2 * 3.14159 * 4.0
@@ -143,6 +159,9 @@ class Go2OscRunnerCfg(Go2RunnerCfg):
                 peak_load = 0.0
                 heading = 0.0
                 steady_speed = 0.0
+                power_smooth = 0.0
+                cost_of_transport = 0.0
+                flight = 0.0
 
             class termination_weight:
                 termination = 0.15
@@ -349,6 +368,45 @@ WIDE_SETTINGS = {
     "steady1": {"steady_speed": 1.0},
 }
 
+# Follow-up settings of the wide study (two training batches). Besides
+# weights and "reward_settings", a setting may contain
+#   "push": push_robots overrides (stronger, more frequent pushes, grown
+#       from zero over ramp_steps control steps; 1500 iterations of 8 steps
+#       are 12000);
+#   "friction": the contact-friction range (training default [0.5, 1.0]);
+#   "sensors": True for noisy, delayed foot load for the oscillators, wider
+#       link-mass randomization and observation noise (as the robust task).
+# Push test pushes are 0.5-2 m/s; training pushes are at most 0.5 m/s per
+# axis every 10 s by default.
+ROBUST_PUSH = {"max_push_vel_xy": 1.25, "interval_s": 4.0, "ramp_steps": 4000}
+ROBUST_FRICTION = [0.2, 1.25]
+ROBUST = {"push": ROBUST_PUSH, "friction": ROBUST_FRICTION, "sensors": True}
+FOLLOWUP_BATCHES = {
+    # Batch 1: sim-to-real candidates and the power-smoothness hypothesis
+    # (even load blocks two-leg gaits, smooth power blocks the hop).
+    1: {
+        "robust": ROBUST,
+        "even2.5_robust": {"even_load": 2.5, **ROBUST},
+        "even2.5_smooth0.5": {"even_load": 2.5, "power_smooth": 0.5},
+        "even2.5_smooth1": {"even_load": 2.5, "power_smooth": 1.0},
+    },
+    # Batch 2: pushes and friction separately, no flight phase at low speed
+    # (walking gaits), and a mild cost of transport on top of even load.
+    2: {
+        "push": {"push": ROBUST_PUSH},
+        "friction": {"friction": ROBUST_FRICTION},
+        "even2.5_noflight1": {"even_load": 2.5, "flight": 1.0},
+        "even2.5_cot0.2": {"even_load": 2.5, "cost_of_transport": 0.2},
+    },
+}
+WIDE_SETTINGS.update({k: v for b in FOLLOWUP_BATCHES.values() for k, v in b.items()})
+# Each follow-up setting's reference: the setting it adds one change to.
+FOLLOWUP_PARENTS = {
+    k: ("even2.5" if k.startswith("even2.5_") else "baseline")
+    for b in FOLLOWUP_BATCHES.values()
+    for k in b
+}
+
 
 # Wide-range study: the same settings over speeds to 4.5 m/s and oscillator
 # frequencies to 6 Hz. 4.5 m/s is about the canine amputees' top speed (6.7
@@ -385,6 +443,9 @@ def study_cfgs(setting, wide=False):
     """Env and runner config classes for one reward-study setting."""
     changed = dict((WIDE_SETTINGS if wide else STUDY_SETTINGS)[setting])
     reward_settings = changed.pop("reward_settings", {})
+    push = changed.pop("push", None)
+    friction = changed.pop("friction", None)
+    sensors = changed.pop("sensors", False)
     weights = {**STUDY_BASE_WEIGHTS, **changed}
 
     class RunnerCfg(Go2OscFrontLockedOmegaRunnerCfg):
@@ -398,16 +459,42 @@ def study_cfgs(setting, wide=False):
 
     for name, value in weights.items():
         setattr(RunnerCfg.critic.reward.weights, name, value)
+    if sensors:
+        RunnerCfg.actor = type(
+            "actor", (Go2OscFrontLockedOmegaRunnerCfg.actor,), {"add_noise": True}
+        )
     env_cfg = Go2OscFrontLockedWideCfg if wide else Go2OscFrontLockedOmegaCfg
-    if reward_settings:
+    if reward_settings or push or friction or sensors:
         base = env_cfg
 
         class EnvCfg(base):
             class reward_settings(base.reward_settings):
                 pass
 
+            class push_robots(base.push_robots):
+                pass
+
+            class osc(base.osc):
+                pass
+
+            class domain_randomization(base.domain_randomization):
+                class startup(base.domain_randomization.startup):
+                    pass
+
         for name, value in reward_settings.items():
             setattr(EnvCfg.reward_settings, name, value)
+        for name, value in (push or {}).items():
+            setattr(EnvCfg.push_robots, name, value)
+        startup = EnvCfg.domain_randomization.startup
+        if friction is not None:
+            startup.contact_friction_range = list(friction)
+        if sensors:
+            robust = Go2OscFrontLockedOmegaRobustCfg
+            EnvCfg.osc.grf_noise_std = robust.osc.grf_noise_std
+            EnvCfg.osc.grf_delay_max_steps = robust.osc.grf_delay_max_steps
+            startup.link_mass_scale_range = list(
+                robust.domain_randomization.startup.link_mass_scale_range
+            )
         env_cfg = EnvCfg
     return env_cfg, RunnerCfg
 

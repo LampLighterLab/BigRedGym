@@ -59,6 +59,14 @@ class Go2Osc(Go2):
         # Forward speed averaged over about one stride (exponential moving
         # average with time constant 1 / omega), for the steady-speed reward.
         self.stride_vx = torch.zeros(self.num_envs, device=self.device)
+        # Joint power |torque x joint speed| summed over joints [W], averaged
+        # over the current control step, and its one-stride running average
+        # (power-smoothness and cost-of-transport rewards).
+        self.step_power = torch.zeros(self.num_envs, device=self.device)
+        self.stride_power = torch.zeros(self.num_envs, device=self.device)
+        # Share of the control step's physics substeps with fewer than
+        # reward_settings.flight_min_feet active feet on the ground.
+        self.step_flight = torch.zeros(self.num_envs, device=self.device)
 
     def _init_leg_lock(self):
         lock = self.cfg.leg_lock
@@ -95,6 +103,8 @@ class Go2Osc(Go2):
     def _pre_decimation_step(self):
         super()._pre_decimation_step()
         self.peak_load.zero_()
+        self.step_power.zero_()
+        self.step_flight.zero_()
         # The policy has no authority over the locked leg; zero its targets so
         # observations and action-rate penalties ignore it.
         self.dof_pos_target[:, self._locked_dofs] = 0.0
@@ -136,6 +146,17 @@ class Go2Osc(Go2):
         sim_dt = self.dt / self.cfg.control.decimation
         self._step_oscillators(sim_dt)
         self._update_load_stats(sim_dt)
+        self._update_power_stats()
+
+    def _update_power_stats(self):
+        """Joint power and feet on the ground, averaged over the control
+        step's physics substeps."""
+        n = self.cfg.control.decimation
+        vel = self.dof_vel.index_select(1, self.actuated_dof_indices)
+        self.step_power += (self.torques * vel).abs().sum(dim=1) / n
+        s = self.cfg.reward_settings
+        down = ((self.grf > s.contact_threshold) & self.active_legs).sum(dim=1)
+        self.step_flight += (down < s.flight_min_feet).float() / n
 
     def _post_decimation_step(self):
         super()._post_decimation_step()
@@ -144,6 +165,7 @@ class Go2Osc(Go2):
         )
         alpha = torch.clamp(self.dt * self.osc_omega[:, 0], max=1.0)
         self.stride_vx += alpha * (self.base_lin_vel[:, 0] - self.stride_vx)
+        self.stride_power += alpha * (self.step_power - self.stride_power)
 
     def _update_load_stats(self, sim_dt):
         """Per-foot load averaged over about one oscillator period (an
@@ -219,6 +241,7 @@ class Go2Osc(Go2):
             reset_mask, yaw_of(self.root_states[:, 3:7]), self.heading_target
         )
         self.stride_vx.masked_fill_(reset_mask, 0.0)
+        self.stride_power.masked_fill_(reset_mask, 0.0)
         self._update_phase_obs()
 
     def reset_to_basic(self, reset_mask):
@@ -290,6 +313,45 @@ class Go2Osc(Go2):
         period = max(1, int(round(self.cfg.commands.resampling_time / self.dt)))
         since_command = (self.episode_length_buf % period) * self.dt
         return -error * (since_command >= s.steady_delay)
+
+    def _push_scale(self):
+        """Push curriculum: the push size grows linearly to its maximum over
+        push_robots.ramp_steps control steps (0: full size from the start)."""
+        ramp = getattr(self.cfg.push_robots, "ramp_steps", 0)
+        return min(1.0, self.common_step_counter / ramp) if ramp else 1.0
+
+    def _reward_power_smooth(self):
+        """Penalize joint power that swings within a stride (all legs pushing
+        at once, as in a hop): squared deviation of the total joint power from
+        its one-stride running average, relative to that average (at least
+        reward_settings.power_floor W), capped at power_smooth_cap. Off for
+        power_smooth_delay seconds after a reset, while the average settles."""
+        s = self.cfg.reward_settings
+        mean = self.stride_power.clamp(min=s.power_floor)
+        error = ((self.step_power - self.stride_power) / mean).square()
+        error = error.clamp(max=s.power_smooth_cap)
+        settled = self.episode_length_buf * self.dt >= s.power_smooth_delay
+        return -error * settled
+
+    def _reward_cost_of_transport(self):
+        """Penalize energy per distance: joint power over weight x commanded
+        speed (at least reward_settings.cot_min_speed), a dimensionless cost
+        of transport (about 1.5 for the wide-study policies)."""
+        s = self.cfg.reward_settings
+        weight = 9.81 * self._backend.link_mass.sum(dim=1)
+        speed = self.commands[:, 0].abs().clamp(min=s.cot_min_speed)
+        return -self.step_power / (weight * speed)
+
+    def _reward_flight(self):
+        """At low commanded speed, penalize time with fewer than
+        reward_settings.flight_min_feet active feet on the ground (flight
+        phases and single-leg stances), so hopping and two-leg running are
+        costly and walking gaits pay. Full below flight_speed[0], fading to
+        zero at flight_speed[1] [m/s]."""
+        low, high = self.cfg.reward_settings.flight_speed
+        speed = self.commands[:, 0].abs()
+        gate = ((high - speed) / (high - low)).clamp(0.0, 1.0)
+        return -self.step_flight * gate
 
     def _reward_heading(self):
         """Keep the heading the robot had at reset (turned by any yaw-rate
