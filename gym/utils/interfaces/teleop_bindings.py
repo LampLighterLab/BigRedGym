@@ -99,7 +99,8 @@ class TeleopCommands:
         if self.has_height:
             self.min_height, self.max_height = env.command_ranges["base_height"]
             self.increment_height = (self.max_height - self.min_height) * 0.1
-            env.base_height_target[:] = 0.5 * (self.min_height + self.max_height)
+            self.start_height = 0.5 * (self.min_height + self.max_height)
+            env.base_height_target[:] = self.start_height
 
 
     def apply(self, action: str) -> None:
@@ -130,7 +131,18 @@ class TeleopCommands:
                 h = self.env.base_height_target
                 h[:] = torch.clamp(h - self.increment_height, min=self.min_height)
                 print(f"base height target: {h[0].item():.3f} m")
+        elif action == "reset":
+            self.env.timed_out[:] = True
+            self.env.reset()
+            # Reset resamples random commands; start teleop from rest instead.
+            c[:] = 0.0
+            if self.has_height:
+                self.env.base_height_target[:] = self.start_height
+            return
+        else:
+            raise ValueError(f"unknown teleop action {action!r}")
 
+        # Only as fast as is safe at the current height target.
         if hasattr(self.env, "_speed_scale"):
             s = self.env._speed_scale()[:, 0]
             limits = [
@@ -140,12 +152,6 @@ class TeleopCommands:
             ]
             for i, (lo, hi) in enumerate(limits):
                 c[:, i] = torch.clamp(c[:, i], min=lo * s, max=hi * s)
-
-        elif action == "reset":
-            self.env.timed_out[:] = True
-            self.env.reset()
-        else:
-            raise ValueError(f"unknown teleop action {action!r}")
 
 
     def print_help(self, viewer_name: str) -> None:

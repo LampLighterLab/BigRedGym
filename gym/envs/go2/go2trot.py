@@ -58,8 +58,10 @@ class Go2Trot(LeggedRobot):
             self.num_envs, 4, dtype=torch.float, device=self.device
         )
         self._payload_enabled = payload_mass_range(self.cfg) is not None
+        # Configs saved before the payload existed have no payload block.
+        payload_cfg = getattr(self.cfg.domain_randomization, "payload", None)
         self._payload_mount_pos = torch.tensor(
-            self.cfg.domain_randomization.payload.mount_pos,
+            payload_cfg.mount_pos if payload_cfg else [0.0, 0.0, 0.0],
             dtype=torch.float,
             device=self.device,
         )

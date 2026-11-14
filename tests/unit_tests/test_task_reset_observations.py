@@ -97,13 +97,17 @@ def test_runner_observations_include_current_gait_phase_and_frequency(task):
             (torch.sin(env.phase), torch.cos(env.phase), env.phase_frequency),
             dim=-1,
         )
+        # Actor adds base_height_target; the critic also gets payload_obs.
         for names, size in (
-            (runner_cfg.actor.obs, 48),
-            (runner_cfg.critic.obs, 52),
+            (runner_cfg.actor.obs, 49),
+            (runner_cfg.critic.obs, 57),
         ):
             observation = env.get_states(names)
             assert observation.shape == (env.num_envs, size)
-            torch.testing.assert_close(observation[:, -3:], expected)
+            phase = names.index("phase_obs")
+            assert names[phase + 1] == "phase_frequency"
+            start = sum(env.get_state(name).shape[1] for name in names[:phase])
+            torch.testing.assert_close(observation[:, start : start + 3], expected)
         env.step()
 
 

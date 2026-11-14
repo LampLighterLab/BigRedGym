@@ -123,6 +123,29 @@ class CommandVisualizer:
                     _HEIGHT_RGBA,
                 )
 
+        self._draw_payload_text(viewer)
+
+    def _draw_payload_text(self, viewer):
+        """Corner readout of the payload on robot 0, the one with the arrows."""
+        if not getattr(self.env, "_payload_enabled", False):
+            return
+        if not hasattr(viewer, "set_texts"):
+            return
+        masses = self.env._backend.payload_mass.detach().cpu()
+        labels = ["Payload (robot 0)"]
+        values = [f"{float(masses[0]):.2f} kg"]
+        if len(masses) > 1:
+            labels.append("All robots")
+            values.append(f"{float(masses.min()):.1f} - {float(masses.max()):.1f} kg")
+        # MuJoCo's overlay font is ASCII-only, so no en dash in the range.
+        viewer.set_texts(
+            (
+                mujoco.mjtFontScale.mjFONTSCALE_150,
+                mujoco.mjtGridPos.mjGRID_TOPLEFT,
+                "\n".join(labels),
+                "\n".join(values),
+            )
+        )
 
     def _draw_yaw_arc(self, viewer, center, robot_yaw, yaw_rate):
         # Arc sweeps the heading change after yaw_arc_scale seconds, clamped
