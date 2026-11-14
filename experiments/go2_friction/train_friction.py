@@ -9,6 +9,7 @@ Reuses BigRedGym's *actual* scripts/train.py setup and policy runner.
 """
 from __future__ import annotations
 
+from html import parser
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -54,8 +55,11 @@ def main(argv=None) -> None:
         parser.error("Supply --seed so results are reproducible")
     if not 0 <= args.min_friction <= args.max_friction:
         parser.error("Required: 0 <= min-friction <= max-friction")
-    if args.resume or args.original_cfg:
-        parser.error("This script creates fresh policies: don't use --resume/--original_cfg")
+    if args.original_cfg:
+        parser.error("Do not use --original_cfg with this experiment.")
+
+    if args.resume and args.load_run is None:
+        parser.error("Supply --load_run when resuming training.")
     if args.experiment_name is None:
         args.experiment_name = f"go2friction_lb_{friction_name(args.min_friction)}_seed_{args.seed}"
 
@@ -64,10 +68,20 @@ def main(argv=None) -> None:
     from gym.utils.task_registry import task_registry
 
     env_cfg, train_cfg = task_registry.get_cfgs(args.task)
+
+
+
     configure_friction(
         env_cfg, args.min_friction, args.max_friction,
         friction_only=not args.keep_other_randomization,
     )
+
+    # Penalize head and calf contact with the ground
+    env_cfg.asset.penalize_contacts_on = ["Head_", "calf"]
+    # Positive weight because _reward_collision returns negative values
+    train_cfg.critic.reward.weights.collision = 0.5
+    train_cfg.runner.save_interval = 25
+
     print(
         f"Training {args.experiment_name}: "
         f"mu ~ U({args.min_friction}, {args.max_friction}), seed={args.seed}"
