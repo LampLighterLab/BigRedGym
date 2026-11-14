@@ -48,7 +48,12 @@ from grid_eval import (
     gait_colors,
     observed_legend,
 )
-from gym.envs.go2.go2osc_config import STUDY_BASE_WEIGHTS, STUDY_SETTINGS, WIDE_SETTINGS
+from gym.envs.go2.go2osc_config import (
+    FOLLOWUP_PARENTS,
+    STUDY_BASE_WEIGHTS,
+    STUDY_SETTINGS,
+    WIDE_SETTINGS,
+)
 from gym.utils.helpers import GYM_ROOT_DIR
 
 # Rebound by use_wide() for the wide-range study.
@@ -151,6 +156,8 @@ def sweep_of(setting):
     changed = STUDY_SETTINGS[setting]
     if not changed:
         return None, 0, None
+    if setting in FOLLOWUP_PARENTS:  # several changes; not on a sweep line
+        return "follow-up", 0, None
     for sweep, key in SWEEP_KEYS.items():
         if swept(changed, key) is not None:
             break
@@ -164,7 +171,9 @@ def sweep_weights(sweep):
     """Weights along a sweep, starting with the baseline's."""
     key = SWEEP_KEYS[sweep]
     levels = sorted(
-        swept(w, key) for w in STUDY_SETTINGS.values() if swept(w, key) is not None
+        swept(w, key)
+        for s, w in STUDY_SETTINGS.items()
+        if swept(w, key) is not None and s not in FOLLOWUP_PARENTS
     )
     return [BASE_VALUES.get(key, 0.0)] + levels
 

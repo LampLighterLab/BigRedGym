@@ -11,6 +11,9 @@ Usage:
     uv run --frozen scripts/study_eval.py --checkpoint 1250  # convergence check
     uv run --frozen scripts/study_eval.py --robots 32        # faster, noisier
     uv run --frozen scripts/study_eval.py --force            # redo, overwriting
+    # Short pass at low friction, its own results folder (no heatmaps):
+    uv run --frozen scripts/study_eval.py --wide --friction 0.3 --robots 16 \
+        --settle 6 --measure 6 --results friction0.3_wide
 Then summarize with scripts/study_summary.py.
 """
 
@@ -38,6 +41,18 @@ def get_args(argv=None):
     parser.add_argument(
         "--device", type=str, default="cpu", help="cpu or cuda:0 (MuJoCo Warp, much faster)"
     )
+    parser.add_argument(
+        "--friction", type=float, default=None, help="fixed contact friction"
+    )
+    parser.add_argument("--settle", type=float, default=10.0, help="settling time [s]")
+    parser.add_argument("--measure", type=float, default=10.0, help="measured time [s]")
+    parser.add_argument(
+        "--results",
+        type=str,
+        default=None,
+        help="folder under logs/study_results/ for these results (default: runs); "
+        "heatmaps then go next to the .npz",
+    )
     parser.add_argument("--dry_run", action="store_true", help="list, don't run")
     parser.add_argument(
         "--wide",
@@ -63,19 +78,22 @@ def study_runs(wide=False):
     return found
 
 
-def out_path(task, run, checkpoint):
+def out_path(task, run, checkpoint, results=RESULTS):
     """Results file of one evaluation (its heatmap: same name in PLOTS)."""
     suffix = "" if checkpoint == -1 else f"__it{checkpoint}"
-    return RESULTS / f"{task}__{run}{suffix}.npz"
+    return results / f"{task}__{run}{suffix}.npz"
 
 
 def main():
     args = get_args()
-    LOGS.mkdir(parents=True, exist_ok=True)
-    PLOTS.mkdir(parents=True, exist_ok=True)
+    results = RESULTS if args.results is None else DATA / args.results
+    logs = results / "logs"
+    plots = PLOTS if args.results is None else results / "heatmaps"
+    logs.mkdir(parents=True, exist_ok=True)
+    plots.mkdir(parents=True, exist_ok=True)
     todo = []
     for task, run in study_runs(args.wide):
-        out = out_path(task, run, args.checkpoint)
+        out = out_path(task, run, args.checkpoint, results)
         if out.exists() and not args.force:
             print(f"done    {out.name}")
         else:
@@ -108,13 +126,19 @@ def main():
             "--robots",
             str(args.robots),
             "--out",
-            str(PLOTS / f"{out.stem}.png"),
+            str(plots / f"{out.stem}.png"),
             "--data_out",
             str(out),
             "--device",
             args.device,
+            "--settle",
+            str(args.settle),
+            "--measure",
+            str(args.measure),
         ]
-        log = open(LOGS / f"{out.stem}.log", "w")
+        if args.friction is not None:
+            cmd += ["--friction", str(args.friction)]
+        log = open(logs / f"{out.stem}.log", "w")
         proc = subprocess.Popen(
             cmd, cwd=script.parent, env=env, stdout=log, stderr=subprocess.STDOUT
         )
@@ -124,7 +148,7 @@ def main():
     for entry in running:
         finish(entry)
     if failed:
-        raise SystemExit(f"failed (see the .log of each in {LOGS}): {failed}")
+        raise SystemExit(f"failed (see the .log of each in {logs}): {failed}")
 
 
 if __name__ == "__main__":

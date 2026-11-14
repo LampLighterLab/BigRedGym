@@ -9,7 +9,13 @@ osc.omega_range) at every cell instead, forcing the cell's frequency. Measures:
     resulting gait (footfall timing matched to named three-legged gaits),
     peak landing force (x body weight), and how evenly the legs carry load,
     turning and sideways drift, speed fluctuation within a stride, vertical
-    bounce, roll and pitch sway and the mean roll (lean).
+    bounce, roll and pitch sway and the mean roll (lean),
+    joint power (mean |torque x joint speed| summed over joints), cost of
+    transport, how unsteady the power is over time and how evenly the legs
+    share it.
+
+With --friction, every robot's contact friction is set to that value (e.g.
+0.3, below the training range) instead of the randomized one.
 
 Results are plotted as heatmaps with speed on the x axis and frequency on the
 y axis, and saved as .npz next to the figure.
@@ -68,6 +74,12 @@ def get_args(argv=None):
         help="gait-over-time figure: classify every this many seconds [s]",
     )
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--friction",
+        type=float,
+        default=None,
+        help="contact friction of every robot (default: randomized as in training)",
+    )
     parser.add_argument(
         "--device",
         type=str,
@@ -225,6 +237,12 @@ def rollout(env, runner, speed, args, omega=None):
     sim_dt = env.dt / env.cfg.control.decimation
     peak = torch.zeros(env.num_envs, len(env.feet_indices), device=env.device)
     impulse = torch.zeros_like(peak)
+    # Joint power |torque x joint speed|: energy per leg over the measured
+    # window, and per control step (total and positive work) for its time course.
+    joint_leg = leg_of_joints(env)
+    leg_energy = torch.zeros_like(peak)
+    step_energy = torch.zeros(env.num_envs, device=env.device)
+    positive_energy = torch.zeros(env.num_envs, device=env.device)
     post_physics_step = env._post_physics_step
 
     # Peak and impulse of vertical foot force over every physics substep.
@@ -233,11 +251,16 @@ def rollout(env, runner, speed, args, omega=None):
         force = env.contact_forces[:, env.feet_indices, 2].clamp(min=0.0)
         torch.maximum(peak, force, out=peak)
         impulse.add_(force * sim_dt)
+        vel = env.dof_vel.index_select(1, env.actuated_dof_indices)
+        power = env.torques * vel
+        leg_energy.add_(power.abs() @ joint_leg, alpha=sim_dt)
+        step_energy.add_(power.abs().sum(dim=1), alpha=sim_dt)
+        positive_energy.add_(power.clamp(min=0.0).sum(dim=1), alpha=sim_dt)
 
     env._post_physics_step = hooked_post_physics_step
     fell = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
     contact, step_peak, vx, contact_all = [], [], [], []
-    vz, roll, pitch = [], [], []
+    vz, roll, pitch, step_power = [], [], [], []
     n_settle = int(args.settle / env.dt)
     n_steps = int((args.settle + args.measure) / env.dt)
     fell_at = np.full(env.num_envs, n_steps)
@@ -257,8 +280,11 @@ def rollout(env, runner, speed, args, omega=None):
                 runner.actor_cfg["disable_actions"],
             )
             peak.zero_()
+            step_energy.zero_()
             if i == n_settle:
                 impulse.zero_()
+                leg_energy.zero_()
+                positive_energy.zero_()
             env.step()
             fell |= env.terminated
             fell_at[env.terminated.cpu().numpy() & (fell_at == n_steps)] = i
@@ -276,6 +302,7 @@ def rollout(env, runner, speed, args, omega=None):
                 step_peak.append((peak / weight).cpu().numpy().copy())
                 vx.append(env.base_lin_vel[:, 0].cpu().numpy().copy())
                 vz.append(env.base_lin_vel[:, 2].cpu().numpy().copy())
+                step_power.append((step_energy / env.dt).cpu().numpy().copy())
                 r, p = roll_pitch(env)
                 roll.append(r)
                 pitch.append(p)
@@ -296,10 +323,67 @@ def rollout(env, runner, speed, args, omega=None):
         "vx_steps": np.stack(vx, axis=1),  # [robot, step], m/s, body frame
         "vz_steps": np.stack(vz, axis=1),  # [robot, step], m/s, body frame
         "roll": np.stack(roll, axis=1),  # [robot, step], rad
+        # Joint power: energy per leg [J] and positive work [J] over the
+        # measured window, total |power| per control step [W].
+        "leg_energy": leg_energy.cpu().numpy().copy(),  # [robot, foot]
+        "positive_energy": positive_energy.cpu().numpy().copy(),  # [robot]
+        "power_steps": np.stack(step_power, axis=1),  # [robot, step]
+        "mass": (weight[:, 0] / 9.81).cpu().numpy().copy(),  # [robot], kg
         "pitch": np.stack(pitch, axis=1),  # [robot, step], rad
         # Oscillator frequency of each robot [Hz], for one-stride averaging.
         "omega": env.osc_omega[:, 0].cpu().numpy().copy(),
     }
+
+
+def leg_of_joints(env):
+    """[actuated joint, foot] 0/1 matrix: which leg each joint belongs to
+    (joint and foot names share the leg prefix, e.g. FL_)."""
+    feet = env.robot_layout.body_groups["feet"]
+    out = torch.zeros(len(env.actuated_dof_names), len(feet), device=env.device)
+    for j, joint in enumerate(env.actuated_dof_names):
+        for k, foot in enumerate(feet):
+            if joint.startswith(foot.removesuffix("foot")):
+                out[j, k] = 1.0
+    return out
+
+
+def power_metrics(log, legs, measure):
+    """Per robot, over the measured window:
+
+    power: mean joint power, sum over joints of |torque x joint speed| [W].
+    cost_of_transport: power / (mass x g x measured forward speed); NaN when
+        the robot barely moves (below 0.1 m/s).
+    positive_power: mean positive (motor) work rate [W].
+    power_fluctuation: SD / mean of the total power over control steps
+        (0 = constant power; a gait where all legs push at once is high).
+    peak_power: 95th percentile of the total power [W].
+    power_unevenness: CV of the active legs' shares of the energy (0 = even).
+    """
+    energy = log["leg_energy"][:, legs]
+    power = energy.sum(axis=1) / measure
+    speed = log["vx"]
+    steps = log["power_steps"]
+    shares = energy / np.maximum(energy.sum(axis=1, keepdims=True), 1e-9)
+    return {
+        "power": power,
+        "cost_of_transport": np.where(
+            speed > 0.1, power / (log["mass"] * 9.81 * np.maximum(speed, 0.1)), np.nan
+        ),
+        "positive_power": log["positive_energy"] / measure,
+        "power_fluctuation": steps.std(axis=1) / np.maximum(steps.mean(axis=1), 1e-9),
+        "peak_power": np.percentile(steps, 95, axis=1),
+        "power_unevenness": shares.std(axis=1) / shares.mean(axis=1),
+    }, shares
+
+
+METRIC_KEYS_POWER = [
+    "power",
+    "cost_of_transport",
+    "positive_power",
+    "power_fluctuation",
+    "peak_power",
+    "power_unevenness",
+]
 
 
 def motion_metrics(log, speed, dt):
@@ -571,8 +655,11 @@ def cell_metrics(log, speed, legs, names, dt, args):
     names_list += [PERIODIC, "irregular", "not stepping"]
     counts = np.array([labels.count(name) for name in names_list])
     robot_motion = motion_metrics(log, speed, dt)
+    robot_power, power_shares = power_metrics(log, legs, args.measure)
+    robot_motion.update(robot_power)
     motion = {
-        k: np.median(v[ok]) if ok.any() else np.nan for k, v in robot_motion.items()
+        k: np.nanmedian(v[ok]) if ok.any() and not np.isnan(v[ok]).all() else np.nan
+        for k, v in robot_motion.items()
     }
     return {
         "speed_ratio": log["vx"][ok].mean() / speed if ok.any() else np.nan,
@@ -602,6 +689,11 @@ def cell_metrics(log, speed, legs, names, dt, args):
         "robot_stride_timing": stride_timing.astype(np.float32),
         "peak_force": np.nanmean(peaks) if peaks else np.nan,
         "leg_shares": shares.mean(axis=0) if ok.any() else np.full(len(legs), np.nan),
+        # Each active leg's share of the joint energy (mean over robots up).
+        "leg_power_shares": power_shares[ok].mean(axis=0)
+        if ok.any()
+        else np.full(len(legs), np.nan),
+        "robot_leg_power_shares": np.where(ok[:, None], power_shares, np.nan),
         "unevenness": (shares.std(axis=1) / shares.mean(axis=1)).mean()
         if ok.any()
         else np.nan,
@@ -899,9 +991,9 @@ def plot(results, gait_names, leg_names, path, title):
 
     # Panels grow with the grid (5 speeds x 4 frequencies at 21 x 13.5).
     fig, axes = plt.subplots(
-        3,
         4,
-        figsize=(21 * max(1.0, len(speeds) / 5), 13.5 * max(1.0, len(omegas) / 4)),
+        4,
+        figsize=(21 * max(1.0, len(speeds) / 5), 18 * max(1.0, len(omegas) / 4)),
     )
     panels = [
         # Ranges fitted to the data (see below) so small differences show.
@@ -950,6 +1042,28 @@ def plot(results, gait_names, leg_names, path, title):
             "RdBu_r",
             None,
             "{:.1f}",
+        ),
+        ("power", "joint power [W] (sum of |torque x speed|)", "viridis", None, "{:.0f}"),
+        (
+            "cost_of_transport",
+            "cost of transport [power / (m g v)]",
+            "viridis",
+            None,
+            "{:.2f}",
+        ),
+        (
+            "power_fluctuation",
+            "power fluctuation over time [SD / mean]",
+            "viridis",
+            None,
+            "{:.2f}",
+        ),
+        (
+            "power_unevenness",
+            "uneven power across legs [CV, 0 = even]",
+            "cividis",
+            None,
+            "{:.2f}",
         ),
     ]
     for ax, (key, label, cmap, limits, fmt) in zip(axes.ravel(), panels):
@@ -1018,6 +1132,9 @@ def plot(results, gait_names, leg_names, path, title):
                     )
         else:
             values = grid(key)
+            if np.isnan(values).all():  # results from before a metric existed
+                ax.set_visible(False)
+                continue
             vmin, vmax = limits or (np.nanmin(values), np.nanmax(values))
             contrast = key in (
                 "speed_ratio",
@@ -1025,6 +1142,7 @@ def plot(results, gait_names, leg_names, path, title):
                 "turn_rate",
                 "sideways",
                 *METRIC_KEYS_MOTION,
+                *METRIC_KEYS_POWER,
             )
             if key in ("turn_rate", "sideways"):
                 vmin = 0.0
@@ -1053,7 +1171,7 @@ def plot(results, gait_names, leg_names, path, title):
         ax.set_xlabel("commanded speed [m/s]")
         ax.set_ylabel("oscillator frequency [Hz]")
     fig.suptitle(title, fontsize=11)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0, 1, 0.98))
     fig.savefig(path, dpi=110)
     print(f"Saved sweep heatmaps to {path}")
 
@@ -1069,7 +1187,13 @@ if __name__ == "__main__":
         if args.load_run is not None:
             play_argv += ["--load_run", args.load_run]
         with torch.no_grad():
-            return play.setup(play.get_play_args(play_argv))
+            env, runner, load_path = play.setup(play.get_play_args(play_argv))
+        if args.friction is not None:
+            env._backend.set_contact_friction(
+                torch.arange(env.num_envs, device=env.device),
+                torch.full((env.num_envs,), args.friction, device=env.device),
+            )
+        return env, runner, load_path
 
     if args.task is not None:
         # The task's own grid (the wide-range study goes to 4.5 m/s, 6 Hz);
@@ -1113,7 +1237,8 @@ if __name__ == "__main__":
                 f"{gait}, peak {cell['peak_force']:.2f} BW, "
                 f"unevenness {cell['unevenness']:.2f}, "
                 f"speed fluct {cell['speed_fluctuation']:.2f}, "
-                f"roll sway {cell['roll_sway']:.1f} deg"
+                f"roll sway {cell['roll_sway']:.1f} deg, "
+                f"power {cell['power']:.0f} W, CoT {cell['cost_of_transport']:.2f}"
             )
     if not results:
         raise SystemExit("No trained sweep cells found under logs/")
@@ -1130,6 +1255,7 @@ if __name__ == "__main__":
         "turn_rate",
         "sideways",
         *METRIC_KEYS_MOTION,
+        *METRIC_KEYS_POWER,
     ]
     shape = (len(SWEEP_OMEGAS), len(SWEEP_SPEEDS))
     saved = {key: np.full(shape, np.nan) for key in keys}
@@ -1140,12 +1266,16 @@ if __name__ == "__main__":
     saved["robot_spread"] = np.full(shape + (args.robots,), np.nan)
     saved["robot_touchdowns"] = np.full(shape + (args.robots,), np.nan)
     saved["robot_turn_rate"] = np.full(shape + (args.robots,), np.nan)
-    for key in METRIC_KEYS_MOTION:
+    for key in METRIC_KEYS_MOTION + METRIC_KEYS_POWER:
         saved[f"robot_{key}"] = np.full(shape + (args.robots,), np.nan)
     saved["robot_leg_touchdowns"] = np.full(
         shape + (args.robots, len(leg_names)), np.nan
     )
     saved["robot_leg_shares"] = np.full(shape + (args.robots, len(leg_names)), np.nan)
+    saved["leg_power_shares"] = np.full(shape + (len(leg_names),), np.nan)
+    saved["robot_leg_power_shares"] = np.full(
+        shape + (args.robots, len(leg_names)), np.nan
+    )
     saved["robot_label"] = np.full(shape + (args.robots,), -1, dtype=int)
     for key in (
         "robot_lead",
@@ -1177,6 +1307,9 @@ if __name__ == "__main__":
         time_labels=np.array(time_labels),
         leg_names=np.array(leg_names),
         runs=runs.astype(str),
+        friction=np.nan if args.friction is None else args.friction,
+        settle=args.settle,
+        measure=args.measure,
         **saved,
     )
     checkpoint = "latest" if args.checkpoint == -1 else f"model_{args.checkpoint}"
@@ -1187,6 +1320,7 @@ if __name__ == "__main__":
             if args.task
             else f"one policy per cell ({checkpoint})"
         )
+        + ("" if args.friction is None else f"; friction {args.friction:g}")
         + f"; {args.robots} robots "
         f"per cell from random phases, measured {args.measure:g} s after "
         f"{args.settle:g} s; physics {sim_hz:.0f} Hz"
