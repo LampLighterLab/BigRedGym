@@ -66,3 +66,7 @@ class Go2Osc(Go2):
         self.dof_pos_history.masked_fill_(reset_mask.unsqueeze(1), 0.0)
 
         self._update_oscillator_observations()
+
+    def _reward_force_tracking(self):
+        error = self.measured_grf - self.target_grf
+        return -torch.mean(error**2, dim=1)
