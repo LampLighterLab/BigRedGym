@@ -1,0 +1,16 @@
+\documentclass[tikz,border=5pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+
+\begin{document}
+\begin{tikzpicture}[
+    node distance=2cm,
+    >=Stealth
+]
+    \node[draw, rectangle] (policy) {Policy};
+    \node[draw, rectangle, right=of policy] (robot) {Robot};
+
+    \draw[->] (policy) -- node[above] {Actions} (robot);
+    \draw[->] (robot.south) -- ++(0,-1) -| (policy.south);
+\end{tikzpicture}
+\end{document}
