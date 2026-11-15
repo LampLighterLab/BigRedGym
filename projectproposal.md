@@ -34,7 +34,6 @@ header-includes:
       \outlinesection}
     ```
 ---
-
 <!--
 Copy this template for each proposal and replace the title, names, and prompts.
 The headings are a starting point; adapt them if another structure communicates
@@ -48,32 +47,62 @@ The matching LaTeX template is generated with:
   pandoc project_outline.md --from=gfm+raw_attribute+smart --standalone -o project_outline.tex
 -->
 
-# *Performance-driven idea*
+# *Performance Driven Idea*
 
-## What do you want to achieve?
+## Context
 
-The goal is to develop an adaptive gait controtroller for the Go2 robot that can maintain a commanded gait speed while adapting to inclined and uneven terrain.
+The paper *"Learning Emergent Gaits with Decentralized Phase Oscillators: on the role of Observations, Rewards, and Feedback"* explores how gaits can naturally emerge in a quadruped robot using four decentralized oscillators, one for each leg. In this configuration, the oscillators are indirectly coupled via ground-reaction forces. During training, the RL policy receives a phase-based reward that encourages leg-to-ground contact during the stance phase and penalizes it during the swing phase:
+$$\begin{equation}
+r_{\text{gait}}(x)=-F_i^{\text{GRF}}sin(\phi_i)
+\end{equation}$$
 
-The controller will combine decentralized oscillators (CPGs), Model Predictive Control (MPC) and Reinforcement Learning (RL).
+At runtime, the oscillator phases are accessible by the RL policy. Testing showed that this approach allowed the robot to naturally develop coordinated gaits with high disturbance rejection.
 
-The CPGs will generate periodic motion, with each oscillator corresponding to one leg. The MPC will adjust oscillator parameters, such as frequency and amplitude, based on the desired velocity and the current state of the robot. The RL controller will use the resulting gait references and sensor feedback to generate joint-level actions and maintain stability.
+The oscillator dynamics introduced in the paper are given by:
+$$\begin{equation}
+\dot{\phi}_i = 2\pi\left(\omega - \sigma F_i^{\mathrm{GRF}}\left(\cos(\phi_i) + \xi\right)\right)
+\end{equation}$$
 
-The main objective is to determine whether dynamically adjusting the oscillators through MPC improves the robot's ability to maintain its commanded velocity and remain stable on a sloped and then rough terrain, compared with using fixed oscillator parameters. In summary, we are comparing system behavior with and without the MPC control. 
+where $\omega$ is the nominal frequency, $\sigma$ the feedback gain and $\xi$ an offset. The ground reaction force allows each oscillator to naturally speed up or slow down depending on the interaction of the respective leg with the ground. Coordination between the legs can therefore emerge without explicitly prescribing a gait.
 
-We will first develop and evaluate the controller on flat ground before moving on the sloped ground. A stretch goal would be to extend the evaluation to uneven terrain with small obstacles and irregular floor heights.
+## Contribution
 
-## How will you achieve it?
+While this approach shows promising results for locomotion on flat ground, we are interested in investigating its capability to navigate more complex terrain such as stairs. Climbing a staircase involves discrete, leg-specific movements, during which each leg must periodically generate sufficient lifting force to raise the robot onto the next step. However, despite their increased complexity, these tasks still involve cyclic and symmetric movements across the legs, suggesting that decentralized oscillators could remain beneficial.
 
-- CPGs: Each leg will have an oscillator that determines the timing of its periodic motion. The oscillators will be coordinated to produce a gait.
+We propose replacing the original force-feedback law with Model Predictive Control (MPC) adjusting the frequency of each oscillator based on the predicted motion of the robot. The objective is to allow the robot to naturally adapt its gait to changes in terrain without prior knowledge of its geometry.
 
-The oscillator parameters will determine properties such as stepping frequency, step amplitude and relative phase between legs. 
+The proposed oscillator dynamics are given by:
+$$\begin{equation}
+\dot{\phi}_i = 2\pi\left(\omega + \text{MPC}(\phi_i,x_i))\right)
+\end{equation}$$
 
-- MPC: It will predict the robot's motion over a shot time horizon and optimize selected oscillator parameters to minimize the difference between the commanded and predicted velocities.
+We still have no explicit coupling between the oscillators. We also propose defining a desired ground reaction force profile $\mathbf F_i^*(\phi_i)$ for each oscillator.
+Rather than only rewarding contact during stance, the RL policy would be rewarded for reproducing the desired force at each phase:
+$$\begin{equation}
+r_{\text{MPC}}(x)=F_i^*(\phi_i)-F_i^{\text{GRF}}
+\end{equation}$$
 
-For example, as the robot evolves on a sloped floor, the MPC will adjust stepping frequency or step amplitude to compensate.
+The desired force would be zero during swing and follow a chosen force profile during ground contact. By training the RL policy to reproduce these forces, the MPC controller can adjust the oscillator rates and predict the resulting motion based on the expected ground reaction forces  $F_i^*(\phi_i)$. The idea is that the RL policy will allow us to reduce the complex quadruped dynamics to a simpler model ot the forces exerted by each leg, making it easier for the MPC controller to handle more complicated locomotion tasks.
 
-- RL: It will receive the desired gait reference from the CPGs, as well as robot state information (orientation, joint positions, velocities).
+adding diagram here...
 
-It will learn to generate joint-level commands that follow the desired gait while maintaining balance and adapting to changes in ground contact.
+## Proposed Experimental Steps and Success Criterias
 
-## How will you show it?
+We will evaluate the quadruped's ability to track a commanded forward velocity while adapting its gait to unknown terrain. We will implement our control architecture progressively, starting with decentralized oscillator only on flat ground, then integrating MPC before introducing uneven terrain/stairs.
+
+> **Phase 1: Locomotion without MPC**
+>
+> First, we will test the robot on flat ground using decentralized oscillators with a fixed frequency and ground reaction force feedback, as described in equation (2). This will allow us to evaluate the RL policy's ability to reproduce the desired force profiles defined in Equation (4) while maintaining stability.
+> 
+> We will measure velocity fluctuations and center-of-mass motion, and observe whether coordinated gaits naturally emerge.
+
+> **Phase 2: MPC control on flat ground**
+>We will then integrate the MPC controller into the oscillator dynamics, as described in equation (3), while keeping the same RL policy. The MPC will guide the robot between predefined waypoints. 
+>
+>We will measure the optimality of the trajectory, the accuracy of ground reaction force tracking by the RL policy, the stability of the robot throughout its motion, as well as the emergence and evolution of different gaits.
+
+> **Phase 3: MPC control on complex terrain**
+>
+>Finally, we will test the controller on more challenging tasks, particularly stairs, without providing information about terrain geometry. We will use the same performance metrics as in phase 2, and add the robot's ability to successfully climb stairs of increasing height and observing how its gait adapts to changes in ground contact.
+
+
