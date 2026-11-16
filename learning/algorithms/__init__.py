@@ -32,11 +32,12 @@
 
 from .ppo import PPO
 from .ppo2 import PPO2
+from .ppo2_sym import PPO2Sym
 from .SE import StateEstimator
 from .sac import SAC
 
 ALGORITHM_CLASSES = {
-    algorithm.__name__: algorithm for algorithm in (PPO, PPO2, StateEstimator, SAC)
+    algorithm.__name__: algorithm for algorithm in (PPO, PPO2, PPO2Sym, StateEstimator, SAC)
 }
 
 

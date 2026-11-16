@@ -81,6 +81,25 @@ def make_train_parser():
         action="store_true",
         help="Load environment and runner configs saved with the selected run.",
     )
+    parser.add_argument(
+        "--symmetry_mode",
+        type=str,
+        default=None,
+        choices=["none", "augment", "mirror_loss"],
+        help="PPO2Sym only: left-right symmetry method",
+    )
+    parser.add_argument(
+        "--mirror_loss_coef",
+        type=float,
+        default=None,
+        help="PPO2Sym only: weight of the mirror loss",
+    )
+    parser.add_argument(
+        "--dof_vel_limits_weight",
+        type=float,
+        default=None,
+        help="Reward weight of the joint-velocity-limit penalty (dof_vel_limits)",
+    )
     parser.add_argument("--headless", action="store_true", default=False)
     # wandb
     parser.add_argument("--disable_wandb", action="store_true", default=False)
@@ -123,6 +142,12 @@ def setup(args=None, env_cfg=None, train_cfg=None):
         train_cfg.runner.save_interval = args.save_interval
     if args.batch_size is not None:
         train_cfg.algorithm.batch_size = args.batch_size
+    if getattr(args, "symmetry_mode", None) is not None:
+        train_cfg.algorithm.symmetry_mode = args.symmetry_mode
+    if getattr(args, "mirror_loss_coef", None) is not None:
+        train_cfg.algorithm.mirror_loss_coef = args.mirror_loss_coef
+    if getattr(args, "dof_vel_limits_weight", None) is not None:
+        train_cfg.critic.reward.weights.dof_vel_limits = args.dof_vel_limits_weight
     if args.seed is not None:
         train_cfg.seed = args.seed
         env_cfg.seed = args.seed

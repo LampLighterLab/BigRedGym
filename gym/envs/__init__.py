@@ -51,6 +51,8 @@ runner_config_dict = {
     "PendulumSACRunnerCfg": ".pendulum.pendulum_SAC_config",
     "PendulumPSDRunnerCfg": ".pendulum.pendulum_PSD_config",
     "Go2RunnerCfg": ".go2.go2_config",
+    "Go2SymCfg": ".go2.go2sym_config",
+    "Go2SymRunnerCfg": ".go2.go2sym_config",
     "Go2TrotRunnerCfg": ".go2.go2trot_config",
 }
 
@@ -87,6 +89,7 @@ task_dict = {
     "sac_pendulum": ["Pendulum", "PendulumSACCfg", "PendulumSACRunnerCfg"],
     "psd_pendulum": ["Pendulum", "PendulumPSDCfg", "PendulumPSDRunnerCfg"],
     "go2": ["Go2", "Go2Cfg", "Go2RunnerCfg"],
+    "go2sym": ["Go2", "Go2SymCfg", "Go2SymRunnerCfg"],
     "go2trot": ["Go2Trot", "Go2TrotCfg", "Go2TrotRunnerCfg"],
 }
 

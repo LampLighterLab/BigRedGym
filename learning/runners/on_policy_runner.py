@@ -205,6 +205,12 @@ class OnPolicyRunner(BaseRunner):
             ["mean_value_loss", "mean_surrogate_loss", "learning_rate"],
         )
         logger.register_category("actor", self.alg.actor, ["action_std", "entropy"])
+        if hasattr(self.alg, "mean_symmetry_error"):
+            logger.register_category(
+                "symmetry",
+                self.alg,
+                ["mean_symmetry_error", "mean_mirror_loss", "skipped_updates"],
+            )
 
         logger.attach_torch_obj_to_wandb((self.alg.actor, self.alg.critic))
 

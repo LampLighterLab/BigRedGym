@@ -38,6 +38,20 @@ class BaseRunner:
         critic = Critic(num_critic_obs, **self.critic_cfg)
         alg_class = get_algorithm_class(self.cfg["algorithm_class_name"])
         self.alg = alg_class(actor, critic, device=self.device, **self.alg_cfg)
+        if hasattr(self.alg, "set_mirrors"):
+            self._set_up_mirrors()
+
+    def _set_up_mirrors(self):
+        from learning.utils.symmetry import build_mirror
+
+        def mirror(states):
+            return build_mirror(self.env, states).to(self.device)
+
+        self.alg.set_mirrors(
+            mirror(self.actor_cfg["obs"]),
+            mirror(self.critic_cfg["obs"]),
+            mirror(self.actor_cfg["actions"]),
+        )
 
     def parse_train_cfg(self, train_cfg):
         self.cfg = train_cfg["runner"]
