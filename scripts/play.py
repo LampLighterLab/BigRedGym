@@ -168,9 +168,66 @@ def save_grf_plot(samples, dt, foot_names, path):
     print(f"Foot force and frequency plot saved to {path.resolve()}")
 
 
+def save_gait_plot(samples, dt, foot_names, path):
+    import matplotlib
+    import numpy as np
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
+
+    desired, actual = np.asarray(samples, dtype=bool).transpose(1, 2, 0)
+    fig, ax = plt.subplots(figsize=(14, 4))
+
+    def contact_intervals(contact):
+        # Pad both ends so contacts at the start/end are complete intervals.
+        edges = np.diff(np.r_[False, contact, False].astype(int))
+        starts = np.flatnonzero(edges == 1)
+        stops = np.flatnonzero(edges == -1)
+        return [(start * dt, (stop - start) * dt) for start, stop in zip(starts, stops)]
+
+    for row, (desired_contact, actual_contact) in enumerate(zip(desired, actual)):
+        ax.broken_barh(
+            contact_intervals(desired_contact),
+            (row - 0.3, 0.6),
+            facecolors="C0",
+            alpha=0.35,
+        )
+        ax.broken_barh(
+            contact_intervals(actual_contact),
+            (row - 0.12, 0.24),
+            facecolors="C1",
+        )
+
+    ax.set(
+        xlabel="Playback time (s)",
+        yticks=np.arange(len(foot_names)),
+        yticklabels=[name.removesuffix("_foot") for name in foot_names],
+        xlim=(0, len(samples) * dt),
+        ylim=(len(foot_names) - 0.5, -0.5),
+        title="Desired and actual gait (bars indicate foot contact)",
+    )
+    ax.legend(
+        handles=[
+            Patch(facecolor="C0", alpha=0.35, label="Desired contact"),
+            Patch(facecolor="C1", label="Actual contact"),
+        ],
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.2),
+        ncol=2,
+    )
+    ax.grid(axis="x", alpha=0.3)
+    fig.tight_layout()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    print(f"Desired and actual gait plot saved to {path.resolve()}")
+
+
 def play(env, runner, grf_plot_path=None):
     n_steps = 10 * int(env.max_episode_length)
     grf_samples = [] if grf_plot_path is not None else None
+    gait_samples = []
     try:
         for _ in range(n_steps):
             runner.set_actions(
@@ -180,19 +237,31 @@ def play(env, runner, grf_plot_path=None):
             )
             env.step()
             if grf_samples is not None:
-                grf_samples.append((
-                    env.contact_forces[0, env.feet_indices, 2]
-                    .clamp_min(0.0)
-                    .cpu()
-                    .tolist(),
-                    env.phase_frequency[0, 0].item(),
-                ))
+                desired_contact = torch.sin(env.phase[0]) < 0
+                # The 0 Hz training reward asks all four feet to support.
+                desired_contact |= env.phase_frequency[0] == 0
+                actual_contact = env.measured_grf[0] > env.cfg.osc.contact_threshold
+                gait_samples.append(
+                    (
+                        desired_contact.cpu().tolist(),
+                        actual_contact.cpu().tolist(),
+                    )
+                )
+                grf_samples.append(
+                    (
+                        env.contact_forces[0, env.feet_indices, 2]
+                        .clamp_min(0.0)
+                        .cpu()
+                        .tolist(),
+                        env.phase_frequency[0, 0].item(),
+                    )
+                )
                 viewer = getattr(env._backend, "_viewer", None)
                 if viewer is not None and not viewer.is_running():
                     break
             env.check_exit()
     except KeyboardInterrupt:
-        print("Playback interrupted; saving foot force and frequency plot.")
+        print("Playback interrupted; saving force, frequency, and gait plots.")
     finally:
         if grf_samples:
             save_grf_plot(
@@ -200,6 +269,15 @@ def play(env, runner, grf_plot_path=None):
                 env.dt,
                 env.robot_layout.body_groups["feet"],
                 grf_plot_path,
+            )
+            gait_path = grf_plot_path.with_name(
+                f"gait_{grf_plot_path.stem.removeprefix('grf_')}.png"
+            )
+            save_gait_plot(
+                gait_samples,
+                env.dt,
+                env.robot_layout.body_groups["feet"],
+                gait_path,
             )
 
 
