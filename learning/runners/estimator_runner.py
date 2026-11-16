@@ -228,6 +228,16 @@ class EstimatorRunner(OnPolicyRunner):
             inplace=True,
         )
 
+    def neg_ramp(self):
+        """Fraction of neg_scale applied this iteration: ramps linearly from
+        neg_ramp_start to 1 over neg_ramp_iterations (1 if not configured)."""
+        reward_cfg = self.critic_cfg["reward"]
+        n = reward_cfg.get("neg_ramp_iterations", 0)
+        if n <= 0:
+            return 1.0
+        start = reward_cfg.get("neg_ramp_start", 1.0)
+        return start + (1.0 - start) * min(1.0, getattr(self, "it", 0) / n)
+
     def compute_total_rewards(self, rewards_dict):
         reward_cfg = self.critic_cfg["reward"]
         zeros = torch.zeros(rewards_dict.batch_size, device=self.device)
@@ -238,7 +248,7 @@ class EstimatorRunner(OnPolicyRunner):
         r_pos = total(reward_cfg["weights"])  # already multiplied by dt
         r_neg = total(self._negative_weights()) / self.env.dt  # per-step rate
         r_term = total(reward_cfg["termination_weight"])
-        scale = reward_cfg.get("neg_scale", 0.2)
+        scale = reward_cfg.get("neg_scale", 0.2) * self.neg_ramp()
         if self._negative_weights():
             combined = r_pos * torch.exp(scale * r_neg)
         else:

@@ -117,3 +117,20 @@ def test_multiplicative_reward_combination():
     total = runner.compute_total_rewards(rd)
     expected = torch.tensor([0.03 * torch.exp(torch.tensor(0.2 * -5.0)).item(), -0.1])
     torch.testing.assert_close(total, expected)
+
+
+def test_penalty_ramp_reaches_paper_scale():
+    from learning.runners import EstimatorRunner
+
+    runner = EstimatorRunner.__new__(EstimatorRunner)
+    runner.critic_cfg = {
+        "reward": {"neg_ramp_start": 0.1, "neg_ramp_iterations": 300}
+    }
+    runner.it = 0
+    assert abs(runner.neg_ramp() - 0.1) < 1e-9
+    runner.it = 150
+    assert abs(runner.neg_ramp() - 0.55) < 1e-9
+    runner.it = 1000
+    assert runner.neg_ramp() == 1.0
+    runner.critic_cfg = {"reward": {}}
+    assert runner.neg_ramp() == 1.0

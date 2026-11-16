@@ -94,13 +94,15 @@ class Go2SEPaperCfg(Go2SECfg):
     """Env settings for the paper-reward task (go2_se_paper)."""
 
     class reward_settings(Go2SECfg.reward_settings):
-        lin_vel_tracking_sigma = 1.0  # paper: exp(-||cmd - v||^2)
+        # * paper: 1.0. With small early-curriculum commands, standing still
+        # * kept ~78% of the tracking reward; 0.25 is the Go2 default
+        lin_vel_tracking_sigma = 0.25
 
     class scaling(Go2SECfg.scaling):
-        # * paper: q_des = q_nominal + 0.1 * a. The Go2 default (0.47-1.27
-        # * rad per unit) made exploration noise ~6x costlier under the
-        # * paper's action-smoothness penalties, and the policy froze.
-        dof_pos_target = 12 * [0.1]
+        # * paper: q_des = q_nominal + 0.1 * a. At 0.1 exploration barely
+        # * lifts a foot; the Go2 default (0.47-1.27) made exploration noise
+        # * too costly under the smoothness penalties. Both runs froze.
+        dof_pos_target = 12 * [0.25]
 
 
 # Proprioceptive observations, all available on hardware.
@@ -184,13 +186,18 @@ class Go2SEPaperRunnerCfg(Go2SERunnerCfg):
     (paper uses ~320k samples/iteration); kept for Step 2."""
 
     class actor(Go2SERunnerCfg.actor):
-        # * with the paper's 0.1 action scale this is ~0.1 rad of noise
+        # * with the 0.25 action scale this is ~0.25 rad of noise
         init_noise_std = 1.0
 
     class critic(Go2SERunnerCfg.critic):
         class reward:
             # * Ji et al. Table II; r_tot = r_pos * exp(neg_scale * r_neg)
             neg_scale = 0.2
+            # * penalty curriculum (not in the paper): neg_scale starts at
+            # * 10% and ramps to the paper's value, so the policy finds a
+            # * gait before the penalties make standing still optimal
+            neg_ramp_start = 0.1
+            neg_ramp_iterations = 300
 
             class weights:  # r_pos terms
                 lin_vel_exp = 3.0
