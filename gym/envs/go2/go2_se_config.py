@@ -114,9 +114,6 @@ class Go2SERunnerCfg(Go2RunnerCfg):
         normalize_obs = False
         smooth_exploration = False
         add_noise = True
-        # * smaller than the Go2 default (1.0): the multiplicative reward is
-        # * crushed by the action-smoothness penalties under large noise
-        init_noise_std = 0.3
 
         class noise(Go2RunnerCfg.actor.noise):
             # * gaussian std in physical units (divided by obs scale);
@@ -137,31 +134,9 @@ class Go2SERunnerCfg(Go2RunnerCfg):
             + ["feet_air_time", "feet_stance_time"]
         )
         normalize_obs = False
-
-        class reward:
-            # * Ji et al. Table II; r_tot = r_pos * exp(neg_scale * r_neg)
-            neg_scale = 0.2
-
-            class weights:  # r_pos terms
-                lin_vel_exp = 3.0
-                ang_vel_exp = 3.0
-                air_time = 0.3
-
-            class negative_weights:  # r_neg terms (paper coefficients)
-                foot_slip = -0.08
-                foot_clearance = -15.0
-                orientation_angle = -3.0
-                joint_torque = -6e-4
-                joint_pos = -0.75
-                joint_speed = -6e-4
-                joint_acc = -0.02
-                action_smoothness1 = -2.5
-                action_smoothness2 = -1.2
-                base_motion = -1.5
-
-            class termination_weight:
-                # * one-off -10 (relative to per-step rewards ~6)
-                termination = 10.0
+        # * rewards: Go2 defaults (additive), inherited from Go2RunnerCfg.
+        # * The paper's Table II rewards are in Go2SEPaperRunnerCfg; with our
+        # * sample budget they converged to standing still.
 
     class state_estimator:
         obs = PROPRIO_OBS
@@ -188,3 +163,43 @@ class Go2SEOracleRunnerCfg(Go2SERunnerCfg):
 
     class runner(Go2SERunnerCfg.runner):
         experiment_name = "go2_se_oracle"
+
+
+class Go2SEPaperRunnerCfg(Go2SERunnerCfg):
+    """Ji et al. Table II rewards, r_tot = r_pos * exp(0.2 * r_neg).
+    With ~2**15 samples/iteration this converged to standing still twice
+    (paper uses ~320k samples/iteration); kept for Step 2."""
+
+    class actor(Go2SERunnerCfg.actor):
+        # * the multiplicative reward is crushed by the action-smoothness
+        # * penalties under the Go2 default noise (1.0)
+        init_noise_std = 0.3
+
+    class critic(Go2SERunnerCfg.critic):
+        class reward:
+            # * Ji et al. Table II; r_tot = r_pos * exp(neg_scale * r_neg)
+            neg_scale = 0.2
+
+            class weights:  # r_pos terms
+                lin_vel_exp = 3.0
+                ang_vel_exp = 3.0
+                air_time = 0.3
+
+            class negative_weights:  # r_neg terms (paper coefficients)
+                foot_slip = -0.08
+                foot_clearance = -15.0
+                orientation_angle = -3.0
+                joint_torque = -6e-4
+                joint_pos = -0.75
+                joint_speed = -6e-4
+                joint_acc = -0.02
+                action_smoothness1 = -2.5
+                action_smoothness2 = -1.2
+                base_motion = -1.5
+
+            class termination_weight:
+                # * one-off -10 (relative to per-step rewards ~6)
+                termination = 10.0
+
+    class runner(Go2SERunnerCfg.runner):
+        experiment_name = "go2_se_paper"
