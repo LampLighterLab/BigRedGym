@@ -419,6 +419,12 @@ DEPLOY_ROBUST = {
     "sensors": True,
     "commands": {**DEPLOY["commands"], "lin_vel_x": [0.25, 2.5]},
 }
+# Stronger speed and heading tracking (as even2.5_track2: fixed the deploy
+# policy's ~10% speed undershoot and cut 2 m/s push falls from 7% to 1%).
+DEPLOY_TRACK = {**DEPLOY_ROBUST, "tracking_lin_vel": 8.0, "heading": 4.0}
+# even2.5_deploy seed 4, the one deploy policy that always stands still when
+# stopped (start/stop test); committed so molab can start from it.
+DEPLOY_SEED4 = "checkpoints/go2osc_wide_even2.5_deploy__Nov16_09-10-17_seed4_model_2000.pt"
 FOLLOWUP_BATCHES = {
     # Batch 1: sim-to-real candidates and the power-smoothness hypothesis
     # (even load blocks two-leg gaits, smooth power blocks the hop).
@@ -446,6 +452,14 @@ FOLLOWUP_BATCHES = {
     # Batch 4: the hardware candidate (deploy with sensor noise, to 2.5 m/s).
     4: {
         "even2.5_deploy_robust": {"even_load": 2.5, **DEPLOY_ROBUST},
+    },
+    # Batch 5: fine-tune deploy seed 4 with sensor noise, the 2.5 m/s cap and
+    # stronger tracking (init_from: its weights, fresh optimizer, iterations
+    # counted from 0); and the same from scratch with a stronger stand-still
+    # penalty, since 0.04 left 3 of 5 deploy seeds stepping in place.
+    5: {
+        "even2.5_deploy_ft4": {"even_load": 2.5, **DEPLOY_TRACK, "init_from": DEPLOY_SEED4},
+        "even2.5_deploy_track": {"even_load": 2.5, **DEPLOY_TRACK, "stand_still": 0.1},
     },
 }
 WIDE_SETTINGS.update({k: v for b in FOLLOWUP_BATCHES.values() for k, v in b.items()})
@@ -498,6 +512,7 @@ def study_cfgs(setting, wide=False):
     osc = changed.pop("osc", {})
     commands = changed.pop("commands", {})
     init_state = changed.pop("init_state", {})
+    init_from = changed.pop("init_from", None)
     weights = {**STUDY_BASE_WEIGHTS, **changed}
 
     class RunnerCfg(Go2OscFrontLockedOmegaRunnerCfg):
@@ -509,6 +524,8 @@ def study_cfgs(setting, wide=False):
         class runner(Go2OscFrontLockedOmegaRunnerCfg.runner):
             experiment_name = study_task_name(setting, wide)
 
+    if init_from is not None:
+        RunnerCfg.runner.init_from = init_from  # loaded by scripts/train.py
     for name, value in weights.items():
         setattr(RunnerCfg.critic.reward.weights, name, value)
     if sensors:
