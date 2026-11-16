@@ -17,6 +17,12 @@ class Go2Osc(Go2):
             dtype=torch.float,
             device=self.device,
         )
+        body_names = self._backend.body_names
+        self.knee_indices = torch.tensor(
+            [body_names.index(name.replace("_foot", "_calf")) for name in foot_names],
+            dtype=torch.long,
+            device=self.device,
+        )
         self.phase = torch.zeros(self.num_envs, 4, device=self.device)
         self.phase_obs = torch.zeros(self.num_envs, 8, device=self.device)
 
@@ -118,3 +124,11 @@ class Go2Osc(Go2):
         # The parent reward uses only gravity's x/y components, which also
         # score an upside-down but level robot highly.
         return -2.0 * self.projected_gravity[:, 2]
+
+    def _reward_knee_clearance(self):
+        # The calf link origin is at the knee joint. Penalize approaching the
+        # floor before the calf actually makes contact with it.
+        clearance = self.cfg.osc.knee_clearance
+        knee_height = self._rigid_body_pos[:, self.knee_indices, 2]
+        shortfall = ((clearance - knee_height) / clearance).clamp_min(0.0)
+        return -shortfall.square().mean(dim=1)

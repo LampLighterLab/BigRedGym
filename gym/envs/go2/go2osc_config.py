@@ -33,6 +33,7 @@ class Go2OscCfg(Go2Cfg):
             "RR_foot": 0.75,
         }
         contact_threshold = 0.01  # fraction of body weight
+        knee_clearance = 0.10  # m; penalize knee joints below this height
 
     class commands(Go2Cfg.commands):
         class ranges(Go2Cfg.commands.ranges):
@@ -65,6 +66,7 @@ class Go2OscRunnerCfg(Go2RunnerCfg):
             class weights(Go2RunnerCfg.critic.reward.weights):
                 gait_contact = 4.0
                 collision = 0.5
+                knee_clearance = 2.0
                 tracking_lin_vel = 0.0
                 tracking_ang_vel = 0.0
                 min_base_height = 0.0

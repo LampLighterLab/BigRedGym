@@ -36,6 +36,9 @@ def test_oscillator_integration():
         assert any("calf" in name for name in penalized_names)
         assert all("thigh" in name or "calf" in name for name in penalized_names)
         assert not any("foot" in name for name in penalized_names)
+        assert [backend.body_names[index] for index in env.knee_indices.tolist()] == [
+            "FL_calf", "FR_calf", "RL_calf", "RR_calf"
+        ]
 
         initial_phases = env.phase.clone()
         initial_frequency = env.phase_frequency.clone()
@@ -147,6 +150,18 @@ def test_upright_reward_rejects_inverted_pose():
     assert torch.allclose(env._reward_orientation(), torch.tensor([2.0, -2.0]))
 
 
+def test_knee_clearance_penalizes_only_low_knees():
+    env = object.__new__(Go2Osc)
+    env.cfg = Go2OscCfg()
+    env.knee_indices = torch.tensor([0, 1, 2, 3])
+    env._rigid_body_pos = torch.zeros(2, 4, 3)
+    env._rigid_body_pos[0, :, 2] = 0.15
+    env._rigid_body_pos[1, :, 2] = torch.tensor([0.0, 0.05, 0.10, 0.15])
+    assert torch.allclose(
+        env._reward_knee_clearance(), torch.tensor([0.0, -0.3125])
+    )
+
+
 def test_low_body_height_terminates_only_affected_envs():
     env = object.__new__(Go2Osc)
     env.cfg = Go2OscCfg()
@@ -179,5 +194,6 @@ def test_enabled_rewards_include_leg_collision_penalty():
         "action_rate2",
         "ang_vel_xy",
         "collision",
+        "knee_clearance",
     }
     assert reward_cfg["termination_weight"] == {"termination": 0.01}
