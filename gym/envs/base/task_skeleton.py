@@ -26,7 +26,7 @@ class TaskSkeleton:
             return getattr(self, name) / self.scales[name]
         else:
             return getattr(self, name)
- 
+
     def set_states(self, state_list, values):
         idx = 0
         for state in state_list:
