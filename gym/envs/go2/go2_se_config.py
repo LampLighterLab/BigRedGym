@@ -81,6 +81,9 @@ class Go2SECfg(Go2Cfg):
     class reward_settings(Go2Cfg.reward_settings):
         contact_force_threshold = 1.0  # [N] foot counts as in contact above this
         foot_clearance_target = 0.09  # [m] paper's desired swing foot height
+        # * paper uses 1.0; with our ~100x smaller sample budget the policy
+        # * settled on standing still, so we use the Go2 default sharpness
+        lin_vel_tracking_sigma = 0.25
 
     class scaling(Go2Cfg.scaling):
         dof_pos_error_history = 3 * Go2Cfg.scaling.dof_pos_target
@@ -113,7 +116,7 @@ class Go2SERunnerCfg(Go2RunnerCfg):
         add_noise = True
         # * smaller than the Go2 default (1.0): the multiplicative reward is
         # * crushed by the action-smoothness penalties under large noise
-        init_noise_std = 0.15
+        init_noise_std = 0.3
 
         class noise(Go2RunnerCfg.actor.noise):
             # * gaussian std in physical units (divided by obs scale);

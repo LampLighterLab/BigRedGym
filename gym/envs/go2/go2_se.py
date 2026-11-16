@@ -185,8 +185,11 @@ class Go2SE(Go2):
     # * ------------------------------------------------------------------
 
     def _reward_lin_vel_exp(self):
+        # * paper: sigma = 1. Smaller sigma makes standing still under a
+        # * moving command pay much less (at |cmd|=1: 37% -> 2% for 0.25)
         error = self.commands[:, :2] - self.base_lin_vel[:, :2]
-        return torch.exp(-error.square().sum(dim=1))
+        sigma = self.cfg.reward_settings.lin_vel_tracking_sigma
+        return torch.exp(-error.square().sum(dim=1) / sigma)
 
     def _reward_ang_vel_exp(self):
         return torch.exp(-1.5 * (self.commands[:, 2] - self.base_ang_vel[:, 2]).square())

@@ -104,6 +104,8 @@ class TeleopCommands:
         elif action == "reset":
             self.env.timed_out[:] = True
             self.env.reset()
+        elif action in ("up", "down"):
+            pass  # * student TODO (e.g. jump command); no-op instead of crashing
         else:
             raise ValueError(f"unknown teleop action {action!r}")
 
