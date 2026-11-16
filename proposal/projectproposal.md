@@ -82,7 +82,7 @@ $$\begin{equation}
 r_{\text{MPC}}(x)=F_i^*(\phi_i)-F_i^{\text{GRF}}
 \end{equation}$$
 
-The desired force would be zero during swing and follow a chosen force profile during ground contact. By training the RL policy to reproduce these forces, the MPC controller can adjust the oscillator rates and predict the resulting motion based on the expected ground reaction forces  $F_i^*(\phi_i)$. The idea is that the RL policy will allow us to reduce the complex quadruped dynamics to a simpler model ot the forces exerted by each leg, making it easier for the MPC controller to handle more complicated locomotion tasks.
+The desired force would be zero during swing and follow a chosen force profile during ground contact. By training the RL policy to reproduce these forces, the MPC controller can adjust the oscillator rates and predict the resulting motion based on the expected ground reaction forces  $F_i^*(\phi_i)$. The idea is that the RL policy will allow us to reduce the complex quadruped dynamics to a simpler model with only the ground reaction forces on each leg, making it easier for the MPC controller to handle more complicated locomotion tasks.
 
 ![System Diagram](diagram.png)
 
@@ -90,19 +90,38 @@ The desired force would be zero during swing and follow a chosen force profile d
 
 We will evaluate the quadruped's ability to track a commanded forward velocity while adapting its gait to unknown terrain. We will implement our control architecture progressively, starting with decentralized oscillator only on flat ground, then integrating MPC before introducing uneven terrain/stairs.
 
+### Phase 1a: Locomotion without MPC (no force profile)
+First, we will test the robot on flat ground using decentralized oscillators with a fixed gait that we engineer manually by setting oscillator frequencies and phase offsets. We will start by rewarding stance/swing similar to equation (1) without asking for specific forces. This phase will allow us to evaluate the RL policy's ability to maintain stability and simultaneously track and oscillator-prescribed gait.
+
+We will track metrics like how often the robot falls over after a set of random initializations and _gait overlap_: the total amount of time the policy matches the prescribed stance/swing for each leg. We will visualize this with gait diagrams. This phase will be successful if the stable percentage is very high and gait overlap is nearly the length of the rollout. We may attempt to preliminarily transfer to real at this stage. 
+
+### Phase 1b: Locomotion without MPC (with force profile)
+We will then incorporate rewards for specific force profiles like in equation (4). We will train the policy over random force profiles. In addition to the metrics from 1a, we will track mean deviation from the requested force.
+
+### Phase 2: MPC control on flat ground
+We will then integrate the MPC controller into the oscillator dynamics, as described in equation (3), while keeping the same RL policy. The MPC will guide the robot between predefined waypoints in a flat environment.
+
+In addition to our earlier metrics, we will try to measure the optimality of the trajectory in a crude sense (was the path short?). We will measure how well the robot is able to follow the desired trajectory from MPC. We will also try to observe the emergence of different gaits. This phase will be considered successful if the robot is able to navigate between waypoints a large percentage of the time without excessive paths. We will transfer to real if we observe this in sim.
+
+### Phase 3: MPC control on complex terrain
+Finally, we will test the controller on more challenging tasks, particularly stairs, without providing information about terrain geometry to the RL policy (the MPC will handle terrain geometry). We will use the same performance metrics as in earlier phases, and additionally test the robot's ability to successfully climb stairs of increasing height. We will also observe how its gait adapts to changes in ground contact.
+
+
+<!--
 > **Phase 1: Locomotion without MPC**
 >
 > First, we will test the robot on flat ground using decentralized oscillators with a fixed frequency and ground reaction force feedback, as described in equation (2). This will allow us to evaluate the RL policy's ability to reproduce the desired force profiles defined in Equation (4) while maintaining stability.
 > 
 > We will measure velocity fluctuations and center-of-mass motion, and observe whether coordinated gaits naturally emerge.
 
+
 > **Phase 2: MPC control on flat ground**
 >We will then integrate the MPC controller into the oscillator dynamics, as described in equation (3), while keeping the same RL policy. The MPC will guide the robot between predefined waypoints. 
 >
 >We will measure the optimality of the trajectory, the accuracy of ground reaction force tracking by the RL policy, the stability of the robot throughout its motion, as well as the emergence and evolution of different gaits.
 
+
 > **Phase 3: MPC control on complex terrain**
 >
 >Finally, we will test the controller on more challenging tasks, particularly stairs, without providing information about terrain geometry. We will use the same performance metrics as in phase 2, and add the robot's ability to successfully climb stairs of increasing height and observing how its gait adapts to changes in ground contact.
-
-
+-->
