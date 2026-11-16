@@ -141,6 +141,7 @@ def _():
     #   3: even2.5_deploy, even2.5_track2
     #   4: even2.5_deploy_robust
     #   5: even2.5_deploy_ft4 (fine-tunes deploy seed 4), even2.5_deploy_track
+    #   6: deploy_robust (sim-to-real package on the baseline rewards)
     # PART splits a batch over two notebooks (0 and 1); None runs all of it.
     BATCH = 1
     PART = None
@@ -150,6 +151,7 @@ def _():
         3: ["even2.5_deploy", "even2.5_track2"],
         4: ["even2.5_deploy_robust"],
         5: ["even2.5_deploy_ft4", "even2.5_deploy_track"],
+        6: ["deploy_robust"],
     }
     SETTINGS = _BATCHES[BATCH]
     # Rounds of seeds, so every setting keeps the same seed count if the

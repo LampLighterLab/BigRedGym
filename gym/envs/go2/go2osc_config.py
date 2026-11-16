@@ -461,6 +461,12 @@ FOLLOWUP_BATCHES = {
         "even2.5_deploy_ft4": {"even_load": 2.5, **DEPLOY_TRACK, "init_from": DEPLOY_SEED4},
         "even2.5_deploy_track": {"even_load": 2.5, **DEPLOY_TRACK, "stand_still": 0.1},
     },
+    # Batch 6: the sim-to-real package on the baseline rewards (no even load,
+    # no tracking boost), to compare with even2.5_deploy_robust; the
+    # stand-still penalty as in deploy_track.
+    6: {
+        "deploy_robust": {**DEPLOY_ROBUST, "stand_still": 0.1},
+    },
 }
 WIDE_SETTINGS.update({k: v for b in FOLLOWUP_BATCHES.values() for k, v in b.items()})
 # Each follow-up setting's reference: the setting it adds one change to.
