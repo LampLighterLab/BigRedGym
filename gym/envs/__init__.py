@@ -38,6 +38,7 @@ config_dict = {
     "Go2Cfg": ".go2.go2_config",
     "Go2TrotCfg": ".go2.go2trot_config",
     "Go2SECfg": ".go2.go2_se_config",
+    "Go2SEPaperCfg": ".go2.go2_se_config",
 }
 
 runner_config_dict = {
@@ -95,7 +96,7 @@ task_dict = {
     "go2trot": ["Go2Trot", "Go2TrotCfg", "Go2TrotRunnerCfg"],
     "go2_se": ["Go2SE", "Go2SECfg", "Go2SERunnerCfg"],
     "go2_se_oracle": ["Go2SE", "Go2SECfg", "Go2SEOracleRunnerCfg"],
-    "go2_se_paper": ["Go2SE", "Go2SECfg", "Go2SEPaperRunnerCfg"],
+    "go2_se_paper": ["Go2SE", "Go2SEPaperCfg", "Go2SEPaperRunnerCfg"],
 }
 
 
