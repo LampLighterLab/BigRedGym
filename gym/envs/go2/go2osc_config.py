@@ -1,5 +1,3 @@
-import math
-
 from gym.envs.go2.go2_config import Go2Cfg, Go2RunnerCfg
 
 
@@ -10,17 +8,22 @@ class Go2OscCfg(Go2Cfg):
         episode_length_s = 8
 
     class init_state(Go2Cfg.init_state):
-        reset_mode = "reset_to_basic"
+        reset_mode = "reset_to_range"
 
     class control(Go2Cfg.control):
         ctrl_frequency = 50
         desired_sim_frequency = 200
 
     class osc:
-        omega = 2.0
-        sigma = 1.0
-        xi = 0.0
-        amplitude = math.pi / 4
+        frequency = 2.0  # Hz
+        # Cycle offsets stagger the legs by 90 degrees in foot order.
+        phase_offsets = {
+            "FL_foot": 0.0,
+            "FR_foot": 0.25,
+            "RL_foot": 0.5,
+            "RR_foot": 0.75,
+        }
+        contact_threshold = 0.01  # fraction of body weight
 
     class commands(Go2Cfg.commands):
         class ranges(Go2Cfg.commands.ranges):
@@ -40,7 +43,6 @@ class Go2OscRunnerCfg(Go2RunnerCfg):
             "phase_obs",
             "phase_frequency",
             "measured_grf",
-            "target_grf",
         ]
 
     class critic(Go2RunnerCfg.critic):
@@ -48,12 +50,11 @@ class Go2OscRunnerCfg(Go2RunnerCfg):
             "phase_obs",
             "phase_frequency",
             "measured_grf",
-            "target_grf",
         ]
 
         class reward(Go2RunnerCfg.critic.reward):
             class weights(Go2RunnerCfg.critic.reward.weights):
-                force_tracking = 4.0
+                gait_contact = 4.0
 
     class algorithm(Go2RunnerCfg.algorithm):
         rollout_size = 16384
