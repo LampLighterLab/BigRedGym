@@ -6,7 +6,13 @@ from gym.envs.go2.go2_config import Go2Cfg, Go2RunnerCfg
 class Go2OscCfg(Go2Cfg):
     class env(Go2Cfg.env):
         num_envs = 4096
-        episode_length_s = 4.0
+        episode_length_s = 10.0
+
+    class init_state(Go2Cfg.init_state):
+        # Begin from the nominal Go2 pose at rest.
+        reset_mode = "reset_to_basic"
+        lin_vel = [0.0, 0.0, 0.0]
+        ang_vel = [0.0, 0.0, 0.0]
 
     class control(Go2Cfg.control):
         stiffness = {"hip": 20.0, "thigh": 20.0, "calf": 20.0}
@@ -34,21 +40,21 @@ class Go2OscCfg(Go2Cfg):
 
     class commands(Go2Cfg.commands):
         resampling_time = 3.0
-        var = 1.0  # Forward-command standard deviation in m/s.
+        var = 0.0
 
         class ranges(Go2Cfg.commands.ranges):
-            lin_vel_x = [-3.0, -1.0, 0.0, 1.0, 3.0]  # Discrete centers.
-            lin_vel_y = 1.0
-            yaw_vel = 3.0
+            lin_vel_x = [1.0]
+            lin_vel_y = 0.0
+            yaw_vel = 0.0
 
     class push_robots(Go2Cfg.push_robots):
-        toggle = True
+        toggle = False
         interval_s = 10.0
         max_push_vel_xy = 0.2
 
     class domain_randomization(Go2Cfg.domain_randomization):
         class startup(Go2Cfg.domain_randomization.startup):
-            contact_friction_range = [0.4, 1.0]
+            contact_friction_range = None
             link_mass_scale_range = None
 
         class episode(Go2Cfg.domain_randomization.episode):
@@ -106,8 +112,8 @@ class Go2OscRunnerCfg(Go2RunnerCfg):
                 ang_vel_xy = 0.0
                 torques = 12 * 5.0e-7  # Local torque reward uses a joint mean.
                 # Keep Go2 smoothing: its formulas differ from ORCAgym's.
-                action_rate = 0.1
-                action_rate2 = 0.01
+                action_rate = 0.01
+                action_rate2 = 0.001
                 swing_grf = 5.0
                 stance_grf = 5.0
                 cursorial = 0.25
@@ -125,7 +131,7 @@ class Go2OscRunnerCfg(Go2RunnerCfg):
         learning_rate = 1.0e-5
         schedule = "adaptive"
         desired_kl = 0.01
-        lr_range = [1.0e-5, 1.0e-2]
+        lr_range = [1.0e-5, 3.0e-4]
         lr_ratio = 1.5
         use_clipped_value_loss = True
         max_grad_norm = 1.0
@@ -134,6 +140,8 @@ class Go2OscRunnerCfg(Go2RunnerCfg):
 
     class runner(Go2RunnerCfg.runner):
         experiment_name = "go2_osc"
-        run_name = "ORC_111"
+        run_name = "ORC111_forward4096_reference_smoothness"
         max_iterations = 2000
+        save_interval = 25
         algorithm_class_name = "PPO2"
+        resume = False

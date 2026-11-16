@@ -220,3 +220,24 @@ class Go2Osc(Go2):
         """Penalize hip abduction/adduction away from zero."""
         hip_positions = self.get_state("dof_pos").index_select(1, self._hip_indices)
         return -hip_positions.square().mean(dim=1)
+
+    def _reward_action_rate(self):
+        """Match the reference first-difference penalty."""
+        n = self.num_actuators
+        change = (
+            self.dof_pos_history[:, :n]
+            - self.dof_pos_history[:, n:2 * n]
+        )
+        denominator = (self.dt * self.cfg.control.decimation) ** 2
+        return -change.square().sum(dim=1) / denominator
+
+    def _reward_action_rate2(self):
+        """Match the reference second-difference penalty."""
+        n = self.num_actuators
+        change = (
+            self.dof_pos_history[:, :n]
+            - 2 * self.dof_pos_history[:, n:2 * n]
+            + self.dof_pos_history[:, 2 * n:]
+        )
+        denominator = (self.dt * self.cfg.control.decimation) ** 2
+        return -change.square().sum(dim=1) / denominator
