@@ -153,6 +153,11 @@ class Logger:
         for key, val in self.iteration_logs.get_all_logs("algorithm").items():
             format_log_entry(key, val)
 
+        if "state_estimator" in self.iteration_logs.logs:
+            separator("State Estimator")
+            for key, val in self.iteration_logs.get_all_logs("state_estimator").items():
+                format_log_entry(key, val, f"({val:.4f})")
+
         separator("Timings")
         format_log_entry("steps/s", self.estimate_steps_per_second())
         tot_t = self.timer.get_time("iteration")
