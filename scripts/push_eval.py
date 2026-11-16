@@ -123,6 +123,7 @@ def push_rollout(env, runner, speed, omega, args):
     for i in range(n_settle + n_after):
         env.commands[:] = 0.0
         env.commands[:, 0] = speed
+        env.command_target[:] = speed  # no ramp (commands.max_accel)
         env.episode_omega[:] = omega
         if i == n_settle - n_turn:
             yaw_before = heading(env)

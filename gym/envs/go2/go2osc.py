@@ -67,6 +67,12 @@ class Go2Osc(Go2):
         # Share of the control step's physics substeps with fewer than
         # reward_settings.flight_min_feet active feet on the ground.
         self.step_flight = torch.zeros(self.num_envs, device=self.device)
+        # Start/stop: the forward-speed command the ramp moves toward
+        # (commands.max_accel), time [s] the command has been 'stop', and
+        # robots reset since the last oscillator update.
+        self.command_target = torch.zeros(self.num_envs, device=self.device)
+        self.stop_time = torch.zeros(self.num_envs, device=self.device)
+        self._fresh = torch.ones(self.num_envs, dtype=torch.bool, device=self.device)
 
     def _init_leg_lock(self):
         lock = self.cfg.leg_lock
@@ -108,25 +114,72 @@ class Go2Osc(Go2):
         # The policy has no authority over the locked leg; zero its targets so
         # observations and action-rate penalties ignore it.
         self.dof_pos_target[:, self._locked_dofs] = 0.0
+        self._ramp_commands()
         self._update_osc_params()
 
     def _update_osc_params(self):
         """Oscillator parameters from the commanded forward speed.
 
-        Frequency grows continuously with speed; coupling and offset switch to
-        the standing regime of Eq. 5 at low speed.
+        Frequency grows continuously with speed (or is the episode's
+        frequency, with osc.omega_range); coupling and offset switch to the
+        standing regime of Eq. 5 below osc.stop_threshold. With
+        osc.stand_omega the frequency drops to it while stopped, low enough
+        for the standing coupling to hold every loaded leg's phase still; with
+        osc.omega_rate [Hz/s] it moves toward its target at that rate instead
+        of jumping (except right after a reset).
         """
         osc = self.cfg.osc
         speed = torch.abs(self.commands[:, 0:1])
         if osc.omega_range is not None:
-            self.osc_omega[:] = self.episode_omega
+            target = self.episode_omega
         else:
-            self.osc_omega[:] = torch.clamp(
+            target = torch.clamp(
                 osc.omega_min + osc.omega_slope * speed, max=osc.omega_max
             )
-        stop = speed <= osc.stop_threshold
+        stop = speed < osc.stop_threshold
+        if osc.stand_omega is not None:
+            target = torch.where(stop, osc.stand_omega, target)
+        if osc.omega_rate is not None:
+            step = osc.omega_rate * self.dt
+            ramped = self.osc_omega + torch.clamp(target - self.osc_omega, -step, step)
+            target = torch.where(self._fresh.unsqueeze(1), target, ramped)
+        self.osc_omega[:] = target
+        self._fresh[:] = False
         self.osc_coupling[:] = torch.where(stop, osc.coupling_stop, osc.coupling)
         self.osc_offset[:] = torch.where(stop, osc.offset_stop, osc.offset)
+        self.stop_time = torch.where(stop[:, 0], self.stop_time + self.dt, 0.0)
+
+    def _ramp_commands(self):
+        """Move the forward-speed command toward its target at no more than
+        commands.max_accel [m/s^2] (a joystick or planner ramps speed too)."""
+        max_accel = getattr(self.cfg.commands, "max_accel", None)
+        if max_accel is None:
+            return
+        step = max_accel * self.dt
+        self.commands[:, 0] += torch.clamp(
+            self.command_target - self.commands[:, 0], -step, step
+        )
+
+    def _resample_commands(self, command_mask):
+        """Base sampling, then: commands.zero_prob of new commands are 'stop'
+        (zero), forward commands below osc.stop_threshold also become stop,
+        and a stop command has no yaw rate (no turning on the spot). With
+        commands.max_accel the forward command then ramps to its new value,
+        except right after a reset, where it starts at it."""
+        previous = self.commands[:, 0].clone()
+        super()._resample_commands(command_mask)
+        cmd = self.cfg.commands
+        zero_prob = getattr(cmd, "zero_prob", 0.0)
+        stop = torch.abs(self.commands[:, 0]) < self.cfg.osc.stop_threshold
+        if zero_prob > 0.0:
+            stop |= torch.rand(self.num_envs, device=self.device) < zero_prob
+        stop &= command_mask
+        self.commands[stop, 0] = 0.0
+        self.commands[stop, 2] = 0.0
+        if getattr(cmd, "max_accel", None) is not None:
+            self.command_target[command_mask] = self.commands[command_mask, 0]
+            ramp = command_mask & ~self._fresh
+            self.commands[ramp, 0] = previous[ramp]
 
     def _compute_torques(self):
         torques = super()._compute_torques()
@@ -242,6 +295,8 @@ class Go2Osc(Go2):
         )
         self.stride_vx.masked_fill_(reset_mask, 0.0)
         self.stride_power.masked_fill_(reset_mask, 0.0)
+        self.stop_time.masked_fill_(reset_mask, 0.0)
+        self._fresh |= reset_mask
         self._update_phase_obs()
 
     def reset_to_basic(self, reset_mask):
@@ -251,6 +306,13 @@ class Go2Osc(Go2):
     def reset_to_range(self, reset_mask):
         super().reset_to_range(reset_mask)
         self._reset_locked_leg(reset_mask)
+        # init_state.rest_prob of resets start the base at rest.
+        rest_prob = getattr(self.cfg.init_state, "rest_prob", 0.0)
+        if rest_prob > 0.0:
+            rest = reset_mask & (
+                torch.rand(self.num_envs, device=self.device) < rest_prob
+            )
+            self.root_states[rest, 7:13] = 0.0
 
     def _reset_locked_leg(self, reset_mask):
         """Start the locked leg in its lock pose instead of snapping to it."""
@@ -332,6 +394,16 @@ class Go2Osc(Go2):
         error = error.clamp(max=s.power_smooth_cap)
         settled = self.episode_length_buf * self.dt >= s.power_smooth_delay
         return -error * settled
+
+    def _reward_stand_still(self):
+        """Penalize joint motion while commanded to stop: mean squared joint
+        speed, phased in from reward_settings.stand_grace [s] after the stop
+        command over the next stand_grace seconds, so braking is not
+        penalized."""
+        grace = self.cfg.reward_settings.stand_grace
+        scale = torch.clamp((self.stop_time - grace) / grace, 0.0, 1.0)
+        speed = self.dof_vel[:, self.actuated_dof_indices].square().mean(dim=1)
+        return -speed * scale
 
     def _reward_cost_of_transport(self):
         """Penalize energy per distance: joint power over weight x commanded

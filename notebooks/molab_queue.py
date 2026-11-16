@@ -138,12 +138,14 @@ def _():
     # Follow-up batches of the wide study (go2osc_config.FOLLOWUP_BATCHES):
     #   1: robust, even2.5_robust, even2.5_smooth0.5, even2.5_smooth1
     #   2: push, friction, even2.5_noflight1, even2.5_cot0.2
+    #   3: even2.5_deploy, even2.5_track2
     # PART splits a batch over two notebooks (0 and 1); None runs all of it.
     BATCH = 1
     PART = None
     _BATCHES = {  # as in go2osc_config.FOLLOWUP_BATCHES
         1: ["robust", "even2.5_robust", "even2.5_smooth0.5", "even2.5_smooth1"],
         2: ["push", "friction", "even2.5_noflight1", "even2.5_cot0.2"],
+        3: ["even2.5_deploy", "even2.5_track2"],
     }
     SETTINGS = _BATCHES[BATCH]
     # Rounds of seeds, so every setting keeps the same seed count if the

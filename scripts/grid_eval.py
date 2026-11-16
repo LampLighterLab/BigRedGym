@@ -272,6 +272,7 @@ def rollout(env, runner, speed, args, omega=None):
         for i in range(n_steps):
             env.commands[:] = 0.0
             env.commands[:, 0] = speed
+            env.command_target[:] = speed  # no ramp (commands.max_accel)
             if omega is not None:
                 env.episode_omega[:] = omega
             runner.set_actions(

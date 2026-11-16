@@ -43,6 +43,13 @@ class Go2OscCfg(Go2Cfg):
         offset_stop = 1.0
         coupling = 1.0
         offset = 0.0
+        # Start/stop (deploy settings). stand_omega [Hz]: frequency while
+        # stopped, low enough (below about coupling_stop x foot load x 2) for
+        # the standing coupling to hold the phases still; None keeps the
+        # moving frequency. omega_rate [Hz/s]: the frequency ramps toward its
+        # target at this rate instead of jumping; None jumps.
+        stand_omega = None
+        omega_rate = None
 
     class leg_lock:
         # Leg held in a fixed pose to emulate a failure: None (intact), or one
@@ -111,6 +118,9 @@ class Go2OscCfg(Go2Cfg):
         contact_threshold = 0.05
         flight_min_feet = 2
         flight_speed = [1.0, 1.5]
+        # Stand-still reward: off for stand_grace [s] after a stop command,
+        # then phased in over the next stand_grace seconds.
+        stand_grace = 0.5
 
     class scaling(Go2Cfg.scaling):
         phase_vel = 2 * 3.14159 * 4.0
@@ -162,6 +172,7 @@ class Go2OscRunnerCfg(Go2RunnerCfg):
                 power_smooth = 0.0
                 cost_of_transport = 0.0
                 flight = 0.0
+                stand_still = 0.0
 
             class termination_weight:
                 termination = 0.15
@@ -381,6 +392,25 @@ WIDE_SETTINGS = {
 ROBUST_PUSH = {"max_push_vel_xy": 1.25, "interval_s": 4.0, "ramp_steps": 4000}
 ROBUST_FRICTION = [0.2, 1.25]
 ROBUST = {"push": ROBUST_PUSH, "friction": ROBUST_FRICTION, "sensors": True}
+# Deployable start/stop behaviour, also usable as setting entries:
+#   "osc": osc overrides; "commands": command overrides (zero_prob: share of
+#       new commands that are 'stop'; max_accel [m/s^2]: forward-command
+#       ramp; yaw_vel [rad/s]: yaw-rate command range); "init_state":
+#       rest_prob, the share of resets that start at rest.
+# Commands below 0.5 m/s mean stop: the oscillators drop to 1 Hz (slow
+# enough for the standing coupling to freeze the loaded legs' phases),
+# ramping at 4 Hz/s; a quarter of commands are stop, the forward command
+# ramps at 2 m/s^2, a third of episodes start at rest, and the policy turns
+# at up to 1 rad/s while moving. stand_still penalizes joint motion from
+# 0.5-1 s after a stop command (raw ~ -25 when stepping in place).
+DEPLOY = {
+    "push": ROBUST_PUSH,
+    "friction": ROBUST_FRICTION,
+    "stand_still": 0.04,
+    "osc": {"stop_threshold": 0.5, "stand_omega": 1.0, "omega_rate": 4.0},
+    "commands": {"zero_prob": 0.25, "max_accel": 2.0, "yaw_vel": 1.0},
+    "init_state": {"rest_prob": 0.3},
+}
 FOLLOWUP_BATCHES = {
     # Batch 1: sim-to-real candidates and the power-smoothness hypothesis
     # (even load blocks two-leg gaits, smooth power blocks the hop).
@@ -397,6 +427,13 @@ FOLLOWUP_BATCHES = {
         "friction": {"friction": ROBUST_FRICTION},
         "even2.5_noflight1": {"even_load": 2.5, "flight": 1.0},
         "even2.5_cot0.2": {"even_load": 2.5, "cost_of_transport": 0.2},
+    },
+    # Batch 3: a deployable policy (even load, pushes, wide friction, plus
+    # starting from rest, stopping below 0.5 m/s and turning while moving),
+    # and whether speed tracking on top of even load finds a three-leg gait.
+    3: {
+        "even2.5_deploy": {"even_load": 2.5, **DEPLOY},
+        "even2.5_track2": {"even_load": 2.5, "tracking_lin_vel": 8.0, "heading": 4.0},
     },
 }
 WIDE_SETTINGS.update({k: v for b in FOLLOWUP_BATCHES.values() for k, v in b.items()})
@@ -446,6 +483,9 @@ def study_cfgs(setting, wide=False):
     push = changed.pop("push", None)
     friction = changed.pop("friction", None)
     sensors = changed.pop("sensors", False)
+    osc = changed.pop("osc", {})
+    commands = changed.pop("commands", {})
+    init_state = changed.pop("init_state", {})
     weights = {**STUDY_BASE_WEIGHTS, **changed}
 
     class RunnerCfg(Go2OscFrontLockedOmegaRunnerCfg):
@@ -464,11 +504,18 @@ def study_cfgs(setting, wide=False):
             "actor", (Go2OscFrontLockedOmegaRunnerCfg.actor,), {"add_noise": True}
         )
     env_cfg = Go2OscFrontLockedWideCfg if wide else Go2OscFrontLockedOmegaCfg
-    if reward_settings or push or friction or sensors:
+    if reward_settings or push or friction or sensors or osc or commands or init_state:
         base = env_cfg
 
         class EnvCfg(base):
             class reward_settings(base.reward_settings):
+                pass
+
+            class commands(base.commands):
+                class ranges(base.commands.ranges):
+                    pass
+
+            class init_state(base.init_state):
                 pass
 
             class push_robots(base.push_robots):
@@ -485,6 +532,13 @@ def study_cfgs(setting, wide=False):
             setattr(EnvCfg.reward_settings, name, value)
         for name, value in (push or {}).items():
             setattr(EnvCfg.push_robots, name, value)
+        for name, value in osc.items():
+            setattr(EnvCfg.osc, name, value)
+        for name, value in commands.items():
+            target = EnvCfg.commands.ranges if name == "yaw_vel" else EnvCfg.commands
+            setattr(target, name, value)
+        for name, value in init_state.items():
+            setattr(EnvCfg.init_state, name, value)
         startup = EnvCfg.domain_randomization.startup
         if friction is not None:
             startup.contact_friction_range = list(friction)
