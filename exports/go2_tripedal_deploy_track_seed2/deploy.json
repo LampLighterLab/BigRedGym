@@ -1,0 +1,172 @@
+{
+  "task": "go2osc_wide_even2.5_deploy_track",
+  "checkpoint": "logs/go2osc_wide_even2.5_deploy_track/Nov16_16-13-14_seed2/model_2000.pt",
+  "control_dt": 0.01,
+  "joint_order": [
+    "FL_hip_joint",
+    "FL_thigh_joint",
+    "FL_calf_joint",
+    "FR_hip_joint",
+    "FR_thigh_joint",
+    "FR_calf_joint",
+    "RL_hip_joint",
+    "RL_thigh_joint",
+    "RL_calf_joint",
+    "RR_hip_joint",
+    "RR_thigh_joint",
+    "RR_calf_joint"
+  ],
+  "free_joints": {
+    "names": [
+      "FL_hip_joint",
+      "FL_thigh_joint",
+      "FL_calf_joint",
+      "RL_hip_joint",
+      "RL_thigh_joint",
+      "RL_calf_joint",
+      "RR_hip_joint",
+      "RR_thigh_joint",
+      "RR_calf_joint"
+    ],
+    "kp": [
+      20.0,
+      20.0,
+      20.0,
+      20.0,
+      20.0,
+      20.0,
+      20.0,
+      20.0,
+      20.0
+    ],
+    "kd": [
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    "default_pos": [
+      0.0,
+      0.6600000262260437,
+      -1.3600000143051147,
+      0.0,
+      0.6600000262260437,
+      -1.3600000143051147,
+      0.0,
+      0.6600000262260437,
+      -1.3600000143051147
+    ],
+    "note": "policy output = absolute position targets [rad] in this order"
+  },
+  "locked_joints": {
+    "names": [
+      "FR_hip_joint",
+      "FR_thigh_joint",
+      "FR_calf_joint"
+    ],
+    "hold_pos": [
+      0.0,
+      1.36,
+      -2.65
+    ],
+    "kp": 40.0,
+    "kd": 1.0,
+    "note": "never driven by the policy; hold this pose with this PD every control step, as in simulation"
+  },
+  "observation": [
+    {
+      "name": "base_ang_vel",
+      "size": 3,
+      "scale": [
+        0.30000001192092896
+      ]
+    },
+    {
+      "name": "projected_gravity",
+      "size": 3,
+      "scale": 1.0
+    },
+    {
+      "name": "commands",
+      "size": 3,
+      "scale": [
+        3.0,
+        1.0,
+        3.0
+      ]
+    },
+    {
+      "name": "dof_pos_obs",
+      "size": 12,
+      "scale": [
+        1.0471999645233154,
+        2.530750036239624,
+        0.9424700140953064,
+        1.0471999645233154,
+        2.530750036239624,
+        0.9424700140953064,
+        1.0471999645233154,
+        2.530750036239624,
+        0.9424700140953064,
+        1.0471999645233154,
+        2.530750036239624,
+        0.9424700140953064
+      ]
+    },
+    {
+      "name": "dof_vel",
+      "size": 12,
+      "scale": [
+        2.0,
+        2.0,
+        4.0,
+        2.0,
+        2.0,
+        4.0,
+        2.0,
+        2.0,
+        4.0,
+        2.0,
+        2.0,
+        4.0
+      ]
+    },
+    {
+      "name": "dof_pos_target",
+      "size": 12,
+      "scale": [
+        0.5235999822616577,
+        1.265375018119812,
+        0.4712350070476532,
+        0.5235999822616577,
+        1.265375018119812,
+        0.4712350070476532,
+        0.5235999822616577,
+        1.265375018119812,
+        0.4712350070476532,
+        0.5235999822616577,
+        1.265375018119812,
+        0.4712350070476532
+      ]
+    },
+    {
+      "name": "phase_obs",
+      "size": 8,
+      "scale": 1.0
+    },
+    {
+      "name": "osc_omega",
+      "size": 1,
+      "scale": [
+        4.0
+      ]
+    }
+  ],
+  "observation_size": 54,
+  "observation_note": "each part = measured value / scale, concatenated in this order; locked joints' dof_pos_target entries are 0; phase_obs and osc_omega come from the oscillators, which must run on the robot with the measured foot loads"
+}
