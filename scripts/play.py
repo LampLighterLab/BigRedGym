@@ -10,6 +10,8 @@ Supports MuJoCo CPU/Warp and optional VSim checkpoints.
 """
 
 import argparse
+from datetime import datetime
+from pathlib import Path
 import random
 
 import torch
@@ -132,16 +134,73 @@ def setup(args):
     return env, runner
 
 
-def play(env, runner):
+def save_grf_plot(samples, dt, foot_names, path):
+    import matplotlib
+    import numpy as np
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    times = np.arange(1, len(samples) + 1) * dt
+    forces_by_foot = np.asarray([forces for forces, _ in samples]).T
+    frequencies = np.asarray([frequency for _, frequency in samples])
+    fig, axes = plt.subplots(
+        len(foot_names) + 1,
+        1,
+        figsize=(12, 12),
+        sharex=True,
+        gridspec_kw={"height_ratios": [2] * len(foot_names) + [1]},
+    )
+    for index, (foot, forces) in enumerate(zip(foot_names, forces_by_foot)):
+        ax = axes[index]
+        ax.scatter(times, forces, s=3, alpha=0.5, color=f"C{index}")
+        ax.set(ylabel="Force (N)", title=foot)
+        ax.grid(alpha=0.3)
+    ax_frequency = axes[-1]
+    ax_frequency.scatter(times, frequencies, s=3, color="black")
+    ax_frequency.set(xlabel="Playback time (s)", ylabel="Frequency (Hz)")
+    ax_frequency.grid(alpha=0.3)
+    fig.suptitle("Go2 vertical foot contact forces and oscillator frequency")
+    fig.tight_layout()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    print(f"Foot force and frequency plot saved to {path.resolve()}")
+
+
+def play(env, runner, grf_plot_path=None):
     n_steps = 10 * int(env.max_episode_length)
-    for _ in range(n_steps):
-        runner.set_actions(
-            runner.actor_cfg["actions"],
-            runner.get_inference_actions(),
-            runner.actor_cfg["disable_actions"],
-        )
-        env.step()
-        env.check_exit()
+    grf_samples = [] if grf_plot_path is not None else None
+    try:
+        for _ in range(n_steps):
+            runner.set_actions(
+                runner.actor_cfg["actions"],
+                runner.get_inference_actions(),
+                runner.actor_cfg["disable_actions"],
+            )
+            env.step()
+            if grf_samples is not None:
+                grf_samples.append((
+                    env.contact_forces[0, env.feet_indices, 2]
+                    .clamp_min(0.0)
+                    .cpu()
+                    .tolist(),
+                    env.phase_frequency[0, 0].item(),
+                ))
+                viewer = getattr(env._backend, "_viewer", None)
+                if viewer is not None and not viewer.is_running():
+                    break
+            env.check_exit()
+    except KeyboardInterrupt:
+        print("Playback interrupted; saving foot force and frequency plot.")
+    finally:
+        if grf_samples:
+            save_grf_plot(
+                grf_samples,
+                env.dt,
+                env.robot_layout.body_groups["feet"],
+                grf_plot_path,
+            )
 
 
 if __name__ == "__main__":
@@ -186,4 +245,13 @@ if __name__ == "__main__":
                 from gym.utils.interfaces.CommandVisualizer import CommandVisualizer
 
                 CommandVisualizer(env)
-        play(env, runner)
+        grf_plot_path = None
+        if args.task == "go2osc":
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            grf_plot_path = (
+                Path(__file__).resolve().parents[1]
+                / "logs"
+                / "go2osc"
+                / f"grf_playback_{timestamp}.png"
+            )
+        play(env, runner, grf_plot_path)
