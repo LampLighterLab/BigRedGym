@@ -94,6 +94,8 @@ def setup(args):
     if hasattr(env_cfg, "push_robots"):
         env_cfg.push_robots.toggle = False
     env_cfg.init_state.reset_mode = "reset_to_basic"
+    if args.task == "go2osc":
+        env_cfg.osc.randomize_frequency = False
     if hasattr(env_cfg, "viewer"):
         env_cfg.viewer.show_ui = args.viewer_ui
 

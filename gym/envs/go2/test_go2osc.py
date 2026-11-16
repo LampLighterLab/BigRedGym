@@ -1,4 +1,5 @@
 import math
+from unittest.mock import patch
 
 import torch
 
@@ -24,6 +25,10 @@ def test_oscillator_integration():
 
     try:
         initial_phases = env.phase.clone()
+        initial_frequency = env.phase_frequency.clone()
+        assert torch.all(initial_frequency >= 0.0)
+        assert torch.all(initial_frequency <= 5.0)
+        assert torch.all(initial_frequency == initial_frequency[:, :1])
         expected_offsets = torch.tensor(
             [0.0, math.pi / 2, math.pi, 3 * math.pi / 2],
             device=env.device,
@@ -35,10 +40,17 @@ def test_oscillator_integration():
 
         env.step()
         expected_next = torch.remainder(
-            initial_phases + 2 * math.pi * cfg.osc.frequency * env.dt,
+            initial_phases + 2 * math.pi * initial_frequency * env.dt,
             2 * math.pi,
         )
         assert torch.allclose(env.phase, expected_next, atol=1e-5)
+
+        with patch.object(cfg.osc, "zero_frequency_fraction", 1.0):
+            env.reset()
+            assert torch.all(env.phase_frequency == 0.0)
+            stopped_phase = env.phase.clone()
+            env.step()
+            assert torch.allclose(env.phase, stopped_phase)
 
         for _ in range(49):
             env.step()
@@ -46,7 +58,8 @@ def test_oscillator_integration():
         assert env.phase.shape == (2, 4)
         assert torch.isfinite(env.phase).all()
         assert torch.isfinite(env.measured_grf).all()
-        assert torch.all(env.phase_frequency == cfg.osc.frequency)
+        assert torch.all(env.phase_frequency >= 0.0)
+        assert torch.all(env.phase_frequency <= 5.0)
 
     finally:
         backend.close()
@@ -74,6 +87,26 @@ def test_upright_reward_rejects_inverted_pose():
     env = object.__new__(Go2Osc)
     env.projected_gravity = torch.tensor([[0.0, 0.0, -1.0], [0.0, 0.0, 1.0]])
     assert torch.allclose(env._reward_orientation(), torch.tensor([2.0, -2.0]))
+
+
+def test_low_body_height_terminates_only_affected_envs():
+    env = object.__new__(Go2Osc)
+    env.cfg = Go2OscCfg()
+    env.root_states = torch.zeros(3, 13)
+    env.root_states[:, 2] = torch.tensor([0.19, 0.20, 0.21])
+    env.contact_forces = torch.zeros(3, 1, 3)
+    env.termination_contact_indices = torch.tensor([0])
+    env.episode_length_buf = torch.zeros(3, dtype=torch.long)
+    env.max_episode_length = 400
+    env.terminated = torch.zeros(3, dtype=torch.bool)
+    env.timed_out = torch.zeros(3, dtype=torch.bool)
+
+    env._check_terminations_and_timeouts()
+    assert torch.equal(env.terminated, torch.tensor([True, False, False]))
+
+    env.contact_forces[2, 0, 2] = 2.0
+    env._check_terminations_and_timeouts()
+    assert torch.equal(env.terminated, torch.tensor([True, False, True]))
 
 
 def test_only_requested_rewards_are_enabled():

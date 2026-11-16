@@ -6,6 +6,7 @@ class Go2OscCfg(Go2Cfg):
     class env(Go2Cfg.env):
         num_envs = 64
         episode_length_s = 8
+        termination_height = 0.20  # m; terminate if the base drops below this
 
     class init_state(Go2Cfg.init_state):
         reset_mode = "reset_to_range"
@@ -15,7 +16,11 @@ class Go2OscCfg(Go2Cfg):
         desired_sim_frequency = 200
 
     class osc:
-        frequency = 2.0  # Hz
+        frequency = 2.0  # Hz; starting frequency during playback
+        frequency_range = [0.0, 5.0]  # Hz; sampled once per training episode
+        zero_frequency_fraction = 0.1  # Include exact 0 Hz episodes
+        randomize_frequency = True
+        frequency_step = 0.25  # Hz per Up/Down key press during playback
         # Cycle offsets stagger the legs by 90 degrees in foot order.
         phase_offsets = {
             "FL_foot": 0.0,

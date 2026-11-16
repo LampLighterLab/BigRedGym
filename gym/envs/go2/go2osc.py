@@ -43,11 +43,15 @@ class Go2Osc(Go2):
 
         dt = self.dt / self.cfg.control.decimation
         self.phase = torch.remainder(
-            self.phase + 2 * math.pi * self.cfg.osc.frequency * dt,
+            self.phase + 2 * math.pi * self.phase_frequency * dt,
             2 * math.pi,
         )
 
         self._update_oscillator_observations()
+
+    def _check_terminations_and_timeouts(self):
+        super()._check_terminations_and_timeouts()
+        self.terminated |= self.root_states[:, 2] < self.cfg.env.termination_height
 
     def _reset_idx(self, reset_mask):
         super()._reset_idx(reset_mask)
@@ -57,6 +61,25 @@ class Go2Osc(Go2):
         )
         phases = torch.remainder(cycle_phase + self._phase_offsets, 2 * math.pi)
         masked_update(self.phase, phases, reset_mask)
+
+        if self.cfg.osc.randomize_frequency:
+            low, high = self.cfg.osc.frequency_range
+            frequencies = low + (high - low) * torch.rand(
+                self.num_envs, 1, device=self.device
+            )
+            if low == 0.0:
+                zero_frequency = (
+                    torch.rand(self.num_envs, 1, device=self.device)
+                    < self.cfg.osc.zero_frequency_fraction
+                )
+                frequencies.masked_fill_(zero_frequency, 0.0)
+        else:
+            frequencies = torch.full(
+                (self.num_envs, 1), self.cfg.osc.frequency, device=self.device
+            )
+        masked_update(
+            self.phase_frequency, frequencies.expand(-1, 4), reset_mask
+        )
 
         self.dof_pos_target.masked_fill_(reset_mask.unsqueeze(1), 0.0)
         self.dof_pos_history.masked_fill_(reset_mask.unsqueeze(1), 0.0)

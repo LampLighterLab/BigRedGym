@@ -229,6 +229,36 @@ def test_commands_clamp_at_limits():
     assert env.commands[0, 0].item() >= cmds.max_vel_backward - 1e-6
 
 
+def test_arrow_keys_change_go2osc_frequency_within_training_range():
+    env = FakeEnv()
+    env.cfg.osc = SimpleNamespace(
+        frequency_range=[0.0, 5.0], frequency_step=0.25
+    )
+    env.phase_frequency = torch.full((2, 4), 2.0)
+    cmds = TeleopCommands(env)
+
+    cmds.apply("up")
+    assert torch.all(env.phase_frequency == 2.25)
+    cmds.apply("down")
+    assert torch.all(env.phase_frequency == 2.0)
+
+    for _ in range(20):
+        cmds.apply("up")
+    assert torch.all(env.phase_frequency == 5.0)
+    for _ in range(20):
+        cmds.apply("down")
+    assert torch.all(env.phase_frequency == 0.0)
+
+
+def test_arrow_keys_leave_other_tasks_unchanged():
+    env = FakeEnv()
+    cmds = TeleopCommands(env)
+    before = env.commands.clone()
+    cmds.apply("up")
+    cmds.apply("down")
+    assert torch.equal(env.commands, before)
+
+
 # ── Viewer UI panels (MuJoCo) ────────────────────────────────────────────
 
 
