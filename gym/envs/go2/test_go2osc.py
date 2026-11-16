@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import torch
 
+from gym.envs.go2.go2 import Go2
 from gym.envs.go2.go2osc import Go2Osc
 from gym.envs.go2.go2_config import Go2RunnerCfg
 from gym.envs.go2.go2osc_config import Go2OscCfg, Go2OscRunnerCfg
@@ -24,6 +25,18 @@ def test_oscillator_integration():
     env = Go2Osc(cfg, "cpu", True, backend)
 
     try:
+        assert env.max_episode_length_s == 16
+        assert env.max_episode_length == 800
+        penalized_names = [
+            backend.body_names[index]
+            for index in env.penalised_contact_indices.tolist()
+        ]
+        assert penalized_names
+        assert any("thigh" in name for name in penalized_names)
+        assert any("calf" in name for name in penalized_names)
+        assert all("thigh" in name or "calf" in name for name in penalized_names)
+        assert not any("foot" in name for name in penalized_names)
+
         initial_phases = env.phase.clone()
         initial_frequency = env.phase_frequency.clone()
         assert torch.all(initial_frequency >= 0.0)
@@ -69,6 +82,7 @@ def test_gait_reward_depends_on_contact_timing_not_force_magnitude():
     env = object.__new__(Go2Osc)
     env.cfg = Go2OscCfg()
     env.phase = torch.tensor([[3 * math.pi / 2, math.pi / 2]])
+    env.phase_frequency = torch.tensor([[2.0, 2.0]])
 
     env.measured_grf = torch.tensor([[0.1, 0.0]])
     matched = env._reward_gait_contact()
@@ -81,6 +95,50 @@ def test_gait_reward_depends_on_contact_timing_not_force_magnitude():
 
     env.measured_grf = torch.zeros_like(env.measured_grf)
     assert torch.all(env._reward_gait_contact() < 0)
+
+
+def test_zero_frequency_rewards_four_foot_support():
+    env = object.__new__(Go2Osc)
+    env.cfg = Go2OscCfg()
+    env.phase = torch.tensor([[0.0, math.pi / 2, math.pi, 3 * math.pi / 2]])
+    env.phase_frequency = torch.zeros(1, 4)
+    env.measured_grf = torch.full((1, 4), 0.1)
+    assert torch.allclose(env._reward_gait_contact(), torch.tensor([0.5]))
+
+    env.measured_grf[0, 0] = 0.0
+    assert torch.allclose(env._reward_gait_contact(), torch.tensor([0.25]))
+
+
+def test_frequency_changes_every_two_seconds_for_selected_training_envs():
+    env = object.__new__(Go2Osc)
+    env.cfg = Go2OscCfg()
+    env.num_envs = 2
+    env.device = "cpu"
+    env.dt = 0.02
+    env.max_episode_length = 800
+    env.episode_length_buf = torch.tensor([99, 98])
+    env.phase_frequency = torch.full((2, 4), 3.0)
+
+    with patch.object(env.cfg.osc, "zero_frequency_fraction", 1.0):
+        with patch.object(
+            Go2,
+            "_post_decimation_step",
+            side_effect=lambda: env.episode_length_buf.add_(1),
+        ):
+            env._post_decimation_step()
+    assert torch.all(env.phase_frequency[0] == 0.0)
+    assert torch.all(env.phase_frequency[1] == 3.0)
+
+    env.episode_length_buf[:] = 199
+    with patch.object(env.cfg.osc, "randomize_frequency", False):
+        with patch.object(
+            Go2,
+            "_post_decimation_step",
+            side_effect=lambda: env.episode_length_buf.add_(1),
+        ):
+            env._post_decimation_step()
+    assert torch.all(env.phase_frequency[0] == 0.0)
+    assert torch.all(env.phase_frequency[1] == 3.0)
 
 
 def test_upright_reward_rejects_inverted_pose():
@@ -109,7 +167,7 @@ def test_low_body_height_terminates_only_affected_envs():
     assert torch.equal(env.terminated, torch.tensor([True, False, True]))
 
 
-def test_only_requested_rewards_are_enabled():
+def test_enabled_rewards_include_leg_collision_penalty():
     reward_cfg = class_to_dict(Go2OscRunnerCfg().critic.reward)
     weights = reward_cfg["weights"]
     remove_zero_weighted_rewards(weights)
@@ -120,5 +178,6 @@ def test_only_requested_rewards_are_enabled():
         "action_rate",
         "action_rate2",
         "ang_vel_xy",
+        "collision",
     }
     assert reward_cfg["termination_weight"] == {"termination": 0.01}

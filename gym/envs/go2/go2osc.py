@@ -49,19 +49,22 @@ class Go2Osc(Go2):
 
         self._update_oscillator_observations()
 
+    def _post_decimation_step(self):
+        super()._post_decimation_step()
+        if self.cfg.osc.randomize_frequency:
+            interval = round(self.cfg.osc.frequency_resampling_time / self.dt)
+            resample_mask = (
+                (self.episode_length_buf > 0)
+                & (self.episode_length_buf < self.max_episode_length)
+                & (self.episode_length_buf % interval == 0)
+            )
+            self._resample_frequency(resample_mask)
+
     def _check_terminations_and_timeouts(self):
         super()._check_terminations_and_timeouts()
         self.terminated |= self.root_states[:, 2] < self.cfg.env.termination_height
 
-    def _reset_idx(self, reset_mask):
-        super()._reset_idx(reset_mask)
-
-        cycle_phase = 2 * math.pi * torch.rand(
-            self.num_envs, 1, device=self.device
-        )
-        phases = torch.remainder(cycle_phase + self._phase_offsets, 2 * math.pi)
-        masked_update(self.phase, phases, reset_mask)
-
+    def _resample_frequency(self, resample_mask):
         if self.cfg.osc.randomize_frequency:
             low, high = self.cfg.osc.frequency_range
             frequencies = low + (high - low) * torch.rand(
@@ -78,8 +81,18 @@ class Go2Osc(Go2):
                 (self.num_envs, 1), self.cfg.osc.frequency, device=self.device
             )
         masked_update(
-            self.phase_frequency, frequencies.expand(-1, 4), reset_mask
+            self.phase_frequency, frequencies.expand(-1, 4), resample_mask
         )
+
+    def _reset_idx(self, reset_mask):
+        super()._reset_idx(reset_mask)
+
+        cycle_phase = 2 * math.pi * torch.rand(
+            self.num_envs, 1, device=self.device
+        )
+        phases = torch.remainder(cycle_phase + self._phase_offsets, 2 * math.pi)
+        masked_update(self.phase, phases, reset_mask)
+        self._resample_frequency(reset_mask)
 
         self.dof_pos_target.masked_fill_(reset_mask.unsqueeze(1), 0.0)
         self.dof_pos_history.masked_fill_(reset_mask.unsqueeze(1), 0.0)
@@ -93,7 +106,13 @@ class Go2Osc(Go2):
             self.phase.dtype
         )
         stance = torch.sin(self.phase) < 0
-        return torch.where(stance, 2 * contact - 1, -contact).mean(dim=1)
+        gait_reward = torch.where(stance, 2 * contact - 1, -contact).mean(dim=1)
+        # At 0 Hz every foot should support a stationary robot. Keep the
+        # maximum at 0.5, matching the two-stance-foot moving gait.
+        standing_reward = contact.mean(dim=1) - 0.5
+        return torch.where(
+            self.phase_frequency[:, 0] == 0.0, standing_reward, gait_reward
+        )
 
     def _reward_orientation(self):
         # The parent reward uses only gravity's x/y components, which also
