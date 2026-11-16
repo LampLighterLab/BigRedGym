@@ -55,6 +55,9 @@ class Go2OscRunnerCfg(Go2RunnerCfg):
         class reward(Go2RunnerCfg.critic.reward):
             class weights(Go2RunnerCfg.critic.reward.weights):
                 gait_contact = 4.0
+                tracking_lin_vel = 0.0
+                tracking_ang_vel = 0.0
+                min_base_height = 0.0
 
     class algorithm(Go2RunnerCfg.algorithm):
         rollout_size = 16384

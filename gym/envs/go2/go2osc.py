@@ -64,10 +64,15 @@ class Go2Osc(Go2):
         self._update_oscillator_observations()
 
     def _reward_gait_contact(self):
-        # Negative sine marks stance, matching the phase convention used by
-        # the original desired-force profile. Contact is binary so this reward
-        # asks for timing, not a particular ground reaction force.
+        # Negative sine marks stance. Missing a stance contact is penalized,
+        # so keeping every foot off the ground cannot cancel out the reward.
         contact = (self.measured_grf > self.cfg.osc.contact_threshold).to(
             self.phase.dtype
         )
-        return torch.mean(-torch.sin(self.phase) * (2 * contact - 1), dim=1)
+        stance = torch.sin(self.phase) < 0
+        return torch.where(stance, 2 * contact - 1, -contact).mean(dim=1)
+
+    def _reward_orientation(self):
+        # The parent reward uses only gravity's x/y components, which also
+        # score an upside-down but level robot highly.
+        return -2.0 * self.projected_gravity[:, 2]
