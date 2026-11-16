@@ -7,6 +7,7 @@ after each step.
 """
 
 import copy
+import os
 import time
 
 import mujoco
@@ -159,6 +160,12 @@ class MuJocoCPUBackend(MuJocoBackendBase):
             if visual_model is not None and not headless
             else None
         )
+        if visual_model_path is not None and not os.path.isfile(visual_model_path):
+            print(
+                "WARNING: optional MuJoCo visual model is unavailable: "
+                f"{visual_model_path}. Falling back to the URDF visuals."
+            )
+            visual_model_path = None
 
         mjm = self._load_model(
             cfg,
