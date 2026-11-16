@@ -411,6 +411,14 @@ DEPLOY = {
     "commands": {"zero_prob": 0.25, "max_accel": 2.0, "yaw_vel": 1.0},
     "init_state": {"rest_prob": 0.3},
 }
+# The hardware candidate: DEPLOY plus noisy, delayed foot loads for the
+# oscillators, wider mass randomization and observation noise (as robust),
+# with forward commands limited to 2.5 m/s.
+DEPLOY_ROBUST = {
+    **DEPLOY,
+    "sensors": True,
+    "commands": {**DEPLOY["commands"], "lin_vel_x": [0.25, 2.5]},
+}
 FOLLOWUP_BATCHES = {
     # Batch 1: sim-to-real candidates and the power-smoothness hypothesis
     # (even load blocks two-leg gaits, smooth power blocks the hop).
@@ -434,6 +442,10 @@ FOLLOWUP_BATCHES = {
     3: {
         "even2.5_deploy": {"even_load": 2.5, **DEPLOY},
         "even2.5_track2": {"even_load": 2.5, "tracking_lin_vel": 8.0, "heading": 4.0},
+    },
+    # Batch 4: the hardware candidate (deploy with sensor noise, to 2.5 m/s).
+    4: {
+        "even2.5_deploy_robust": {"even_load": 2.5, **DEPLOY_ROBUST},
     },
 }
 WIDE_SETTINGS.update({k: v for b in FOLLOWUP_BATCHES.values() for k, v in b.items()})
@@ -535,7 +547,8 @@ def study_cfgs(setting, wide=False):
         for name, value in osc.items():
             setattr(EnvCfg.osc, name, value)
         for name, value in commands.items():
-            target = EnvCfg.commands.ranges if name == "yaw_vel" else EnvCfg.commands
+            ranged = name in ("yaw_vel", "lin_vel_x", "lin_vel_y")
+            target = EnvCfg.commands.ranges if ranged else EnvCfg.commands
             setattr(target, name, value)
         for name, value in init_state.items():
             setattr(EnvCfg.init_state, name, value)
