@@ -51,14 +51,18 @@ def make(args, mu):
     env_cfg.env.num_envs = 1
     env_cfg.env.episode_length_s = args.seconds + 1.0
     env_cfg.commands.resampling_time = 9999
-    env_cfg.commands.zero_command_prob = 0.0
-    env_cfg.commands.curriculum.toggle = False
+    # * these exist only on the state-estimator configs
+    if hasattr(env_cfg.commands, "zero_command_prob"):
+        env_cfg.commands.zero_command_prob = 0.0
+    if hasattr(env_cfg.commands, "curriculum"):
+        env_cfg.commands.curriculum.toggle = False
     env_cfg.init_state.reset_mode = "reset_to_basic"
-    env_cfg.init_state.continue_prob = 0.0
+    if hasattr(env_cfg.init_state, "continue_prob"):
+        env_cfg.init_state.continue_prob = 0.0
     env_cfg.push_robots.toggle = False
     # * fixed friction, nominal everything else
     env_cfg.domain_randomization.startup.contact_friction_range = [mu, mu]
-    env_cfg.domain_randomization.startup.link_mass_scale_range = None
+    env_cfg.domain_randomization.startup.link_mass_scale_range = [1.0, 1.0]
     env_cfg.domain_randomization.episode.scale_ranges = {
         "p_gains": [1.0, 1.0],
         "d_gains": [1.0, 1.0],
@@ -124,7 +128,10 @@ def rollout(args, mu):
 
         t.append(i * env.dt)
         v_true.append(env.base_lin_vel[0, 0].item())
-        v_est.append((runner.get_estimate()[0, 0] * vel_scale).item())
+        if hasattr(runner, "get_estimate"):
+            v_est.append((runner.get_estimate()[0, 0] * vel_scale).item())
+        else:  # * plain policy, no estimator
+            v_est.append(float("nan"))
         if i % stride == 0:
             renderer.update_scene(data, cam)
             frames.append(Image.fromarray(renderer.render()))
@@ -147,7 +154,7 @@ def main():
             duration=int(1000 * frame_dt),
             loop=0,
         )
-        err = torch.tensor(v_est) - torch.tensor(v_true)
+        err = (torch.tensor(v_est) - torch.tensor(v_true)).nan_to_num(0.0)
         steady = torch.tensor(t) > 1.0
         print(
             f"mu={mu}: fell={'no' if fell_at is None else f'at {fell_at:.2f}s'}  "

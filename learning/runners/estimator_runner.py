@@ -249,10 +249,12 @@ class EstimatorRunner(OnPolicyRunner):
         r_neg = total(self._negative_weights()) / self.env.dt  # per-step rate
         r_term = total(reward_cfg["termination_weight"])
         scale = reward_cfg.get("neg_scale", 0.2) * self.neg_ramp()
-        if self._negative_weights():
-            combined = r_pos * torch.exp(scale * r_neg)
-        else:
+        if not self._negative_weights():
             combined = r_pos
+        elif reward_cfg.get("combine", "multiplicative") == "additive":
+            combined = r_pos + scale * r_neg * self.env.dt
+        else:
+            combined = r_pos * torch.exp(scale * r_neg)
         return (combined + r_term).sum(dim=0)
 
     @torch.no_grad

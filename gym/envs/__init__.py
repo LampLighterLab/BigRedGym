@@ -39,6 +39,7 @@ config_dict = {
     "Go2TrotCfg": ".go2.go2trot_config",
     "Go2SECfg": ".go2.go2_se_config",
     "Go2SEPaperCfg": ".go2.go2_se_config",
+    "Go2SEGo2EnvCfg": ".go2.go2_se_config",
 }
 
 runner_config_dict = {
@@ -58,6 +59,9 @@ runner_config_dict = {
     "Go2SERunnerCfg": ".go2.go2_se_config",
     "Go2SEOracleRunnerCfg": ".go2.go2_se_config",
     "Go2SEPaperRunnerCfg": ".go2.go2_se_config",
+    "Go2DiagARunnerCfg": ".go2.go2_se_config",
+    "Go2DiagBRunnerCfg": ".go2.go2_se_config",
+    "Go2DiagCRunnerCfg": ".go2.go2_se_config",
 }
 
 task_dict = {
@@ -97,6 +101,10 @@ task_dict = {
     "go2_se": ["Go2SE", "Go2SECfg", "Go2SERunnerCfg"],
     "go2_se_oracle": ["Go2SE", "Go2SECfg", "Go2SEOracleRunnerCfg"],
     "go2_se_paper": ["Go2SE", "Go2SEPaperCfg", "Go2SEPaperRunnerCfg"],
+    "go2_se_go2env": ["Go2SE", "Go2SEGo2EnvCfg", "Go2SERunnerCfg"],
+    "diag_a": ["Go2SE", "Go2SEGo2EnvCfg", "Go2DiagARunnerCfg"],
+    "diag_b": ["Go2SE", "Go2SEGo2EnvCfg", "Go2DiagBRunnerCfg"],
+    "diag_c": ["Go2SE", "Go2SEGo2EnvCfg", "Go2DiagCRunnerCfg"],
 }
 
 

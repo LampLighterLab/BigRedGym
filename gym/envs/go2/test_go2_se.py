@@ -134,3 +134,34 @@ def test_penalty_ramp_reaches_paper_scale():
     assert runner.neg_ramp() == 1.0
     runner.critic_cfg = {"reward": {}}
     assert runner.neg_ramp() == 1.0
+
+
+def test_additive_reward_combination():
+    from types import SimpleNamespace
+
+    from tensordict import TensorDict
+
+    from learning.runners import EstimatorRunner
+
+    runner = EstimatorRunner.__new__(EstimatorRunner)
+    runner.device = "cpu"
+    runner.env = SimpleNamespace(dt=0.01)
+    runner.critic_cfg = {
+        "reward": {
+            "combine": "additive",
+            "neg_scale": 0.2,
+            "weights": {"lin_vel_exp": 3.0},
+            "negative_weights": {"joint_pos": -1.0},
+            "termination_weight": {"termination": 10.0},
+        }
+    }
+    rd = TensorDict(
+        {
+            "lin_vel_exp": torch.tensor([[0.03]]),
+            "joint_pos": torch.tensor([[-0.05]]),
+            "termination": torch.tensor([[0.0]]),
+        },
+        batch_size=(1, 1),
+    )
+    # * r_pos*dt + 0.2 * r_neg*dt = 0.03 + 0.2 * -0.05
+    torch.testing.assert_close(runner.compute_total_rewards(rd), torch.tensor([0.02]))
