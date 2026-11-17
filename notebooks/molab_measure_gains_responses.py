@@ -192,7 +192,7 @@ def _(REPO, mo, os):
 
 
 @app.cell
-def _(REPO, mo, zipfile, os, io)
+def _(REPO, mo, zipfile, os, io, file_button, TASK):
     # Unzip the file
     with zipfile.ZipFile(io.BytesIO(file_button.contents()), 'r') as zip_ref:
         zip_ref.extractall(REPO / "logs" / TASK)

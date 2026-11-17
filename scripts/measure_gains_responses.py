@@ -153,6 +153,7 @@ def play(env, runner):
 
 
 if __name__ == "__main__":
+    print("Setup...")
     script_args = get_measure_args()
 
     stiffness = torch.linspace(script_args.min_kp, script_args.max_kp, script_args.num_kp)
@@ -172,6 +173,7 @@ if __name__ == "__main__":
         viewer_ui = False
         keyboard = False
 
+    print("Beginning sweep...")
     # Namespace(task='go2trot', device='cpu', num_envs=1, seed=None, experiment_name=None, load_run=None, checkpoint=-1, original_cfg=False, headless=False, backend='mujoco', viewer_ui=False, keyboard=True)
     displacements = torch.zeros((stiffness.size()[0], damping.size()[0]))
     uprights = torch.zeros((stiffness.size()[0], damping.size()[0]))
