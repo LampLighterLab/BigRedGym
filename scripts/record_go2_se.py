@@ -62,7 +62,7 @@ def make(args, mu):
     env_cfg.push_robots.toggle = False
     # * fixed friction, nominal everything else
     env_cfg.domain_randomization.startup.contact_friction_range = [mu, mu]
-    env_cfg.domain_randomization.startup.link_mass_scale_range = [1.0, 1.0]
+    env_cfg.domain_randomization.startup.link_mass_scale_range = None
     env_cfg.domain_randomization.episode.scale_ranges = {
         "p_gains": [1.0, 1.0],
         "d_gains": [1.0, 1.0],
