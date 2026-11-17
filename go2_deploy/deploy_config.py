@@ -5,7 +5,8 @@ import torch
 class DeployConfig:
     task_name = "go2trot"
 
-    ctrl_freq = 100  # Hz
+    # Must match the rate the policy was trained at.
+    ctrl_freq = Go2TrotCfg.control.ctrl_frequency  # Hz
 
     kp = 30.0  # Stiffness constant
     kd = 2.0  # Damping constant
