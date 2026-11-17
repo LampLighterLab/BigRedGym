@@ -172,20 +172,29 @@ def _(ENV, REPO, subprocess):
 
 
 @app.cell
-def _(ENV, REPO, mo, zipfile, os, io):
+def _(REPO, mo, os):
     # Define the task & upload a trained model
     # Make sure this is the "Date..._" folder zipped up, with the same name
     # Or whatever folder is inside the task's log folder
     TASK = "go2trot"  # go2trot | mini_cheetah | humanoid | pendulum ...
-    f = mo.ui.file(kind="button", filetypes=[".zip"], multiple=False)
 
+    # Create logs folder if it doesn't exist
     if not os.path.isdir(REPO / "logs"):
         os.mkdir(REPO / "logs")
     if not os.path.isdir(REPO / "logs" / TASK):
         os.mkdir(REPO / "logs" / TASK)
 
+    file_button = mo.ui.file(kind="button", filetypes=[".zip"], multiple=False)
+    mo.vstack([file_button])
+
+    return (TASK, file_button)
+
+
+
+@app.cell
+def _(REPO, mo, zipfile, os, io)
     # Unzip the file
-    with zipfile.ZipFile(io.BytesIO(f.contents()), 'r') as zip_ref:
+    with zipfile.ZipFile(io.BytesIO(file_button.contents()), 'r') as zip_ref:
         zip_ref.extractall(REPO / "logs" / TASK)
 
     # Confirm that the data is in the right place
@@ -195,8 +204,6 @@ def _(ENV, REPO, mo, zipfile, os, io):
     print(os.listdir(REPO / "logs"))
     print("Task folder:")
     print(os.listdir(REPO / "logs" / TASK))
-
-    return (TASK,)
 
 
 
