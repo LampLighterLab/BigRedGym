@@ -24,7 +24,7 @@ natural U/O pair collides with vsim's step toggle:
      N M             N / M   yaw left / right
                      R       reset envs
                      Esc     quit (or close the window)
-                     Up/Down up / down (command effects: student TODO)
+                     Up/Down raise / lower commanded base height
 
 GLFW (MuJoCo) uses ASCII codes for letter keys, so `ord(letter)` is the
 keycode. Each viewer adapter translates named special keys such as UP/DOWN
@@ -53,7 +53,7 @@ HELP_LINES = (
     "  I/K           forward / back",
     "  J/L           strafe left / strafe right",
     "  N/M           yaw left / yaw right",
-    "  Up/Down       up / down (command effects: student TODO)",
+    "  Up/Down       raise / lower commanded base height",
     "  R             reset envs",
     "  Esc / window  quit",
     "  commands step in 1/5 increments of max",
@@ -79,6 +79,12 @@ class TeleopCommands:
         self.max_vel_yaw = 2.0
         self.increment_yaw = self.max_vel_yaw * 0.2
 
+        self.height_command = getattr(env, "base_height_command", None)
+        if self.height_command is not None:
+            self.min_height, self.max_height = env.command_ranges["base_height"]
+            self.increment_height = (self.max_height - self.min_height) / 5
+            self.height_command[:] = self.max_height
+
         env.commands[:] = 0.0
         env.commands[:, 0] = 1.0  # seed forward velocity so motion is visible
         if hasattr(env.cfg, "commands"):
@@ -101,6 +107,16 @@ class TeleopCommands:
             c[:, 2] = torch.clamp(c[:, 2] + self.increment_yaw, max=self.max_vel_yaw)
         elif action == "yaw_right":
             c[:, 2] = torch.clamp(c[:, 2] - self.increment_yaw, min=-self.max_vel_yaw)
+        elif action == "up" and self.height_command is not None:
+            self.height_command[:] = torch.clamp(
+                self.height_command + self.increment_height, max=self.max_height
+            )
+        elif action == "down" and self.height_command is not None:
+            self.height_command[:] = torch.clamp(
+                self.height_command - self.increment_height, min=self.min_height
+            )
+        elif action in ("up", "down"):
+            return
         elif action == "reset":
             self.env.timed_out[:] = True
             self.env.reset()

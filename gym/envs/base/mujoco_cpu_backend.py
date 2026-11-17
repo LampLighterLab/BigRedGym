@@ -7,6 +7,7 @@ after each step.
 """
 
 import copy
+from pathlib import Path
 import time
 
 import mujoco
@@ -159,6 +160,8 @@ class MuJocoCPUBackend(MuJocoBackendBase):
             if visual_model is not None and not headless
             else None
         )
+        if visual_model_path is not None and not Path(visual_model_path).is_file():
+            visual_model_path = None
 
         mjm = self._load_model(
             cfg,

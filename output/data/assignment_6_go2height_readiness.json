@@ -1,0 +1,204 @@
+{
+  "protocol": "go2height-readiness-v1",
+  "checkpoint": "D:\\MAE5110\\HuaijinPeter\\BigRedGym\\logs\\go2height\\Oct16_18-01-11_height_v1\\model_500.pt",
+  "checkpoint_sha256": "3135943d615c06a1e82bd0699104666292602a453b074fb3995a2ddadd1d99c9",
+  "thresholds": {
+    "survival_fraction": 1.0,
+    "height_rmse_m_max": 0.025,
+    "vx_rmse_m_s_max": 0.1,
+    "yaw_rmse_rad_s_max": 0.15,
+    "max_tilt_deg_max": 15.0,
+    "settling_time_s_max": 2.0,
+    "sustain_time_s": 0.5
+  },
+  "arguments": {
+    "load_run": "Oct16_18-01-11_height_v1",
+    "checkpoint": 500,
+    "replicas": 4,
+    "seconds": 4.0,
+    "transition_seconds": 2.0,
+    "seed": 5110,
+    "output": "output\\data\\assignment_6_go2height_readiness.json"
+  },
+  "cases": {
+    "fixed_h020": {
+      "command": {
+        "vx_m_s": 0.0,
+        "yaw_rad_s": 0.0,
+        "initial_height_m": 0.2,
+        "final_height_m": 0.2
+      },
+      "survival_fraction": 1.0,
+      "height_rmse_m": 0.0051,
+      "vx_rmse_m_s": 0.0429,
+      "yaw_rmse_rad_s": 0.0751,
+      "mean_vx_m_s": 0.0407,
+      "mean_yaw_rad_s": -0.021,
+      "max_tilt_deg": 11.53,
+      "settling_time_s_by_replica": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "passed": true
+    },
+    "fixed_h035": {
+      "command": {
+        "vx_m_s": 0.0,
+        "yaw_rad_s": 0.0,
+        "initial_height_m": 0.35,
+        "final_height_m": 0.35
+      },
+      "survival_fraction": 1.0,
+      "height_rmse_m": 0.0061,
+      "vx_rmse_m_s": 0.0675,
+      "yaw_rmse_rad_s": 0.0842,
+      "mean_vx_m_s": 0.0641,
+      "mean_yaw_rad_s": -0.0081,
+      "max_tilt_deg": 8.86,
+      "settling_time_s_by_replica": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "passed": true
+    },
+    "forward_020": {
+      "command": {
+        "vx_m_s": 0.2,
+        "yaw_rad_s": 0.0,
+        "initial_height_m": 0.25,
+        "final_height_m": 0.25
+      },
+      "survival_fraction": 1.0,
+      "height_rmse_m": 0.0052,
+      "vx_rmse_m_s": 0.1438,
+      "yaw_rmse_rad_s": 0.076,
+      "mean_vx_m_s": 0.0568,
+      "mean_yaw_rad_s": 0.0285,
+      "max_tilt_deg": 8.83,
+      "settling_time_s_by_replica": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "passed": false
+    },
+    "forward_040": {
+      "command": {
+        "vx_m_s": 0.4,
+        "yaw_rad_s": 0.0,
+        "initial_height_m": 0.25,
+        "final_height_m": 0.25
+      },
+      "survival_fraction": 1.0,
+      "height_rmse_m": 0.005,
+      "vx_rmse_m_s": 0.3334,
+      "yaw_rmse_rad_s": 0.0802,
+      "mean_vx_m_s": 0.067,
+      "mean_yaw_rad_s": 0.0376,
+      "max_tilt_deg": 8.69,
+      "settling_time_s_by_replica": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "passed": false
+    },
+    "yaw_pos_050": {
+      "command": {
+        "vx_m_s": 0.0,
+        "yaw_rad_s": 0.5,
+        "initial_height_m": 0.25,
+        "final_height_m": 0.25
+      },
+      "survival_fraction": 1.0,
+      "height_rmse_m": 0.0045,
+      "vx_rmse_m_s": 0.1112,
+      "yaw_rmse_rad_s": 0.0955,
+      "mean_vx_m_s": 0.1089,
+      "mean_yaw_rad_s": 0.4287,
+      "max_tilt_deg": 9.93,
+      "settling_time_s_by_replica": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "passed": false
+    },
+    "yaw_neg_050": {
+      "command": {
+        "vx_m_s": 0.0,
+        "yaw_rad_s": -0.5,
+        "initial_height_m": 0.25,
+        "final_height_m": 0.25
+      },
+      "survival_fraction": 1.0,
+      "height_rmse_m": 0.0066,
+      "vx_rmse_m_s": 0.0578,
+      "yaw_rmse_rad_s": 0.111,
+      "mean_vx_m_s": 0.0531,
+      "mean_yaw_rad_s": -0.4338,
+      "max_tilt_deg": 8.7,
+      "settling_time_s_by_replica": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "passed": true
+    },
+    "step_stop_035_to_020": {
+      "command": {
+        "vx_m_s": 0.0,
+        "yaw_rad_s": 0.0,
+        "initial_height_m": 0.35,
+        "final_height_m": 0.2
+      },
+      "survival_fraction": 1.0,
+      "height_rmse_m": 0.0056,
+      "vx_rmse_m_s": 0.0537,
+      "yaw_rmse_rad_s": 0.0828,
+      "mean_vx_m_s": 0.0475,
+      "mean_yaw_rad_s": -0.03,
+      "max_tilt_deg": 11.37,
+      "settling_time_s_by_replica": [
+        0.6,
+        0.34,
+        null,
+        null
+      ],
+      "passed": false
+    },
+    "step_forward_035_to_020": {
+      "command": {
+        "vx_m_s": 0.2,
+        "yaw_rad_s": 0.0,
+        "initial_height_m": 0.35,
+        "final_height_m": 0.2
+      },
+      "survival_fraction": 1.0,
+      "height_rmse_m": 0.0052,
+      "vx_rmse_m_s": 0.1436,
+      "yaw_rmse_rad_s": 0.0781,
+      "mean_vx_m_s": 0.0583,
+      "mean_yaw_rad_s": -0.0199,
+      "max_tilt_deg": 11.87,
+      "settling_time_s_by_replica": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "passed": false
+    }
+  },
+  "passed_cases": 3,
+  "total_cases": 8,
+  "ready_for_hardware": false
+}

@@ -1,0 +1,86 @@
+{
+  "sequential_runs": true,
+  "identical_initial_states": true,
+  "immediate_max_mean_abs_applied_minus_b": 1.5832483768463135e-08,
+  "blend_max_mean_abs_applied_minus_b": 0.5606855750083923,
+  "blend_window": [
+    {
+      "time_s": 2.0,
+      "alpha": 0.0,
+      "mean_abs_applied_minus_a": 0.0,
+      "mean_abs_applied_minus_b": 0.3974040746688843
+    },
+    {
+      "time_s": 2.02,
+      "alpha": 0.08000000000000007,
+      "mean_abs_applied_minus_a": 0.04875526204705238,
+      "mean_abs_applied_minus_b": 0.5606855750083923
+    },
+    {
+      "time_s": 2.04,
+      "alpha": 0.16000000000000014,
+      "mean_abs_applied_minus_a": 0.10588476061820984,
+      "mean_abs_applied_minus_b": 0.5558951497077942
+    },
+    {
+      "time_s": 2.06,
+      "alpha": 0.2400000000000002,
+      "mean_abs_applied_minus_a": 0.16991901397705078,
+      "mean_abs_applied_minus_b": 0.5380769371986389
+    },
+    {
+      "time_s": 2.08,
+      "alpha": 0.3200000000000003,
+      "mean_abs_applied_minus_a": 0.25660884380340576,
+      "mean_abs_applied_minus_b": 0.5452938079833984
+    },
+    {
+      "time_s": 2.1,
+      "alpha": 0.40000000000000036,
+      "mean_abs_applied_minus_a": 0.3344257175922394,
+      "mean_abs_applied_minus_b": 0.5016385912895203
+    },
+    {
+      "time_s": 2.12,
+      "alpha": 0.4800000000000004,
+      "mean_abs_applied_minus_a": 0.42737364768981934,
+      "mean_abs_applied_minus_b": 0.46298813819885254
+    },
+    {
+      "time_s": 2.14,
+      "alpha": 0.5600000000000005,
+      "mean_abs_applied_minus_a": 0.49841704964637756,
+      "mean_abs_applied_minus_b": 0.3916133642196655
+    },
+    {
+      "time_s": 2.16,
+      "alpha": 0.6400000000000006,
+      "mean_abs_applied_minus_a": 0.5244337916374207,
+      "mean_abs_applied_minus_b": 0.2949940264225006
+    },
+    {
+      "time_s": 2.18,
+      "alpha": 0.7200000000000006,
+      "mean_abs_applied_minus_a": 0.47968241572380066,
+      "mean_abs_applied_minus_b": 0.18654310703277588
+    },
+    {
+      "time_s": 2.2,
+      "alpha": 0.8000000000000007,
+      "mean_abs_applied_minus_a": 0.44607749581336975,
+      "mean_abs_applied_minus_b": 0.11151935905218124
+    },
+    {
+      "time_s": 2.22,
+      "alpha": 0.8800000000000008,
+      "mean_abs_applied_minus_a": 0.42510053515434265,
+      "mean_abs_applied_minus_b": 0.05796826258301735
+    },
+    {
+      "time_s": 2.24,
+      "alpha": 0.9600000000000009,
+      "mean_abs_applied_minus_a": 0.5855539441108704,
+      "mean_abs_applied_minus_b": 0.024398088455200195
+    }
+  ]
+}

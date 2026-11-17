@@ -72,6 +72,15 @@ def get_play_args(argv=None):
         "gym/utils/interfaces/MujocoKeyboardInterface.py for key bindings). "
         "Use --no-keyboard to disable.",
     )
+    parser.add_argument(
+        "--demo-forward-height",
+        action="store_true",
+        help="run once: walk high, stop, crouch, then stand",
+    )
+    parser.add_argument("--demo-speed", type=float, default=1.0)
+    parser.add_argument("--demo-walk-seconds", type=float, default=3.0)
+    parser.add_argument("--demo-stop-seconds", type=float, default=1.0)
+    parser.add_argument("--demo-crouch-seconds", type=float, default=1.0)
     return parser.parse_args(argv)
 
 
@@ -130,9 +139,34 @@ def setup(args):
     return env, runner
 
 
-def play(env, runner):
+def play(
+    env,
+    runner,
+    demo_forward_height=False,
+    demo_speed=1.0,
+    demo_walk_seconds=3.0,
+    demo_stop_seconds=1.0,
+    demo_crouch_seconds=1.0,
+):
     n_steps = 10 * int(env.max_episode_length)
-    for _ in range(n_steps):
+    if demo_forward_height and not hasattr(env, "base_height_command"):
+        raise ValueError("--demo-forward-height requires a height-command task")
+    if min(demo_speed, demo_walk_seconds, demo_stop_seconds, demo_crouch_seconds) < 0:
+        raise ValueError("demo speed and durations must be non-negative")
+    for step in range(n_steps):
+        if demo_forward_height:
+            elapsed = step * env.dt
+            low, high = env.command_ranges["base_height"]
+            if elapsed < demo_walk_seconds:
+                speed, height = demo_speed, high
+            elif elapsed < demo_walk_seconds + demo_stop_seconds:
+                speed, height = 0.0, high
+            elif elapsed < demo_walk_seconds + demo_stop_seconds + demo_crouch_seconds:
+                speed, height = 0.0, low
+            else:
+                speed, height = 0.0, high
+            env.commands[:] = torch.tensor([speed, 0.0, 0.0], device=env.device)
+            env.base_height_command[:] = height
         runner.set_actions(
             runner.actor_cfg["actions"],
             runner.get_inference_actions(),
@@ -184,4 +218,12 @@ if __name__ == "__main__":
                 from gym.utils.interfaces.CommandVisualizer import CommandVisualizer
 
                 CommandVisualizer(env)
-        play(env, runner)
+        play(
+            env,
+            runner,
+            args.demo_forward_height,
+            args.demo_speed,
+            args.demo_walk_seconds,
+            args.demo_stop_seconds,
+            args.demo_crouch_seconds,
+        )
