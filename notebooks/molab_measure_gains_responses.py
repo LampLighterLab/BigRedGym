@@ -277,6 +277,9 @@ def _(
     if EXPERIMENT_NAME.strip():
         _cmd += ["--experiment_name", EXPERIMENT_NAME.strip()]
 
+    # Force the ENV to not buffer outputs from Python, so we can see them live
+    ENV["PYTHONUNBUFFERED"] = "1"
+
     print(" ".join(_cmd), "\n", flush=True)
     # Streamed line by line rather than captured, so the log appears while
     # training runs instead of all at once at the end.
@@ -308,20 +311,23 @@ def _(mo):
 @app.cell
 def _(REPO ,
       mo,):
-    with open(REPO / "displacement.png", "r") as file:
-        image_bytes = file.read()
-    mo.download(
-        data=image_bytes,
+    def read_file(filename):
+        with open(REPO / filename, "rb") as file:
+            return file.read()
+
+    disp_button = mo.download(
+        data=lambda: read_file("displacement.png"),
         filename=f"displacement.png",
         mimetype="image/png", label="Download displacement products plot"
     )
-    with open(REPO / "upright.png", "r") as file:
-        image_bytes = file.read()
-    mo.download(
-        data=image_bytes,
+
+    upright_button = mo.download(
+        data=lambda: read_file("upright.png"),
         filename=f"upright.png",
         mimetype="image/png", label="Download upright products plot"
     )
+
+    mo.vstack([disp_button, upright_button])
     return
 
 

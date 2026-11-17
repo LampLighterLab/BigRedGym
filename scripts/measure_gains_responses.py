@@ -201,7 +201,7 @@ if __name__ == "__main__":
     # Display the arrays as an image
     plt.imshow(torch.flip(displacements, [0]), cmap='viridis', interpolation='nearest', aspect='auto', extent =[torch.min(damping).item(), torch.max(damping).item(), torch.min(stiffness).item(), torch.max(stiffness).item()])
     cbar = plt.colorbar()
-    cbar.set_label("Bigger positive = follows commands better", rotation=270)
+    cbar.set_label("Bigger positive = follows commands better", rotation=270, labelpad=15)
     plt.plot(orig_damping, orig_stiffness, 'o', markerfacecolor='none', markeredgecolor='red', label="Trained")
     plt.xlabel("Damping (derivative gain)")
     plt.ylabel("Stiffness (proportional gain)")
@@ -210,9 +210,10 @@ if __name__ == "__main__":
     # plt.show()
     plt.savefig(f"displacement.png")
 
+    plt.clf()
     plt.imshow(torch.flip(uprights, [0]), cmap='magma', interpolation='nearest', aspect='auto', extent =[torch.min(damping).item(), torch.max(damping).item(), torch.min(stiffness).item(), torch.max(stiffness).item()])
     cbar = plt.colorbar()
-    cbar.set_label("1 = upright, 0 = sideways, -1 = upside-down", rotation=270)
+    cbar.set_label("1 = upright, 0 = sideways, -1 = upside-down", rotation=270, labelpad=15)
     plt.plot(orig_damping, orig_stiffness, 'o', markerfacecolor='none', markeredgecolor='red', label="Trained")
     plt.xlabel("Damping (derivative gain)")
     plt.ylabel("Stiffness (proportional gain)")
