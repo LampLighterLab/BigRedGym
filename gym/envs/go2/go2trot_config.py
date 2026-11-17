@@ -38,7 +38,7 @@ class Go2TrotCfg(Go2Cfg):
         stiffness = {"hip": 30.0, "thigh": 30.0, "calf": 30.0}
         damping = {"hip": 1.5, "thigh": 1.5, "calf": 1.5}
         ctrl_frequency = 50
-        desired_sim_frequency = 150  # pre-emptively changed from 50 to deal with higher damping values
+        desired_sim_frequency = 300  # pre-emptively changed from 50 to deal with higher damping values
         gait_freq = [1.0, 3.0]  # oscillator frequency range [Hz]
         # Cycle offsets define a trot: front-left/rear-right move together,
         # half a cycle away from front-right/rear-left.
