@@ -42,6 +42,7 @@ def _():
     import textwrap
     import zipfile
     from pathlib import Path
+    import io
 
     import marimo as mo
 
@@ -51,13 +52,13 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    # BigRedGym Training in the Cloud!
+    # Sweeping gains responses in the Cloud!
 
     | Section | Does |
     |---|---|
-    | 1 Setup | Clones/Updates the repo and installs the locked GPU deps with `uv` |
+    | 1 Setup | Clones/Updates the repo and installs the locked GPU deps with `uv`. You will also need to upload some model data |
     | 2 Sweep | Runs `scripts/measure_gains_responses.py`, streaming the log below the cell |
-    | 3 Download | Zips a run's checkpoints and hands you the download |
+    | 3 Download | Download the plots that were generated |
 
     For each cell below, run it using **Shift + Enter**, or hit the small yellow play button on the top right.
     """)
@@ -116,7 +117,7 @@ def _(mo):
 def _():
     # --- edit, run this cell, then run the next one --------------------------
     BRANCH = "controller-gains-tweaks"
-    REPO_URL = "https://github.com/RealHuman1000/BigRedGym"
+    REPO_URL = "https://github.com/Real-Human-1000/BigRedGym"
     return BRANCH, REPO_URL
 
 
@@ -170,6 +171,35 @@ def _(ENV, REPO, subprocess):
     return
 
 
+@app.cell
+def _(ENV, REPO, mo, zipfile, os, io):
+    # Define the task & upload a trained model
+    # Make sure this is the "Date..._" folder zipped up, with the same name
+    # Or whatever folder is inside the task's log folder
+    TASK = "go2trot"  # go2trot | mini_cheetah | humanoid | pendulum ...
+    f = mo.ui.file(kind="button", filetypes=[".zip"], multiple=False)
+
+    if not os.path.isdir(REPO / "logs"):
+        os.mkdir(REPO / "logs")
+    if not os.path.isdir(REPO / "logs" / TASK):
+        os.mkdir(REPO / "logs" / TASK)
+
+    # Unzip the file
+    with zipfile.ZipFile(io.BytesIO(f.contents()), 'r') as zip_ref:
+        zip_ref.extractall(REPO / "logs" / TASK)
+
+    # Confirm that the data is in the right place
+    print("Repo folder:")
+    print(os.listdir(REPO))
+    print("Logs folder:")
+    print(os.listdir(REPO / "logs"))
+    print("Task folder:")
+    print(os.listdir(REPO / "logs" / TASK))
+
+    return (TASK,)
+
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
@@ -187,9 +217,9 @@ def _(mo):
 @app.cell
 def _():
     # --- edit, run this cell, then **run the next one** --------------------------
-    TASK = "go2trot"  # go2trot | mini_cheetah | humanoid | pendulum ...
-    DEVICE = "cuda:0" # specifies which GPU to use - do not edit this line unless you know what this means!
-    NUM_ENVS = 16 # we specify multiples of 2 to compensate for the hardware.
+    # TASK moved to the model upload cell
+    DEVICE = "cuda:0"  # specifies which GPU to use - do not edit this line unless you know what this means!
+    NUM_ENVS = 16  # we specify multiples of 2 to compensate for the hardware.
     MIN_KP = 0
     MAX_KP = 50
     MIN_KD = 0
@@ -207,7 +237,6 @@ def _():
         NUM_KP,
         NUM_KD,
         NUM_ENVS,
-        TASK,
     )
 
 
