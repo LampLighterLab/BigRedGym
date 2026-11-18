@@ -16,9 +16,11 @@ class TaskSkeleton:
 
         return None
 
+    # reads and concatenates attributes
     def get_states(self, obs_list):
         return torch.cat([self.get_state(obs) for obs in obs_list], dim=-1)
 
+    # reads an attribute and divides by scale
     def get_state(self, name):
         if name in self.scales.keys():
             return getattr(self, name) / self.scales[name]
@@ -33,6 +35,7 @@ class TaskSkeleton:
             idx += state_dim
         assert idx == values.shape[1], "Actions don't equal tensor shapes"
 
+    # multiplies by scale
     def set_state(self, name, value):
         try:
             if name in self.scales.keys():

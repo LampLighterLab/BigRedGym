@@ -82,7 +82,7 @@ class LeggedRobotCfg(BaseConfig):
         lin_vel = [0.0, 0.0, 0.0]  # x,y,z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x,y,z [rad/s]
 
-        # * initial conditiosn for reset_to_range
+        # * initial conditions for reset_to_range
         dof_pos_range = {"joint_a": [-1.0, 1.0], "joint_b": [-1.0, 1.0]}
         dof_vel_range = {"joint_a": [-1.0, 1.0], "joint_b": [-1.0, 1.0]}
         root_pos_range = [
