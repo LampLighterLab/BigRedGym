@@ -454,6 +454,9 @@ LIMITS95 = {
 DEPLOY_ROBUST_SEED2 = (
     "checkpoints/go2osc_wide_deploy_robust__Nov16_23-40-18_seed2_model_2000.pt"
 )
+DEPLOY_ROBUST_SEED4 = (
+    "checkpoints/go2osc_wide_deploy_robust__Nov17_00-14-30_seed4_model_2000.pt"
+)
 DEPLOY_TRACK_SEED2 = (
     "checkpoints/go2osc_wide_even2.5_deploy_track__Nov16_16-13-14_seed2_model_2000.pt"
 )
@@ -519,16 +522,6 @@ FOLLOWUP_BATCHES = {
             "stand_still": 0.1,
             **LIMITS95,
             "init_from": DEPLOY_TRACK_SEED2,
-        },
-    },
-    # Batch 8: the candidate's setting trained from scratch under the same
-    # limits (train 2000 iterations), against fine-tuning.
-    8: {
-        "even2.5_deploy_track_clip": {
-            "even_load": 2.5,
-            **DEPLOY_TRACK,
-            "stand_still": 0.1,
-            **LIMITS95,
         },
     },
 }
