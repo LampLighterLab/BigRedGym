@@ -100,7 +100,9 @@ class Go2SEPaperCfg(Go2SECfg):
     """
 
     class env(Go2SECfg.env):
-        episode_length_s = Go2Cfg.env.episode_length_s
+        # * 3 s (Go2 default) to learn walking; 6 s once it walks, so a stop
+        # * is followed by a few seconds of standing to learn to settle
+        episode_length_s = 6
 
     class init_state(Go2SECfg.init_state):
         dof_pos_range = Go2Cfg.init_state.dof_pos_range
@@ -117,7 +119,7 @@ class Go2SEPaperCfg(Go2SECfg):
         # * mid-episode, so the policy never learned to stop from a walk (it
         # * fell 5 s after a stop with randomized gains). Resample halfway and
         # * make more commands zero.
-        resampling_time = 1.5
+        resampling_time = 2.0
         zero_command_prob = 0.25
 
         class curriculum(Go2SECfg.commands.curriculum):
