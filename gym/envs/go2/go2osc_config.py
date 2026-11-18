@@ -66,6 +66,19 @@ class Go2OscCfg(Go2Cfg):
         stiffness = 40.0
         damping = 1.0
 
+    class motor_limits:
+        # Actuator limits as fractions of the URDF limits (Go2Osc._apply_motor_limits).
+        # torque_scale: every joint torque is clipped to this share of its
+        # effort limit (the base env clips at 1.0). speed_scale: top speed as
+        # a share of the velocity limit; the torque that speeds a joint up
+        # tapers to zero there and overspeed is braked. None: no speed limit.
+        torque_scale = 1.0
+        speed_scale = None
+        taper_start = 0.75  # share of the top speed where torque starts to fall
+        # [Nm per rad/s] of overspeed. Off: at 100 Hz physics it made joints
+        # chatter; with 500 Hz physics the taper alone holds the top speed.
+        brake_gain = 0.0
+
     class commands(Go2Cfg.commands):
         class ranges(Go2Cfg.commands.ranges):
             # Forward speeds only; gaits are evaluated in a forward-speed sweep.
@@ -424,7 +437,26 @@ DEPLOY_ROBUST = {
 DEPLOY_TRACK = {**DEPLOY_ROBUST, "tracking_lin_vel": 8.0, "heading": 4.0}
 # even2.5_deploy seed 4, the one deploy policy that always stands still when
 # stopped (start/stop test); committed so molab can start from it.
-DEPLOY_SEED4 = "checkpoints/go2osc_wide_even2.5_deploy__Nov16_09-10-17_seed4_model_2000.pt"
+DEPLOY_SEED4 = (
+    "checkpoints/go2osc_wide_even2.5_deploy__Nov16_09-10-17_seed4_model_2000.pt"
+)
+# Actuator limits at 95% of the URDF torque and speed limits (motor_limits):
+# the policies above exceed the calf's 15.7 rad/s and hit the hip/thigh
+# torque limit (joint-limit check, 2026-11-18).
+# 500 Hz physics: at 100 Hz a light joint overshoots its top speed within one
+# 10 ms step (calf to ~2x its limit); at 500 Hz the taper holds it (<= 92%).
+LIMITS95 = {
+    "motor_limits": {"torque_scale": 0.95, "speed_scale": 0.95},
+    "sim_hz": 500,
+}
+# Starting points for fine-tuning under those limits: deploy_robust seed 2
+# (closest to the limits) and the hardware candidate, even2.5_deploy_track seed 2.
+DEPLOY_ROBUST_SEED2 = (
+    "checkpoints/go2osc_wide_deploy_robust__Nov16_23-40-18_seed2_model_2000.pt"
+)
+DEPLOY_TRACK_SEED2 = (
+    "checkpoints/go2osc_wide_even2.5_deploy_track__Nov16_16-13-14_seed2_model_2000.pt"
+)
 FOLLOWUP_BATCHES = {
     # Batch 1: sim-to-real candidates and the power-smoothness hypothesis
     # (even load blocks two-leg gaits, smooth power blocks the hop).
@@ -458,7 +490,11 @@ FOLLOWUP_BATCHES = {
     # counted from 0); and the same from scratch with a stronger stand-still
     # penalty, since 0.04 left 3 of 5 deploy seeds stepping in place.
     5: {
-        "even2.5_deploy_ft4": {"even_load": 2.5, **DEPLOY_TRACK, "init_from": DEPLOY_SEED4},
+        "even2.5_deploy_ft4": {
+            "even_load": 2.5,
+            **DEPLOY_TRACK,
+            "init_from": DEPLOY_SEED4,
+        },
         "even2.5_deploy_track": {"even_load": 2.5, **DEPLOY_TRACK, "stand_still": 0.1},
     },
     # Batch 6: the sim-to-real package on the baseline rewards (no even load,
@@ -466,6 +502,34 @@ FOLLOWUP_BATCHES = {
     # stand-still penalty as in deploy_track.
     6: {
         "deploy_robust": {**DEPLOY_ROBUST, "stand_still": 0.1},
+    },
+    # Batch 7: fine-tune the two policies above under hard limits at 95% of
+    # the actuator torque and speed limits (train 1000 iterations): do they
+    # keep their gaits within the limits?
+    7: {
+        "deploy_robust_clip_ft2": {
+            **DEPLOY_ROBUST,
+            "stand_still": 0.1,
+            **LIMITS95,
+            "init_from": DEPLOY_ROBUST_SEED2,
+        },
+        "even2.5_deploy_track_clip_ft2": {
+            "even_load": 2.5,
+            **DEPLOY_TRACK,
+            "stand_still": 0.1,
+            **LIMITS95,
+            "init_from": DEPLOY_TRACK_SEED2,
+        },
+    },
+    # Batch 8: the candidate's setting trained from scratch under the same
+    # limits (train 2000 iterations), against fine-tuning.
+    8: {
+        "even2.5_deploy_track_clip": {
+            "even_load": 2.5,
+            **DEPLOY_TRACK,
+            "stand_still": 0.1,
+            **LIMITS95,
+        },
     },
 }
 WIDE_SETTINGS.update({k: v for b in FOLLOWUP_BATCHES.values() for k, v in b.items()})
@@ -519,6 +583,8 @@ def study_cfgs(setting, wide=False):
     commands = changed.pop("commands", {})
     init_state = changed.pop("init_state", {})
     init_from = changed.pop("init_from", None)
+    motor_limits = changed.pop("motor_limits", {})
+    sim_hz = changed.pop("sim_hz", None)  # physics rate [Hz] (policy rate unchanged)
     weights = {**STUDY_BASE_WEIGHTS, **changed}
 
     class RunnerCfg(Go2OscFrontLockedOmegaRunnerCfg):
@@ -539,7 +605,17 @@ def study_cfgs(setting, wide=False):
             "actor", (Go2OscFrontLockedOmegaRunnerCfg.actor,), {"add_noise": True}
         )
     env_cfg = Go2OscFrontLockedWideCfg if wide else Go2OscFrontLockedOmegaCfg
-    if reward_settings or push or friction or sensors or osc or commands or init_state:
+    if (
+        reward_settings
+        or push
+        or friction
+        or sensors
+        or osc
+        or commands
+        or init_state
+        or motor_limits
+        or sim_hz
+    ):
         base = env_cfg
 
         class EnvCfg(base):
@@ -559,6 +635,12 @@ def study_cfgs(setting, wide=False):
             class osc(base.osc):
                 pass
 
+            class motor_limits(base.motor_limits):
+                pass
+
+            class control(base.control):
+                pass
+
             class domain_randomization(base.domain_randomization):
                 class startup(base.domain_randomization.startup):
                     pass
@@ -575,6 +657,8 @@ def study_cfgs(setting, wide=False):
             setattr(target, name, value)
         for name, value in init_state.items():
             setattr(EnvCfg.init_state, name, value)
+        for name, value in motor_limits.items():
+            setattr(EnvCfg.motor_limits, name, value)
         startup = EnvCfg.domain_randomization.startup
         if friction is not None:
             startup.contact_friction_range = list(friction)
@@ -585,6 +669,15 @@ def study_cfgs(setting, wide=False):
             startup.link_mass_scale_range = list(
                 robust.domain_randomization.startup.link_mass_scale_range
             )
+        if sim_hz:
+            # Physics-step quantities keep their meaning in seconds: the foot
+            # load delay (in steps) and the oscillator noise (added per step).
+            ratio = sim_hz / base.control.desired_sim_frequency
+            EnvCfg.control.desired_sim_frequency = sim_hz
+            EnvCfg.osc.grf_delay_max_steps = int(
+                round(EnvCfg.osc.grf_delay_max_steps * ratio)
+            )
+            EnvCfg.osc.process_noise_std = EnvCfg.osc.process_noise_std * ratio**0.5
         env_cfg = EnvCfg
     return env_cfg, RunnerCfg
 

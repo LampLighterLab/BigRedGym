@@ -183,16 +183,40 @@ class Go2Osc(Go2):
 
     def _compute_torques(self):
         torques = super()._compute_torques()
-        if self._locked_dofs.numel() == 0:
+        if self._locked_dofs.numel() > 0:
+            lock = self.cfg.leg_lock
+            pos = self.dof_pos.index_select(1, self._locked_full_dofs)
+            vel = self.dof_vel.index_select(1, self._locked_full_dofs)
+            locked = lock.stiffness * (self._lock_pos - pos) - lock.damping * vel
+            torques[:, self._locked_dofs] = torch.clip(
+                locked, -self._lock_torque_limits, self._lock_torque_limits
+            )
+        return self._apply_motor_limits(torques)
+
+    def _apply_motor_limits(self, torques):
+        """Actuator limits (cfg.motor_limits), torque-only so every backend
+        supports them. Speed (speed_scale x the velocity limit, the top speed):
+        the torque available in the direction of motion falls linearly from
+        full at taper_start x top speed to zero at the top speed (a motor's
+        torque-speed curve), and above the top speed a braking torque of
+        brake_gain [Nm per rad/s] x the overspeed pulls the joint back.
+        Torque: every torque is then clipped to torque_scale x the effort
+        limit. (A physics step is 10 ms, so a light joint can still overshoot
+        the top speed briefly; the taper starts early to limit that.)"""
+        limits = getattr(self.cfg, "motor_limits", None)
+        if limits is None:
             return torques
-        lock = self.cfg.leg_lock
-        pos = self.dof_pos.index_select(1, self._locked_full_dofs)
-        vel = self.dof_vel.index_select(1, self._locked_full_dofs)
-        locked = lock.stiffness * (self._lock_pos - pos) - lock.damping * vel
-        torques[:, self._locked_dofs] = torch.clip(
-            locked, -self._lock_torque_limits, self._lock_torque_limits
-        )
-        return torques
+        cap = self.actuated_torque_limits * limits.torque_scale
+        if limits.speed_scale is not None:
+            vel = self.dof_vel.index_select(1, self.actuated_dof_indices)
+            top = self.dof_vel_limits[self.actuated_dof_indices] * limits.speed_scale
+            start = limits.taper_start * top
+            room = ((top - vel.abs()) / (top - start)).clamp(0.0, 1.0)
+            along = torques * vel > 0  # torque that speeds the joint up
+            torques = torch.where(along, torques * room, torques)
+            over = (vel.abs() - top).clamp(min=0.0)
+            torques = torques - limits.brake_gain * over * torch.sign(vel)
+        return torch.clip(torques, -cap, cap)
 
     def _post_physics_step(self):
         super()._post_physics_step()

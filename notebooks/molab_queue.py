@@ -142,6 +142,9 @@ def _():
     #   4: even2.5_deploy_robust
     #   5: even2.5_deploy_ft4 (fine-tunes deploy seed 4), even2.5_deploy_track
     #   6: deploy_robust (sim-to-real package on the baseline rewards)
+    #   7: deploy_robust_clip_ft2, even2.5_deploy_track_clip_ft2 (fine-tunes
+    #      under 95% actuator limits; MAX_ITERATIONS = 1000)
+    #   8: even2.5_deploy_track_clip (from scratch, 95% limits; 2000)
     # PART splits a batch over two notebooks (0 and 1); None runs all of it.
     BATCH = 1
     PART = None
@@ -152,6 +155,8 @@ def _():
         4: ["even2.5_deploy_robust"],
         5: ["even2.5_deploy_ft4", "even2.5_deploy_track"],
         6: ["deploy_robust"],
+        7: ["deploy_robust_clip_ft2", "even2.5_deploy_track_clip_ft2"],
+        8: ["even2.5_deploy_track_clip"],
     }
     SETTINGS = _BATCHES[BATCH]
     # Rounds of seeds, so every setting keeps the same seed count if the
