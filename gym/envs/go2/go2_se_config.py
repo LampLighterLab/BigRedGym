@@ -120,7 +120,7 @@ class Go2SEPaperCfg(Go2SECfg):
         # * fell 5 s after a stop with randomized gains). Resample halfway and
         # * make more commands zero.
         resampling_time = 2.0
-        zero_command_prob = 0.25
+        zero_command_prob = 0.15
 
         class curriculum(Go2SECfg.commands.curriculum):
             # * paper starts at ~1.0 m/s; at small commands standing still
