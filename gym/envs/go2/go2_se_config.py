@@ -113,7 +113,12 @@ class Go2SEPaperCfg(Go2SECfg):
         terminate_after_contacts_on = Go2Cfg.asset.terminate_after_contacts_on
 
     class commands(Go2SECfg.commands):
-        resampling_time = Go2Cfg.commands.resampling_time
+        # * resampling at the 3 s episode length meant commands never changed
+        # * mid-episode, so the policy never learned to stop from a walk (it
+        # * fell 5 s after a stop with randomized gains). Resample halfway and
+        # * make more commands zero.
+        resampling_time = 1.5
+        zero_command_prob = 0.25
 
         class curriculum(Go2SECfg.commands.curriculum):
             # * paper starts at ~1.0 m/s; at small commands standing still
