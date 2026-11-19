@@ -62,9 +62,11 @@ class Go2TrotCfg(Go2Cfg):
         var = 0.1
 
         class ranges(Go2Cfg.commands.ranges):
-            lin_vel_x = [-0.5, 0.0, 0.5, 1.0, 2.0]
+            lin_vel_x = [-1.0, -0.5, 0.0, 0.5, 1.0, 1.75, 2.5]
             lin_vel_y = 0.5
             yaw_vel = 1.5
+            # Fixed height: the actor doesn't observe it, matching deploy.
+            base_height = [0.30, 0.30]
 
     class push_robots(Go2Cfg.push_robots):
         toggle = True
@@ -79,6 +81,14 @@ class Go2TrotCfg(Go2Cfg):
                 "p_gains": [0.9, 1.1],
                 "d_gains": [0.8, 1.2],
             }
+
+        class payload(Go2Cfg.domain_randomization.payload):
+            mass_range = [0.0, 5.0]
+            # Base collision box top is z=0.057; box center sits half its
+            # height above that. Re-measure against the hardware mount.
+            mount_pos = [0.0, 0.0, 0.097]
+            com_offset_range = [[-0.05, 0.05], [-0.02, 0.02], [-0.01, 0.02]]
+            size = [0.2, 0.12, 0.08]
 
     class asset(Go2Cfg.asset):
         file = "{GYM_ROOT_DIR}/resources/robots/" + "go2/urdf/go2.urdf"
@@ -102,8 +112,11 @@ class Go2TrotCfg(Go2Cfg):
         dof_pos = 4 * [1.0472, 2.53075, 0.94247]
         dof_pos_obs = dof_pos
         # Residual radians per policy unit, independent of observation ranges.
-        dof_pos_target = 4 * [0.2, 0.3, 0.3]
+        dof_pos_target = 4 * [0.2, 0.5, 0.5]
         tau_ff = 4 * [23.7, 23.7, 45.43]
+        base_height_target = 0.3
+        # [mass kg, COM offset x, y, z m], matching domain_randomization.payload.
+        payload_obs = [5.0, 0.05, 0.02, 0.02]
 
 
 class Go2TrotRunnerCfg(Go2RunnerCfg):
@@ -152,28 +165,31 @@ class Go2TrotRunnerCfg(Go2RunnerCfg):
             "dof_pos_target",
             "phase_obs",
             "phase_frequency",
+            "payload_obs",
         ]
         normalize_obs = False
 
         class reward:
             class weights:
-                tracking_lin_vel = 4.0
+                tracking_lin_vel = 6.0
                 tracking_ang_vel = 4.0
                 lin_vel_z = 0.0
                 ang_vel_xy = 0.01
-                orientation = 1.0
+                orientation = 2.0
                 torques = 5.0e-6
                 dof_vel = 0.0
                 stand_still = 0.0
                 dof_pos_limits = 0.0
                 feet_contact_forces = 0.0
                 dof_near_home = 0.0
-                min_base_height = 0.5
+                min_base_height = 0.0
                 action_rate = 0.1
                 action_rate2 = 0.05
                 trot_support = 3.0
                 swing_contact = 3.0
                 reference_traj = 3.0
+                tracking_base_height = 4.0
+                hip_splay = 0.5
 
             class termination_weight:
                 termination = 0.01

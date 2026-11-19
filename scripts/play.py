@@ -94,6 +94,11 @@ def setup(args):
     if hasattr(env_cfg, "push_robots"):
         env_cfg.push_robots.toggle = False
     env_cfg.init_state.reset_mode = "reset_to_basic"
+    if hasattr(env_cfg.init_state, "root_vel_range"):
+        # Spawn at rest so resets don't launch the robot.
+        env_cfg.init_state.root_vel_range = [
+            [0.0, 0.0] for _ in env_cfg.init_state.root_vel_range
+        ]
     if hasattr(env_cfg, "viewer"):
         env_cfg.viewer.show_ui = args.viewer_ui
 
@@ -130,9 +135,12 @@ def setup(args):
     return env, runner
 
 
-def play(env, runner):
+def play(env, runner, keyboard=None):
     n_steps = 10 * int(env.max_episode_length)
     for _ in range(n_steps):
+        if keyboard is not None:
+            # Key presses arrive on the viewer thread; apply them between steps.
+            keyboard.apply_pending()
         runner.set_actions(
             runner.actor_cfg["actions"],
             runner.get_inference_actions(),
@@ -157,6 +165,7 @@ if __name__ == "__main__":
                 "WARNING: the MuJoCo warp (GPU) backend has no interactive viewer "
                 "— nothing will render. Use --device cpu for playback."
             )
+        keyboard = None
         if args.keyboard and hasattr(env, "commands") and not args.headless:
             # Each viewer has its own input model: MuJoCo dispatches key
             # events via a callback, vlearn polls key state per frame.
@@ -171,7 +180,7 @@ if __name__ == "__main__":
                     MujocoKeyboardInterface,
                 )
 
-                MujocoKeyboardInterface(env)
+                keyboard = MujocoKeyboardInterface(env)
         if hasattr(env, "commands") and not args.headless:
             # Same indicators, different drawing primitives per viewer.
             if args.backend == "vsim":
@@ -184,4 +193,4 @@ if __name__ == "__main__":
                 from gym.utils.interfaces.CommandVisualizer import CommandVisualizer
 
                 CommandVisualizer(env)
-        play(env, runner)
+        play(env, runner, keyboard)

@@ -3,6 +3,7 @@ import torch
 from gym.utils.sampling import torch_rand_float
 from gym.utils.sampling import masked_update
 
+from gym.envs.base.domain_randomization import payload_mass_range
 from gym.envs.base.legged_robot import LeggedRobot
 
 
@@ -48,6 +49,22 @@ class Go2Trot(LeggedRobot):
             dtype=torch.float,
             device=self.device,
         )
+        self.base_height_target = torch.zeros(
+            self.num_envs, 1, dtype=torch.float, device=self.device
+        )
+        # Privileged critic observation: [mass, COM offset from mount_pos].
+        # Stays zero when the payload is disabled.
+        self.payload_obs = torch.zeros(
+            self.num_envs, 4, dtype=torch.float, device=self.device
+        )
+        self._payload_enabled = payload_mass_range(self.cfg) is not None
+        # Configs saved before the payload existed have no payload block.
+        payload_cfg = getattr(self.cfg.domain_randomization, "payload", None)
+        self._payload_mount_pos = torch.tensor(
+            payload_cfg.mount_pos if payload_cfg else [0.0, 0.0, 0.0],
+            dtype=torch.float,
+            device=self.device,
+        )
         self._update_phase_observation()
         self._update_gait_reference()
 
@@ -60,12 +77,27 @@ class Go2Trot(LeggedRobot):
         self.gait_reference[:] = (
             self._gait_joint_offsets
             + self._gait_joint_amplitudes * torch.sin(joint_phase)
+            + self._height_posture_offset()
         )
+        default = self.default_dof_pos.index_select(1, self.actuated_dof_indices)
+        lower = self._actuated_dof_pos_limits[:, 0] + 0.05 - default
+        upper = self._actuated_dof_pos_limits[:, 1] - 0.05 - default
+        self.gait_reference[:] = torch.clamp(self.gait_reference, min=lower, max=upper)
+
 
     def _leg_phases(self):
         return torch.remainder(
             self.phase + self._gait_phase_offsets.unsqueeze(0), 2 * torch.pi
         )
+    def _speed_scale(self):
+        """1 up to nominal height then shrink linearly to 0.4 at max height"""
+        h0 = 0.33
+        h_max = self.command_ranges["base_height"][1]
+        if h_max <= h0:
+            # Range never reaches the tall heights that need slowing down.
+            return torch.ones_like(self.base_height_target)
+        frac = ((self.base_height_target - h0) / (h_max - h0)).clamp(0.0, 1.0)
+        return 1.0 - 0.6 * frac  # shape (num_envs, 1)
 
     def _expected_stance(self):
         return torch.sin(self._leg_phases()) > 0
@@ -118,6 +150,14 @@ class Go2Trot(LeggedRobot):
             )
             self.commands.masked_fill_(drop, 0.0)
 
+        height = torch_rand_float(
+            *self.command_ranges["base_height"],
+            shape=self.base_height_target.shape,
+            device=self.device,
+        )
+        masked_update(self.base_height_target, height, command_mask)
+        masked_update(self.commands, self.commands * self._speed_scale(), command_mask)
+
     def _reset_idx(self, reset_mask):
         super()._reset_idx(reset_mask)
         self.dof_pos_target.masked_fill_(reset_mask.unsqueeze(1), 0.0)
@@ -128,6 +168,14 @@ class Go2Trot(LeggedRobot):
             reset_mask,
         )
         self._update_phase_observation()
+        self._update_payload_observation()
+
+    def _update_payload_observation(self):
+        """Payloads only change at reset, so refresh the observation there."""
+        if not self._payload_enabled:
+            return
+        self.payload_obs[:, 0] = self._backend.payload_mass
+        self.payload_obs[:, 1:] = self._backend.payload_com - self._payload_mount_pos
 
     def _post_physics_step(self):
         super()._post_physics_step()
@@ -146,10 +194,11 @@ class Go2Trot(LeggedRobot):
         self._update_gait_reference()
 
     def _foot_contact_strength(self):
-        """Map upward foot load smoothly from zero to nominal body-weight."""
+        """Map upward foot load smoothly from zero to robot-plus-payload weight."""
+        total_mass = self._backend.link_mass.sum(dim=1, keepdim=True)
+        total_mass = total_mass + self._backend.payload_mass.unsqueeze(1)
         load = torch.clamp(
-            self.contact_forces[:, self.feet_indices, 2]
-            / (9.81 * self._backend.link_mass.sum(dim=1, keepdim=True)),
+            self.contact_forces[:, self.feet_indices, 2] / (9.81 * total_mass),
             min=0.0,
             max=1.0,
         )
@@ -195,9 +244,14 @@ class Go2Trot(LeggedRobot):
         """Penalize non-flat base orientation"""
         error = (
             torch.square(self.projected_gravity[:, :2])
-            / self.cfg.reward_settings.tracking_sigma
+            / 0.1
         )
         return torch.sum(torch.exp(-error), dim=1)
+    def _reward_hip_splay(self):
+        """Penalize hip abduction away from the default stance"""
+        hips = [0, 3, 6, 9]  # FL, FR, RL, RR hip joints in canonical order
+        error = self.dof_pos[:, hips] - self.default_dof_pos[:, hips]
+        return -torch.sum(torch.square(error), dim=1)
 
     def _reward_min_base_height(self):
         """Squared exponential saturating at base_height target"""
@@ -205,6 +259,31 @@ class Go2Trot(LeggedRobot):
         error /= self.scales["base_height"]
         error = torch.clamp(error, max=0, min=None).flatten()
         return self._sqrdexp(error)
+
+    def _height_posture_offset(self):
+        """Offset for thigh and calf from default,
+        puts the base at base_height_target.
+        Two-link leg IK (thigh = calf = L), keeping each foot at its default
+        fore-aft position under the hip and zero at the default stance height.
+        """
+        L, x0, d0, h0 = 0.213, -0.0915, 0.3183, 0.33  #default foot pos & nominal height
+        d = (d0 + self.base_height_target - h0).clamp(0.12, 0.40)
+        r = torch.sqrt(x0**2 + d.square())
+        half_knee = torch.acos((r / (2 * L)).clamp(max=1.0))
+        thigh = torch.atan2(torch.full_like(d, -x0), d) + half_knee
+        calf = -2.0 * half_knee
+        offset = torch.zeros_like(self.gait_reference)
+        offset[:, 1::3] = thigh - self.default_dof_pos[:, 1:2]
+        offset[:, 2::3] = calf - self.default_dof_pos[:, 2:3]
+        return offset
+
+
+    def _reward_tracking_base_height(self):
+        """Track the commanded base height"""
+        error = (
+            (self.base_height - self.base_height_target).flatten()
+            / self.scales["base_height"])
+        return self._sqrdexp(error, sigma=0.03) - 0.5 * error.abs()
 
     def _reward_tracking_lin_vel(self):
         """Tracking of linear velocity commands (xy axes)"""
