@@ -100,7 +100,9 @@ class Go2Osc(Go2):
     def _update_oscillator_parameters(self, reset_mask=None):
         """Apply the command-dependent frequency and feedback schedule, Eq. (5)."""
         osc = self.cfg.osc
-        speed = self.commands[:, :1].abs()
+        linear_speed = torch.linalg.vector_norm(self.commands[:, :2], dim=1, keepdim=True)
+        turning_speed = 0.3 * self.commands[:, 2:3].abs()
+        speed = linear_speed + turning_speed
         stopped = speed <= osc.stop_threshold
         moving_speed = (speed - osc.stop_threshold).clamp_min(0.0)
         omega = torch.where(

@@ -22,7 +22,7 @@ class Go2OscCfg(Go2Cfg):
 
     class osc:
         # Eq. (5): moving omega is 2 + (|vx| - 0.5), capped at 4 Hz.
-        stop_threshold = 0.5
+        stop_threshold = 0.1
         omega_stop = 1.0
         omega_step = 2.0
         omega_slope = 1.0
@@ -43,9 +43,9 @@ class Go2OscCfg(Go2Cfg):
         var = 0.0
 
         class ranges(Go2Cfg.commands.ranges):
-            lin_vel_x = [1.0]
-            lin_vel_y = 0.0
-            yaw_vel = 0.0
+            lin_vel_x = [-1.0, -0.5, 0.0, 0.5, 1.0]
+            lin_vel_y = 0.5
+            yaw_vel = 0.5
 
     class push_robots(Go2Cfg.push_robots):
         toggle = False
@@ -116,7 +116,7 @@ class Go2OscRunnerCfg(Go2RunnerCfg):
                 action_rate2 = 0.001
                 swing_grf = 5.0
                 stance_grf = 5.0
-                cursorial = 0.25
+                cursorial = 0.0
 
             class termination_weight(Go2RunnerCfg.critic.reward.termination_weight):
                 termination = 0.15
@@ -140,7 +140,7 @@ class Go2OscRunnerCfg(Go2RunnerCfg):
 
     class runner(Go2RunnerCfg.runner):
         experiment_name = "go2_osc"
-        run_name = "ORC111_forward4096_reference_smoothness"
+        run_name = "ORC111_multidirectional_v1"
         max_iterations = 2000
         save_interval = 25
         algorithm_class_name = "PPO2"
