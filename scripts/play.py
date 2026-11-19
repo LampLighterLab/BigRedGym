@@ -18,7 +18,7 @@ from gym.utils.helpers import set_seed
 from gym.utils.task_registry import task_registry
 
 
-def get_play_args(argv=None):
+def get_play_parser():
     parser = argparse.ArgumentParser(description="Play a policy trained with Q2")
     parser.add_argument("--task", type=str, required=True)
     parser.add_argument("--device", type=str, default="cpu")
@@ -72,7 +72,11 @@ def get_play_args(argv=None):
         "gym/utils/interfaces/MujocoKeyboardInterface.py for key bindings). "
         "Use --no-keyboard to disable.",
     )
-    return parser.parse_args(argv)
+    return parser
+
+
+def get_play_args(argv=None):
+    return get_play_parser().parse_args(argv)
 
 
 def setup(args):
@@ -142,46 +146,40 @@ def play(env, runner):
         env.check_exit()
 
 
+def setup_viewer(env, args):
+    """Attach playback controls and command indicators."""
+    if args.headless:
+        return
+    if args.backend == "mujoco" and not hasattr(env._backend, "_viewer_overlay_fn"):
+        print(
+            "WARNING: the MuJoCo warp (GPU) backend has no interactive viewer "
+            "— nothing will render. Use --device cpu for playback."
+        )
+    if args.keyboard and hasattr(env, "commands"):
+        if args.backend == "vsim":
+            from gym.utils.interfaces.VsimKeyboardInterface import VsimKeyboardInterface
+
+            VsimKeyboardInterface(env)
+        else:
+            from gym.utils.interfaces.MujocoKeyboardInterface import (
+                MujocoKeyboardInterface,
+            )
+
+            MujocoKeyboardInterface(env)
+    if hasattr(env, "commands"):
+        if args.backend == "vsim":
+            from gym.utils.interfaces.VsimCommandVisualizer import VsimCommandVisualizer
+
+            VsimCommandVisualizer(env)
+        else:
+            from gym.utils.interfaces.CommandVisualizer import CommandVisualizer
+
+            CommandVisualizer(env)
+
+
 if __name__ == "__main__":
     args = get_play_args()
     with torch.no_grad():
         env, runner = setup(args)
-        # The MuJoCo warp (GPU) backend is headless-only: render() is a no-op and
-        # it has no passive viewer, so nothing draws.  Point the user at cpu.
-        if (
-            args.backend == "mujoco"
-            and not args.headless
-            and not hasattr(env._backend, "_viewer_overlay_fn")
-        ):
-            print(
-                "WARNING: the MuJoCo warp (GPU) backend has no interactive viewer "
-                "— nothing will render. Use --device cpu for playback."
-            )
-        if args.keyboard and hasattr(env, "commands") and not args.headless:
-            # Each viewer has its own input model: MuJoCo dispatches key
-            # events via a callback, vlearn polls key state per frame.
-            if args.backend == "vsim":
-                from gym.utils.interfaces.VsimKeyboardInterface import (
-                    VsimKeyboardInterface,
-                )
-
-                VsimKeyboardInterface(env)
-            else:
-                from gym.utils.interfaces.MujocoKeyboardInterface import (
-                    MujocoKeyboardInterface,
-                )
-
-                MujocoKeyboardInterface(env)
-        if hasattr(env, "commands") and not args.headless:
-            # Same indicators, different drawing primitives per viewer.
-            if args.backend == "vsim":
-                from gym.utils.interfaces.VsimCommandVisualizer import (
-                    VsimCommandVisualizer,
-                )
-
-                VsimCommandVisualizer(env)
-            else:
-                from gym.utils.interfaces.CommandVisualizer import CommandVisualizer
-
-                CommandVisualizer(env)
+        setup_viewer(env, args)
         play(env, runner)
