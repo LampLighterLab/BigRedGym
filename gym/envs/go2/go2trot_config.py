@@ -65,8 +65,8 @@ class Go2TrotCfg(Go2Cfg):
             lin_vel_x = [-1.0, -0.5, 0.0, 0.5, 1.0, 1.75, 2.5]
             lin_vel_y = 0.5
             yaw_vel = 1.5
-            base_height = [0.18, 0.38]
-            #test these numbers and expand the range if everything works
+            # Fixed height: the actor doesn't observe it, matching deploy.
+            base_height = [0.30, 0.30]
 
     class push_robots(Go2Cfg.push_robots):
         toggle = True
@@ -133,7 +133,6 @@ class Go2TrotRunnerCfg(Go2RunnerCfg):
             "dof_pos_target",
             "phase_obs",
             "phase_frequency",
-            "base_height_target",
         ]
         normalize_obs = False
         smooth_exploration = False
@@ -166,7 +165,6 @@ class Go2TrotRunnerCfg(Go2RunnerCfg):
             "dof_pos_target",
             "phase_obs",
             "phase_frequency",
-            "base_height_target",
             "payload_obs",
         ]
         normalize_obs = False

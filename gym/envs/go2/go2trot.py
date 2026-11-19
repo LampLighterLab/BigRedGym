@@ -93,6 +93,9 @@ class Go2Trot(LeggedRobot):
         """1 up to nominal height then shrink linearly to 0.4 at max height"""
         h0 = 0.33
         h_max = self.command_ranges["base_height"][1]
+        if h_max <= h0:
+            # Range never reaches the tall heights that need slowing down.
+            return torch.ones_like(self.base_height_target)
         frac = ((self.base_height_target - h0) / (h_max - h0)).clamp(0.0, 1.0)
         return 1.0 - 0.6 * frac  # shape (num_envs, 1)
 
