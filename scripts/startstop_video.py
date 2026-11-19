@@ -48,6 +48,14 @@ def get_args(argv=None):
         default=135.0,
         help="camera azimuth relative to the heading [deg]",
     )
+    parser.add_argument(
+        "--ramp_only",
+        action="store_true",
+        help="stand, ramp up, hold, ramp down and stand (no turn, no restart)",
+    )
+    parser.add_argument(
+        "--slowdown", type=float, default=1.0, help="playback slow-down (2: half speed)"
+    )
     parser.add_argument("--out", type=str, default=None)
     parser.add_argument("--one", type=str, default=None, help=argparse.SUPPRESS)
     return parser.parse_args(argv)
@@ -108,6 +116,11 @@ def render_one(task, run, title, args, out):
             vx.append(env.base_lin_vel[:, 0].cpu().numpy().copy())  # not a view
 
         env.step = recording_step
+        if args.ramp_only:
+            # Drop the turn and the restart: stand 0-3 s, ramp up and hold
+            # until 12 s, ramp down and stand to 17 s.
+            se.T_TURN_END = se.T_TURN
+            se.T_RESTART = se.T_END = se.T_STOP + 5.0
         res = se.rollout(env, runner, args.speed, args.omega)
         env.step = step
     poses, contact, vx = np.stack(poses), np.stack(contact), np.stack(vx)
@@ -154,7 +167,7 @@ def render_one(task, run, title, args, out):
             cx, _ = se.command_profile(t, args.speed)
             d.rectangle((0, 0, img.width, 46), fill=(255, 255, 255))
             d.text(
-                (6, 3), f"{title}  ({stopped:.0%} of robots stop)", fill=(26, 26, 25)
+                (6, 3), f"{title}  ({stopped:.0%} of robots stop)" + (f"  {1 / args.slowdown:g}x speed" if args.slowdown != 1 else ""), fill=(26, 26, 25)
             )
             d.text(
                 (6, 17),
@@ -233,11 +246,11 @@ def main():
 
     # One palette for every frame (from a few spread-out frames): per-frame
     # palettes break the GIF writer's frame differencing (stale regions).
-    samples = [canvas_at(j) for j in np.linspace(0, count - 1, 4).astype(int)]
+    samples = [canvas_at(j) for j in np.linspace(0, count - 1, 12).astype(int)]
     strip = Image.new("RGB", (samples[0].width, samples[0].height * len(samples)))
     for i, s in enumerate(samples):
         strip.paste(s, (0, i * s.height))
-    palette = strip.quantize(colors=96, method=Image.Quantize.MEDIANCUT)
+    palette = strip.quantize(colors=192, method=Image.Quantize.MEDIANCUT)
     frames = [
         canvas_at(j).quantize(palette=palette, dither=Image.Dither.NONE)
         for j in range(count)
@@ -245,7 +258,7 @@ def main():
     out = Path(args.out or OUT / "startstop.gif")
     out.parent.mkdir(parents=True, exist_ok=True)
     frames[0].save(
-        out, save_all=True, append_images=frames[1:], duration=round(1000 / fps), loop=0
+        out, save_all=True, append_images=frames[1:], duration=round(1000 * args.slowdown / fps), loop=0
     )
     import shutil
 

@@ -25,6 +25,11 @@ def make_task(num_envs=1, foot_force=0.0, phase=0.0, active_legs=None):
     task.osc_omega = torch.full((num_envs, 1), 2.0)
     task.osc_coupling = torch.ones(num_envs, 1)
     task.osc_offset = torch.zeros(num_envs, 1)
+    # Start/stop state (deploy settings): robots reset since the last update,
+    # and time the command has been 'stop'.
+    task._fresh = torch.zeros(num_envs, dtype=torch.bool)
+    task.stop_time = torch.zeros(num_envs)
+    task.dt = 0.01  # control period [s]
     return task
 
 
@@ -55,12 +60,12 @@ def test_osc_params_follow_commanded_speed():
     torch.testing.assert_close(
         task.osc_omega[:, 0], torch.tensor([1.0, 1.25, 2.25, 3.5, 4.0])
     )
-    # Standing regime up to and including the 0.2 m/s threshold.
+    # Standing regime below the 0.2 m/s threshold (0.2 itself is moving).
     torch.testing.assert_close(
-        task.osc_coupling[:, 0], torch.tensor([4.0, 4.0, 1.0, 1.0, 1.0])
+        task.osc_coupling[:, 0], torch.tensor([4.0, 1.0, 1.0, 1.0, 1.0])
     )
     torch.testing.assert_close(
-        task.osc_offset[:, 0], torch.tensor([1.0, 1.0, 0.0, 0.0, 0.0])
+        task.osc_offset[:, 0], torch.tensor([1.0, 0.0, 0.0, 0.0, 0.0])
     )
 
 

@@ -250,30 +250,31 @@ def run_study(args):
         else:
             todo.append((task, run, out))
     print(f"{len(todo)} to evaluate", flush=True)
-    env = dict(os.environ, OMP_NUM_THREADS=str(args.threads))
-    running, failed = [], []
+    from eval_progress import JobPool, interval_from_env, unbuffered
 
-    def finish(entry):
-        proc, name = entry
-        if proc.wait() != 0:
-            failed.append(name)
-        print(f"{'FAILED' if proc.returncode else 'done  '}  {name}", flush=True)
-
+    env = unbuffered(dict(os.environ, OMP_NUM_THREADS=str(args.threads)))
+    conditions = (
+        len(WIDE_SPEEDS) * len(WIDE_OMEGAS)
+        if args.wide
+        else len(STUDY_SPEEDS) * len(STUDY_OMEGAS)
+    )
+    pool = JobPool(args.jobs, conditions, interval_from_env())
     for task, run, out in todo:
         cmd = [sys.executable, __file__, "--task", task, "--load_run", run]
         cmd += ["--checkpoint", str(args.checkpoint), "--robots", str(args.robots)]
         cmd += ["--data_out", str(out), "--device", args.device]
-        log = open(logs / f"{out.stem}.log", "w")
+        log_path = logs / f"{out.stem}.log"
         proc = subprocess.Popen(
-            cmd, cwd=Path(__file__).parent, env=env, stdout=log, stderr=subprocess.STDOUT
+            cmd,
+            cwd=Path(__file__).parent,
+            env=env,
+            stdout=open(log_path, "w"),
+            stderr=subprocess.STDOUT,
         )
-        running.append((proc, out.name))
-        if len(running) >= args.jobs:
-            finish(running.pop(0))
-    for entry in running:
-        finish(entry)
-    if failed:
-        raise SystemExit(f"failed (see {logs}): {failed}")
+        pool.add(proc, out.name, log_path)
+    pool.close()
+    if pool.failed:
+        raise SystemExit(f"failed (see {logs}): {pool.failed}")
 
 
 # ---------------------------------------------------------------- summary

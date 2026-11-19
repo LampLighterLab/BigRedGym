@@ -81,6 +81,14 @@ def make_train_parser():
         action="store_true",
         help="Load environment and runner configs saved with the selected run.",
     )
+    parser.add_argument(
+        "--init_from",
+        type=str,
+        default=None,
+        help="Start from this checkpoint's weights (path relative to the repo or "
+        "absolute; fresh optimizer, iterations from 0). Overrides the task's "
+        "runner.init_from.",
+    )
     parser.add_argument("--headless", action="store_true", default=False)
     # wandb
     parser.add_argument("--disable_wandb", action="store_true", default=False)
@@ -142,6 +150,8 @@ def setup(args=None, env_cfg=None, train_cfg=None):
         train_cfg.runner.load_run = args.load_run
     if args.checkpoint is not None:
         train_cfg.runner.checkpoint = args.checkpoint
+    if args.init_from is not None:
+        train_cfg.runner.init_from = args.init_from
 
     train_cfg.runner.device = args.device
 

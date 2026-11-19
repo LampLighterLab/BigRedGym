@@ -23,7 +23,16 @@ import subprocess
 import sys
 from pathlib import Path
 
-from gym.envs.go2.go2osc_config import STUDY_SETTINGS, WIDE_SETTINGS, study_task_name
+from eval_progress import JobPool, interval_from_env, unbuffered
+from gym.envs.go2.go2osc_config import (
+    STUDY_SETTINGS,
+    SWEEP_OMEGAS,
+    SWEEP_SPEEDS,
+    WIDE_OMEGAS,
+    WIDE_SETTINGS,
+    WIDE_SPEEDS,
+    study_task_name,
+)
 from gym.utils.helpers import GYM_ROOT_DIR
 from study_summary import DATA, FIGURES
 
@@ -39,7 +48,10 @@ def get_args(argv=None):
     parser.add_argument("--jobs", type=int, default=4, help="evaluations at once")
     parser.add_argument("--threads", type=int, default=4, help="CPU threads per job")
     parser.add_argument(
-        "--device", type=str, default="cpu", help="cpu or cuda:0 (MuJoCo Warp, much faster)"
+        "--device",
+        type=str,
+        default="cpu",
+        help="cpu or cuda:0 (MuJoCo Warp, much faster)",
     )
     parser.add_argument(
         "--friction", type=float, default=None, help="fixed contact friction"
@@ -103,15 +115,14 @@ def main():
     if args.dry_run or not todo:
         return
 
-    env = dict(os.environ, OMP_NUM_THREADS=str(args.threads))
+    env = unbuffered(dict(os.environ, OMP_NUM_THREADS=str(args.threads)))
     script = Path(__file__).with_name("grid_eval.py")
-    running, failed = [], []
-
-    def finish(entry):
-        proc, name = entry
-        if proc.wait() != 0:
-            failed.append(name)
-        print(f"{'FAILED' if proc.returncode else 'done  '}  {name}", flush=True)
+    cells = (
+        len(WIDE_SPEEDS) * len(WIDE_OMEGAS)
+        if args.wide
+        else len(SWEEP_SPEEDS) * len(SWEEP_OMEGAS)
+    )
+    pool = JobPool(args.jobs, cells, interval_from_env())
 
     for task, run, out in todo:
         cmd = [
@@ -138,17 +149,18 @@ def main():
         ]
         if args.friction is not None:
             cmd += ["--friction", str(args.friction)]
-        log = open(logs / f"{out.stem}.log", "w")
+        log_path = logs / f"{out.stem}.log"
         proc = subprocess.Popen(
-            cmd, cwd=script.parent, env=env, stdout=log, stderr=subprocess.STDOUT
+            cmd,
+            cwd=script.parent,
+            env=env,
+            stdout=open(log_path, "w"),
+            stderr=subprocess.STDOUT,
         )
-        running.append((proc, out.name))
-        if len(running) >= args.jobs:
-            finish(running.pop(0))
-    for entry in running:
-        finish(entry)
-    if failed:
-        raise SystemExit(f"failed (see the .log of each in {logs}): {failed}")
+        pool.add(proc, out.name, log_path)
+    pool.close()
+    if pool.failed:
+        raise SystemExit(f"failed (see the .log of each in {logs}): {pool.failed}")
 
 
 if __name__ == "__main__":

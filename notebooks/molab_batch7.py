@@ -14,6 +14,9 @@ committed checkpoint at 95% of the actuator torque and speed limits with
     deploy_robust_clip_ft2         from deploy_robust seed 2
     even2.5_deploy_track_clip_ft2  from even2.5_deploy_track seed 2 (candidate)
 
+Evaluation: the grid, pushes and start/stop (friction 0.3 if RUN_FRICTION),
+with a progress line per running run every minute.
+
 Split over two notebooks with PART (0: the first policy, 1: the second;
 None: both here). Run the cells top to bottom. Rerunning skips finished runs
 and evaluations.
@@ -47,7 +50,8 @@ def _(mo):
     1. **Setup**: clone or update the repo and install the dependencies.
     2. **Settings**: pick `PART` (0 or 1 to split over two notebooks).
     3. **Train**: 5 seeds x 1000 iterations per policy.
-    4. **Evaluate**: grid, power, friction 0.3, pushes, start/stop.
+    4. **Evaluate**: grid, pushes, start/stop (friction 0.3 optional), with
+       progress printed every minute.
     5. **Download**: the trained runs and the results (two zips).
     """)
     return
@@ -121,13 +125,25 @@ def _():
     DEVICE = "cuda:0"
     NUM_ENVS = 4096
     EVAL_JOBS = 2  # evaluations at once on the GPU
+    # Friction-0.3 pass (readiness gate; ~60% of the grid's time): leave off
+    # and run it later on the runs you pick, or set True to include it.
+    RUN_FRICTION = False
 
     _all = ["deploy_robust_clip_ft2", "even2.5_deploy_track_clip_ft2"]
     SETTINGS = _all if PART is None else [_all[PART]]
     TASKS = [f"go2osc_wide_{s}" for s in SETTINGS]
     QUEUE = [(t, k) for k in range(SEEDS) for t in TASKS]
     print(f"part {PART}: {SETTINGS}, {len(QUEUE)} runs of {MAX_ITERATIONS} iterations")
-    return DEVICE, EVAL_JOBS, MAX_ITERATIONS, NUM_ENVS, QUEUE, SETTINGS, TASKS
+    return (
+        DEVICE,
+        EVAL_JOBS,
+        MAX_ITERATIONS,
+        NUM_ENVS,
+        QUEUE,
+        RUN_FRICTION,
+        SETTINGS,
+        TASKS,
+    )
 
 
 @app.cell(hide_code=True)
@@ -192,32 +208,54 @@ def _(mo):
     ## Evaluate
 
     Every trained run on this machine is evaluated (evaluations already done
-    are skipped): the speed x frequency grid, short power and friction-0.3
-    passes, standardized pushes and the start/stop test.
+    are skipped): the speed x frequency grid, standardized pushes and the
+    start/stop test, plus the friction-0.3 pass if `RUN_FRICTION`. Each
+    script prints its queue, a progress line per running run every minute
+    (conditions done, minutes in, estimated minutes left) and `done <run>` as
+    each run finishes. Interrupting loses only the runs in progress.
     """)
     return
 
 
 @app.cell
-def _(DEVICE, ENV, EVAL_JOBS, REPO, SETTINGS, TRAIN_DONE, subprocess):
+def _(DEVICE, ENV, EVAL_JOBS, REPO, RUN_FRICTION, SETTINGS, TRAIN_DONE, subprocess):
     assert TRAIN_DONE
+    # The evaluation scripts import each other from scripts/; molab's Python
+    # does not put a script's folder on the import path (safe-path mode).
+    _env = {k: v for k, v in ENV.items() if k != "PYTHONSAFEPATH"}
+    _env["PYTHONPATH"] = str(REPO / "scripts")
+    _env["PYTHONUNBUFFERED"] = "1"
+    _failed = []
 
     def _run(args):
         cmd = ["uv", "run", "--frozen", "--extra", "gpu", "--no-dev", *args]
         print("\n$ " + " ".join(args), flush=True)
-        r = subprocess.run(cmd, cwd=REPO, env=ENV, text=True, capture_output=True)
-        print(r.stdout[-2500:], r.stderr[-1500:] if r.returncode else "", flush=True)
-        if r.returncode:
-            print(f"!!! failed with code {r.returncode}")
+        p = subprocess.Popen(
+            cmd,
+            cwd=REPO,
+            env=_env,
+            text=True,
+            bufsize=1,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        for line in p.stdout:
+            if "Warning" not in line:
+                print(line, end="", flush=True)
+        if p.wait():
+            print(f"!!! failed with code {p.returncode}", flush=True)
+            _failed.append(args[0])
 
     _gpu = ["--device", DEVICE, "--jobs", str(EVAL_JOBS)]
-    _short = ["--robots", "16", "--settle", "6", "--measure", "6"]
     _run(["scripts/study_eval.py", "--wide", *_gpu])
-    _run(["scripts/study_eval.py", "--wide", *_gpu, *_short, "--results", "power_wide"])
-    _run(["scripts/study_eval.py", "--wide", *_gpu, *_short, "--friction", "0.3",
-          "--results", "friction0.3_wide"])  # fmt: skip
     _run(["scripts/push_eval.py", "--study", "--wide", *_gpu])
     _run(["scripts/startstop_eval.py", "--study", "--settings", *SETTINGS, *_gpu])
+    if RUN_FRICTION:
+        _short = ["--robots", "16", "--settle", "6", "--measure", "6"]
+        _run(["scripts/study_eval.py", "--wide", *_gpu, *_short, "--friction", "0.3",
+              "--results", "friction0.3_wide"])  # fmt: skip
+    if _failed:
+        raise RuntimeError(f"failed: {_failed} (see above)")
     print("\nevaluation finished")
     EVAL_DONE = True
     return (EVAL_DONE,)

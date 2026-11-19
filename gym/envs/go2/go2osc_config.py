@@ -36,7 +36,7 @@ class Go2OscCfg(Go2Cfg):
         grf_noise_std = 0.0
         grf_delay_max_steps = 0
         # Standing regime (Eq. 5): [sigma, xi] = [coupling_stop, offset_stop]
-        # if |v_x| <= stop_threshold, else [coupling, offset]. Matches the
+        # if |v_x| < stop_threshold, else [coupling, offset]. Matches the
         # 0.2 m/s below which the base class zeroes sampled commands.
         stop_threshold = 0.2
         coupling_stop = 4.0

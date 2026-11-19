@@ -103,3 +103,7 @@ notebooks/__marimo__/
 
 # Committed starting points for fine-tuning (study_cfgs "init_from")
 !checkpoints/*.pt
+!exports/*/policy.pt
+
+# Editor settings
+.vscode/

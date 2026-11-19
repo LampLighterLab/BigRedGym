@@ -21,13 +21,16 @@ from matplotlib.patches import Patch, Rectangle  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNS = ROOT / "logs" / "study_results" / "runs"
-GAIT_GROUPS = [  # (label, color, gait names)
+GAIT_GROUPS = [  # (label, color, gait names), as slide_gait_shares.py
     ("Pronk", "#2a6fd6", ["hop", "hop, staggered landing"]),
     ("Bound", "#8fb8ef", ["bound"]),
     ("Two-leg", "#d4521f", ["2-leg, together", "2-leg, alternating"]),
+    ("Two-leg + light 3rd leg", "#f0ad85", None),  # other, least-loaded leg < 13%
+    ("Three-leg", "#1ba57a", None),  # other periodic labels
     ("Irregular", "#c6c5ba", ["irregular", "not stepping"]),
-    ("Three-leg", "#1ba57a", None),  # everything else
 ]
+LIGHT = 0.13  # least-loaded leg's load share below which a third leg is "light"
+MOSTLY_FELL = 0.95  # cells where at least this share fell are left blank
 INK, MUTED = "#1a1a19", "#77776f"
 
 
@@ -53,24 +56,28 @@ def main():
     z = np.load(RUNS / f"{a.task}__{a.run}.npz", allow_pickle=False)
     sp, om = z["speeds"], z["omegas"]
     names = list(z["gait_names"])
-    counts = z["gait_counts"]  # (omega, speed, gait)
-    group_counts = np.zeros(counts.shape[:2] + (len(GAIT_GROUPS),))
-    used = set()
-    for i, (_, _, members) in enumerate(GAIT_GROUPS[:-1]):
-        idx = [names.index(m) for m in members if m in names]
-        used.update(idx)
-        group_counts[..., i] = counts[..., idx].sum(-1)
-    rest = [i for i in range(len(names)) if i not in used]
-    group_counts[..., -1] = counts[..., rest].sum(-1)
+    # Per-robot groups (fallen robots have label -1), then each cell's
+    # most common group and its share.
+    label = z["robot_label"]
+    group = np.full(label.shape, -1)
+    for k, (_, _, members) in enumerate(GAIT_GROUPS):
+        if members:
+            group[np.isin(label, [names.index(m) for m in members])] = k
+    other = (label >= 0) & (group < 0)
+    light = np.nanmin(z["robot_leg_shares"], -1) < LIGHT
+    group[other & light] = 3
+    group[other & ~light] = 4
+    group_counts = np.stack([(group == k).sum(-1) for k in range(len(GAIT_GROUPS))], -1)
     total = group_counts.sum(-1)
-    dom = np.where(total > 0, group_counts.argmax(-1), -1)
+    gone = z["fall_rate"] >= MOSTLY_FELL
+    dom = np.where((total > 0) & ~gone, group_counts.argmax(-1), -1)
     dom_share = np.where(total > 0, group_counts.max(-1) / np.maximum(total, 1), np.nan)
 
     panels = [
-        ("Measured / commanded speed", z["speed_ratio"], "RdBu", (0.5, 1.5), "{:.2f}"),
+        ("Measured / commanded speed", np.where(gone, np.nan, z["speed_ratio"]), "RdBu", (0.5, 1.5), "{:.2f}"),
         ("Fall rate", z["fall_rate"], "Reds", (0, 1), "{:.0%}"),
         ("Dominant gait", None, None, None, None),
-        ("Joint power [W]", z["power"], "viridis", None, "{:.0f}"),
+        ("Joint power [W]", np.where(gone, np.nan, z["power"]), "viridis", None, "{:.0f}"),
     ]
     fig, axs = plt.subplots(1, 4, figsize=(20, 5.6), dpi=170)
     ext = (-0.5, len(sp) - 0.5, -0.5, len(om) - 0.5)
@@ -167,7 +174,7 @@ def main():
                 )
                 ax.axvline(j0 - 0.5, color=INK, linewidth=1.5, linestyle="--")
     head = a.title or f"{a.task} {a.run}"
-    sub = "64 robots per cell, measured 10 s after 10 s settling"
+    sub = "64 robots per cell, measured 10 s after 10 s settling; blank: ≥ 95% fell"
     if a.train_max is not None:
         sub += (
             f"; hatched: faster than the trained command range (≤ {a.train_max:g} m/s)"
