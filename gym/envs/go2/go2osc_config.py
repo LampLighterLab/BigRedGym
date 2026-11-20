@@ -524,6 +524,29 @@ FOLLOWUP_BATCHES = {
             "init_from": DEPLOY_TRACK_SEED2,
         },
     },
+    # Batch 8: the two hardware policies in one stage: batch 7's settings
+    # (95% motor limits, 500 Hz physics) trained from scratch for 2000
+    # iterations instead of fine-tuned, with full-size pushes from the start
+    # (ramp_steps 0: the base push code, nothing else needed), so the two
+    # go2osc files alone reproduce them. tripedal_pronk: even load;
+    # baseline_real: the baseline rewards (bundle: tripedal_trot).
+    8: {
+        "tripedal_pronk": {
+            "even_load": 2.5,
+            **DEPLOY_TRACK,
+            "stand_still": 0.1,
+            **LIMITS95,
+            "push": {**ROBUST_PUSH, "ramp_steps": 0},
+            "max_iterations": 2000,
+        },
+        "baseline_real": {
+            **DEPLOY_ROBUST,
+            "stand_still": 0.1,
+            **LIMITS95,
+            "push": {**ROBUST_PUSH, "ramp_steps": 0},
+            "max_iterations": 2000,
+        },
+    },
 }
 WIDE_SETTINGS.update({k: v for b in FOLLOWUP_BATCHES.values() for k, v in b.items()})
 # Each follow-up setting's reference: the setting it adds one change to.
@@ -578,6 +601,7 @@ def study_cfgs(setting, wide=False):
     init_from = changed.pop("init_from", None)
     motor_limits = changed.pop("motor_limits", {})
     sim_hz = changed.pop("sim_hz", None)  # physics rate [Hz] (policy rate unchanged)
+    max_iterations = changed.pop("max_iterations", None)  # default for train.py
     weights = {**STUDY_BASE_WEIGHTS, **changed}
 
     class RunnerCfg(Go2OscFrontLockedOmegaRunnerCfg):
@@ -591,6 +615,8 @@ def study_cfgs(setting, wide=False):
 
     if init_from is not None:
         RunnerCfg.runner.init_from = init_from  # loaded by scripts/train.py
+    if max_iterations is not None:
+        RunnerCfg.runner.max_iterations = max_iterations
     for name, value in weights.items():
         setattr(RunnerCfg.critic.reward.weights, name, value)
     if sensors:

@@ -5,8 +5,10 @@
 # [tool.marimo.runtime]
 # on_cell_change = "lazy"
 # ///
-"""Batch 7 on MoLab: fine-tune the two identified policies under actuator
-limits, evaluate them, and download the runs and the results.
+"""Hardware policies on MoLab: train, evaluate, and download the runs and the
+results. BATCH 8 (default) trains tripedal_pronk and baseline_real in one
+stage (95% motor limits, 500 Hz physics, 2000 iterations from scratch);
+BATCH 7 is the earlier two-stage version described below.
 
 Policies (go2osc_config.FOLLOWUP_BATCHES[7]), each fine-tuned from its
 committed checkpoint at 95% of the actuator torque and speed limits with
@@ -119,9 +121,13 @@ def _(BRANCH, ENV, REPO, REPO_URL, subprocess, textwrap):
 def _():
     # --- edit, then run --------------------------------------------------------
     # PART: 0 or 1 splits the two policies over two notebooks; None runs both.
+    # BATCH 8: the hardware policies in one stage (tripedal_pronk,
+    # baseline_real; 2000 iterations from scratch). BATCH 7: the earlier
+    # fine-tunes (1000 iterations from committed checkpoints).
+    BATCH = 8
     PART = None
     SEEDS = 5
-    MAX_ITERATIONS = 1000
+    MAX_ITERATIONS = {7: 1000, 8: 2000}[BATCH]
     DEVICE = "cuda:0"
     NUM_ENVS = 4096
     EVAL_JOBS = 2  # evaluations at once on the GPU
@@ -129,12 +135,16 @@ def _():
     # and run it later on the runs you pick, or set True to include it.
     RUN_FRICTION = False
 
-    _all = ["deploy_robust_clip_ft2", "even2.5_deploy_track_clip_ft2"]
+    _all = {
+        7: ["deploy_robust_clip_ft2", "even2.5_deploy_track_clip_ft2"],
+        8: ["baseline_real", "tripedal_pronk"],
+    }[BATCH]
     SETTINGS = _all if PART is None else [_all[PART]]
     TASKS = [f"go2osc_wide_{s}" for s in SETTINGS]
     QUEUE = [(t, k) for k in range(SEEDS) for t in TASKS]
     print(f"part {PART}: {SETTINGS}, {len(QUEUE)} runs of {MAX_ITERATIONS} iterations")
     return (
+        BATCH,
         DEVICE,
         EVAL_JOBS,
         MAX_ITERATIONS,
@@ -192,7 +202,9 @@ def _(DEVICE, ENV, MAX_ITERATIONS, NUM_ENVS, QUEUE, REPO, re, subprocess):
             _m = re.search(r"Iteration (\d+)/(\d+)", _line)
             if _m and int(_m.group(1)) % 100 == 0:
                 print(f"  iteration {_m.group(1)}/{_m.group(2)}", flush=True)
-            elif "Initialized from" in _line or "Error" in _line or "Traceback" in _line:
+            elif (
+                "Initialized from" in _line or "Error" in _line or "Traceback" in _line
+            ):
                 print(_line, end="", flush=True)
         if _proc.wait() != 0:
             print(f"!!! {_task} seed{_seed} failed with code {_proc.returncode}")
@@ -275,13 +287,13 @@ def _(mo):
 
 
 @app.cell
-def _(EVAL_DONE, MAX_ITERATIONS, PART, REPO, TASKS, WORK, mo, zipfile):
+def _(BATCH, EVAL_DONE, MAX_ITERATIONS, PART, REPO, TASKS, WORK, mo, zipfile):
     assert EVAL_DONE
     _tag = "both" if PART is None else f"part{PART}"
     _out = WORK / "exports"
     _out.mkdir(parents=True, exist_ok=True)
 
-    _runs_zip = _out / f"batch7_runs_{_tag}.zip"
+    _runs_zip = _out / f"batch{BATCH}_runs_{_tag}.zip"
     with zipfile.ZipFile(_runs_zip, "w", compression=zipfile.ZIP_STORED) as _zf:
         for _task in TASKS:
             for _run in sorted((REPO / "logs" / _task).glob("*_seed*")):
@@ -293,7 +305,7 @@ def _(EVAL_DONE, MAX_ITERATIONS, PART, REPO, TASKS, WORK, mo, zipfile):
                         _zf.write(_f, _f.relative_to(REPO))
                 print(f"runs: {_task}/{_run.name}")
 
-    _res_zip = _out / f"batch7_results_{_tag}.zip"
+    _res_zip = _out / f"batch{BATCH}_results_{_tag}.zip"
     _n = 0
     with zipfile.ZipFile(_res_zip, "w", compression=zipfile.ZIP_DEFLATED) as _zf:
         _roots = [REPO / "logs" / "study_results", REPO / "results" / "study" / "runs"]
