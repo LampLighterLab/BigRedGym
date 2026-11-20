@@ -38,7 +38,7 @@ class Go2TrotCfg(Go2Cfg):
         stiffness = {"hip": 20.0, "thigh": 20.0, "calf": 20.0}
         damping = {"hip": 0.5, "thigh": 0.5, "calf": 0.5}
         ctrl_frequency = 50
-        desired_sim_frequency = 50
+        desired_sim_frequency = 300  # pre-emptively changed from 50 to deal with higher damping values
         gait_freq = [1.0, 3.0]  # oscillator frequency range [Hz]
         # Cycle offsets define a trot: front-left/rear-right move together,
         # half a cycle away from front-right/rear-left.
@@ -56,6 +56,15 @@ class Go2TrotCfg(Go2Cfg):
         # shortening the swing diagonal.
         gait_joint_offsets = 4 * [0.0, 0.0, 0.0]
         gait_joint_amplitudes = 4 * [0.0, -0.15, 0.30]
+
+    # in meters
+    class height_control:
+        min_height = 0.28
+        max_height = 0.40
+        default_height = 0.36
+        step = 0.02
+        stationary_fraction = 0.25
+        tracking_sigma = 0.10
 
     class commands(Go2Cfg.commands):
         # Standard deviation in m/s around the forward-command centers below.
@@ -104,6 +113,7 @@ class Go2TrotCfg(Go2Cfg):
         # Residual radians per policy unit, independent of observation ranges.
         dof_pos_target = 4 * [0.2, 0.3, 0.3]
         tau_ff = 4 * [23.7, 23.7, 45.43]
+        height_command = 0.3
 
 
 class Go2TrotRunnerCfg(Go2RunnerCfg):
@@ -120,6 +130,8 @@ class Go2TrotRunnerCfg(Go2RunnerCfg):
             "dof_pos_target",
             "phase_obs",
             "phase_frequency",
+            "base_height",
+            "height_command",
         ]
         normalize_obs = False
         smooth_exploration = False
@@ -152,28 +164,32 @@ class Go2TrotRunnerCfg(Go2RunnerCfg):
             "dof_pos_target",
             "phase_obs",
             "phase_frequency",
+            "height_command",
         ]
         normalize_obs = False
 
         class reward:
             class weights:
-                tracking_lin_vel = 4.0
+                tracking_lin_vel = 8.0  # 4.0
                 tracking_ang_vel = 4.0
                 lin_vel_z = 0.0
                 ang_vel_xy = 0.01
                 orientation = 1.0
                 torques = 5.0e-6
                 dof_vel = 0.0
-                stand_still = 0.0
+                # stand_still = 0.0 # original
+                stand_still = 0.01
                 dof_pos_limits = 0.0
                 feet_contact_forces = 0.0
                 dof_near_home = 0.0
-                min_base_height = 0.5
+                # min_base_height = 0.5 # original
+                min_base_height = 0.0
                 action_rate = 0.1
                 action_rate2 = 0.05
                 trot_support = 3.0
                 swing_contact = 3.0
                 reference_traj = 3.0
+                tracking_height = 3.0
 
             class termination_weight:
                 termination = 0.01

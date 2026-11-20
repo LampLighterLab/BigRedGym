@@ -1,44 +1,46 @@
-from gym.envs.go2.go2trot_config import Go2TrotCfg
 import torch
+import numpy as np
+from gym.envs.go2.go2trot_config import Go2TrotCfg
+from go2_deploy.utility.import_custom_impl import custom_impl
+
+_custom_cfg = custom_impl.CustomDeployConfig
 
 
 class DeployConfig:
-    task_name = "go2trot"
+    task_name = getattr(_custom_cfg, "task_name", "go2trot")
 
-    ctrl_freq = 100  # Hz
+    ctrl_freq = getattr(_custom_cfg, "ctrl_freq", 100)  # Hz
 
-    kp = 30.0  # Stiffness constant
-    kd = 2.0  # Damping constant
+    kp = getattr(_custom_cfg, "kp", 30.0)  # Default stiffness constant
+    kd = getattr(_custom_cfg, "kd", 2.0)  # Default damping constant
 
-    phase_frequency = 2.0  # Go2Trot gait frequency in Hz (cycles/s)
+    phase_frequency = getattr(_custom_cfg, "phase_frequency", 2.0)
+    load_run = getattr(_custom_cfg, "load_run", None)
+    checkpoint = getattr(_custom_cfg, "checkpoint", -1)
 
     # Apply exponential moving average to actions
-    exp_moving_avg = True
-    ema_smoothing_factor = 0.1
+    exp_moving_avg = getattr(_custom_cfg, "exp_moving_avg", True)
+    ema_time_const = 0.095      # seconds
+    ema_smoothing_factor = -np.expm1(-(1/ctrl_freq)/ema_time_const)     # alpha in EMA
 
-    obs_vector = [
-        "base_ang_vel",
-        "projected_gravity",
-        "commands",
-        "dof_pos_obs",
-        "dof_vel",
-        "dof_pos_target",
-        "phase_obs",
-        "phase_frequency",
-    ]  # add later? foot contact
+    obs_vector = custom_impl.CustomDeployConfig.obs_vector
 
     # Scale observations
-    class DeployScaling(Go2TrotCfg.scaling):
+    class DeployScaling(custom_impl.CustomDeployConfig.DeployScaling):
         pass
 
     # Set ranges of joystick commands
-    command_limits = {
-        "lin_vel_x": 2.0,  # m/s
-        "lin_vel_y": 1.0,  # m/s
-        "yaw_vel": 3.0,  # rad/s
-    }
+    command_limits = getattr(
+        _custom_cfg,
+        "command_limits",
+        {
+            "lin_vel_x": 2.0,  # m/s
+            "lin_vel_y": 1.0,  # m/s
+            "yaw_vel": 3.0,  # rad/s
+        },
+    )
 
-    # Specify size of observation vector. should not have to modify this
+    # Specify size of observation vector pieces
     obs_sizes = {
         "base_ang_vel": 3,
         "projected_gravity": 3,
@@ -47,28 +49,46 @@ class DeployConfig:
         "dof_vel": 12,
         "dof_accel": 12,
         "dof_pos_target": 12,
-        "phase_obs": 2,
-        "phase_frequency": 1,
     }
+    obs_sizes.update(custom_impl.CustomDeployConfig.custom_obs_sizes)
 
     # Canonical FL, FR, RL, RR order; hip, thigh, calf within each leg.
-    default_dof_pos = torch.tensor(
-        [
-            angle
-            for leg in ("FL", "FR", "RL", "RR")
-            for angle in (
-                Go2TrotCfg.init_state.default_joint_angles["hip_joint"],
-                Go2TrotCfg.init_state.default_joint_angles[f"{leg}_thigh_joint"],
-                Go2TrotCfg.init_state.default_joint_angles["calf_joint"],
-            )
-        ]
+    default_dof_pos = getattr(
+        _custom_cfg,
+        "default_dof_pos",
+        torch.tensor(
+            [
+                angle
+                for leg in ("FL", "FR", "RL", "RR")
+                for angle in (
+                    Go2TrotCfg.init_state.default_joint_angles["hip_joint"],
+                    Go2TrotCfg.init_state.default_joint_angles[f"{leg}_thigh_joint"],
+                    Go2TrotCfg.init_state.default_joint_angles["calf_joint"],
+                )
+            ]
+        ),
     )
 
     # s: how often terminal should print ctrl freq, instructions
     terminal_log_period = 2.0
 
-    # Check for unsafe config
+    # Set by policy_bundle.load_bundle(): the bundle's deploy_meta.json
+    bundle_meta = None
+
     def __init__(self):
+        self.obs_vector = list(self.obs_vector)
+        self.obs_sizes = dict(self.obs_sizes)
+        self.command_limits = dict(self.command_limits)
+        self.default_dof_pos = torch.as_tensor(
+            self.default_dof_pos, dtype=torch.float32
+        ).clone()
+        self.validate()
+
+    def obs_dim(self):
+        return sum(self.obs_sizes[obs] for obs in self.obs_vector)
+
+    # Check for unsafe config
+    def validate(self):
         if self.ctrl_freq < 20:
             raise ValueError("ctrl_freq should be > 20")
         if self.kp <= 0:
