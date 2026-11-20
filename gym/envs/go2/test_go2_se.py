@@ -165,3 +165,63 @@ def test_additive_reward_combination():
     )
     # * r_pos*dt + 0.2 * r_neg*dt = 0.03 + 0.2 * -0.05
     torch.testing.assert_close(runner.compute_total_rewards(rd), torch.tensor([0.02]))
+
+
+def _jump_task(num_envs=2):
+    from gym.envs.go2.go2_se_config import Go2SEJumpCfg
+    from gym.envs.go2.go2_se_jump import Go2SEJump
+
+    task = Go2SEJump.__new__(Go2SEJump)
+    task.cfg = Go2SEJumpCfg()
+    task.num_envs = num_envs
+    task.device = "cpu"
+    task.dt = 0.02
+    task.jump_timer = torch.full((num_envs,), 100.0)
+    task.jump_start_height = torch.zeros(num_envs)
+    task.jump_active = torch.zeros(num_envs)
+    task.jump_command = torch.zeros(num_envs, 2)
+    task.root_states = torch.zeros(num_envs, 13)
+    task.root_states[:, 2] = 0.3
+    task.foot_contact = torch.ones(num_envs, 4)
+    return task
+
+
+def test_jump_trigger_sets_window_and_command():
+    task = _jump_task()
+    task.trigger_jump(torch.tensor([True, False]))
+    torch.testing.assert_close(task.jump_command, torch.tensor([[1.0, 1.0], [0.0, 0.0]]))
+    torch.testing.assert_close(task.jump_start_height, torch.tensor([0.3, 0.0]))
+    # * a second trigger mid-window does not restart it
+    task.jump_timer[0] = 0.3
+    task.trigger_jump()
+    assert task.jump_timer[0] == 0.3 and task.jump_timer[1] == 0.0
+    task._update_jump_command()
+    torch.testing.assert_close(task.jump_command[0], torch.tensor([1.0, 0.5]))
+    task.jump_timer[0] = task.cfg.jump.duration
+    task._update_jump_command()
+    torch.testing.assert_close(task.jump_command[0], torch.tensor([0.0, 0.0]))
+
+
+def test_jump_rewards_only_in_window_and_airborne():
+    task = _jump_task()
+    task.trigger_jump(torch.tensor([True, False]))
+    task.root_states[:, 9] = 1.5  # upward velocity
+    task.root_states[:, 2] = 0.45  # 0.15 m above the start
+    torch.testing.assert_close(task._reward_jump_takeoff(), torch.tensor([1.5, 0.0]))
+    # * feet on the ground: no flight or height reward
+    torch.testing.assert_close(task._reward_jump_flight(), torch.tensor([0.0, 0.0]))
+    torch.testing.assert_close(task._reward_jump_height(), torch.tensor([0.0, 0.0]))
+    task.foot_contact[:] = 0.0
+    torch.testing.assert_close(task._reward_jump_flight(), torch.tensor([1.0, 0.0]))
+    torch.testing.assert_close(task._reward_jump_height(), torch.tensor([0.15, 0.0]))
+    # * take-off reward only in the first half of the window
+    task.jump_timer[0] = 0.4
+    torch.testing.assert_close(task._reward_jump_takeoff(), torch.tensor([0.0, 0.0]))
+
+
+def test_jump_gates_motion_penalties():
+    task = _jump_task()
+    task.base_lin_vel = torch.tensor([[0.0, 0.0, 1.0], [0.0, 0.0, 1.0]])
+    task.base_ang_vel = torch.zeros(2, 3)
+    task.trigger_jump(torch.tensor([True, False]))
+    torch.testing.assert_close(task._reward_base_motion(), torch.tensor([0.0, 0.8]))

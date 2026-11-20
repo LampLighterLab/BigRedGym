@@ -317,3 +317,48 @@ class Go2DiagCRunnerCfg(Go2RunnerCfg):
 
     class runner(Go2RunnerCfg.runner):
         experiment_name = "diag_c"
+
+
+# * ---------------------------------------------------------------------
+# * Step 3: jump command (go2_se_jump / go2_se_jump_oracle). Warm-started
+# * from a walking go2_se_paper checkpoint (scripts/warm_start_jump.py).
+# * ---------------------------------------------------------------------
+
+
+class Go2SEJumpCfg(Go2SEPaperCfg):
+    class jump:
+        duration = 0.6  # [s] jump window
+        mean_interval = 3.0  # [s] mean time between random jumps
+        cooldown = 1.5  # [s] after a window, before the next random jump
+        max_takeoff_vel = 2.0  # [m/s] take-off reward is clipped here
+        max_height = 0.3  # [m] height-gain reward is clipped here
+
+
+class Go2SEJumpRunnerCfg(Go2SEPaperRunnerCfg):
+    class actor(Go2SEPaperRunnerCfg.actor):
+        obs = PROPRIO_OBS + ["commands", "jump_command"]
+
+    class critic(Go2SEPaperRunnerCfg.critic):
+        obs = Go2SEPaperRunnerCfg.critic.obs + ["jump_command"]
+
+        class reward(Go2SEPaperRunnerCfg.critic.reward):
+            # * the walking policy is already trained; no penalty ramp
+            neg_ramp_iterations = 0
+
+            class weights(Go2SEPaperRunnerCfg.critic.reward.weights):
+                # * per step, comparable to lin_vel_exp = 3: take-off at
+                # * ~1.5 m/s -> 3, airborne -> 2, 0.15 m gained -> 3
+                jump_takeoff = 2.0
+                jump_flight = 2.0
+                jump_height = 20.0
+
+    class runner(Go2SEPaperRunnerCfg.runner):
+        experiment_name = "go2_se_jump"
+
+
+class Go2SEJumpOracleRunnerCfg(Go2SEJumpRunnerCfg):
+    class state_estimator(Go2SEJumpRunnerCfg.state_estimator):
+        oracle = True
+
+    class runner(Go2SEJumpRunnerCfg.runner):
+        experiment_name = "go2_se_jump_oracle"

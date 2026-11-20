@@ -24,7 +24,7 @@ natural U/O pair collides with vsim's step toggle:
      N M             N / M   yaw left / right
                      R       reset envs
                      Esc     quit (or close the window)
-                     Up/Down up / down (command effects: student TODO)
+                     Up jump (go2_se_jump)
 
 GLFW (MuJoCo) uses ASCII codes for letter keys, so `ord(letter)` is the
 keycode. Each viewer adapter translates named special keys such as UP/DOWN
@@ -53,7 +53,7 @@ HELP_LINES = (
     "  I/K           forward / back",
     "  J/L           strafe left / strafe right",
     "  N/M           yaw left / yaw right",
-    "  Up/Down       up / down (command effects: student TODO)",
+    "  Up            jump (go2_se_jump)",
     "  R             reset envs",
     "  Esc / window  quit",
     "  commands step in 1/5 increments of max",
@@ -83,6 +83,9 @@ class TeleopCommands:
         env.commands[:, 0] = 1.0  # seed forward velocity so motion is visible
         if hasattr(env.cfg, "commands"):
             env.cfg.commands.resampling_time = env.max_episode_length_s + 1
+        # * jumps come from the Up arrow, not at random
+        if hasattr(env, "random_jumps"):
+            env.random_jumps = False
 
     def apply(self, action: str) -> None:
         """Apply one discrete press of ``action`` (see BINDINGS)."""
@@ -104,8 +107,12 @@ class TeleopCommands:
         elif action == "reset":
             self.env.timed_out[:] = True
             self.env.reset()
-        elif action in ("up", "down"):
-            pass  # * student TODO (e.g. jump command); no-op instead of crashing
+        elif action == "up":
+            # * jump, on envs that have one (go2_se_jump); no-op otherwise
+            if hasattr(self.env, "trigger_jump"):
+                self.env.trigger_jump()
+        elif action == "down":
+            pass  # * student TODO; no-op instead of crashing
         else:
             raise ValueError(f"unknown teleop action {action!r}")
 
