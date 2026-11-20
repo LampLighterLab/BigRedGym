@@ -144,3 +144,70 @@ def test_heading_reward_is_one_on_course_and_falls_with_heading_error():
     torch.testing.assert_close(
         reward, torch.tensor([1.0, math.exp(-1.0), math.exp(-((math.pi / 0.25) ** 2))])
     )
+
+
+def _base_sampling(monkeypatch, speed):
+    """Replace the parent class's command sampling with a fixed forward speed."""
+
+    def sample(self, mask):
+        self.commands[mask, 0] = speed
+        self.commands[mask, 2] = 0.3
+
+    monkeypatch.setattr(Go2Osc.__mro__[1], "_resample_commands", sample)
+
+
+def test_startstop_ramp_scale_grows_linearly_between_its_steps(monkeypatch):
+    task = make_task()
+    assert task._startstop_scale() == 1.0  # no ramp: full from the start
+    monkeypatch.setattr(task.cfg.commands, "startstop_ramp", [100, 200])
+    for step, share in [(0, 0.0), (100, 0.0), (150, 0.5), (200, 1.0), (500, 1.0)]:
+        task.common_step_counter = step
+        assert math.isclose(task._startstop_scale(), share)
+
+
+def test_no_stop_commands_before_the_startstop_ramp(monkeypatch):
+    _base_sampling(monkeypatch, speed=0.3)  # below the 0.5 m/s stop threshold
+    task = make_task(num_envs=256)
+    for name, value in [("zero_prob", 1.0), ("max_accel", None), ("startstop_ramp", [100, 200])]:
+        monkeypatch.setattr(task.cfg.commands, name, value, raising=False)
+    monkeypatch.setattr(task.cfg.osc, "stop_threshold", 0.5)
+    task.commands = torch.zeros(256, 4)
+    mask = torch.ones(256, dtype=torch.bool)
+
+    task.common_step_counter = 0  # before the ramp: slow commands walk at 0.5
+    task._resample_commands(mask)
+    assert torch.all(task.commands[:, 0] == 0.5)
+    assert torch.all(task.commands[:, 2] == 0.3)
+
+    task.common_step_counter = 200  # after it: every command stops
+    task._resample_commands(mask)
+    assert torch.all(task.commands[:, 0] == 0.0)
+    assert torch.all(task.commands[:, 2] == 0.0)
+
+
+def test_pushes_grow_over_the_ramp_and_leave_the_config_unchanged(monkeypatch):
+    seen = []
+    monkeypatch.setattr(
+        Go2Osc.__mro__[1],
+        "_push_robots",
+        lambda self: seen.append(self.cfg.push_robots.max_push_vel_xy),
+    )
+    task = make_task()
+    monkeypatch.setattr(task.cfg.push_robots, "max_push_vel_xy", 1.0)
+    monkeypatch.setattr(task.cfg.push_robots, "ramp_steps", 100)
+    for step in (25, 100, 400):
+        task.common_step_counter = step
+        task._push_robots()
+    assert seen == [0.25, 1.0, 1.0]
+    assert task.cfg.push_robots.max_push_vel_xy == 1.0
+
+
+def test_joint_speed_penalty_counts_only_the_share_above_the_soft_limit(monkeypatch):
+    task = make_task(num_envs=2)
+    monkeypatch.setattr(task.cfg.reward_settings, "speed_soft_limit", 0.85)
+    task.actuated_dof_indices = torch.arange(2)
+    task.dof_vel_limits = torch.tensor([10.0, 20.0])
+    # Robot 0 under the soft limit; robot 1: joint 0 at 105%, joint 1 at -95%.
+    task.dof_vel = torch.tensor([[8.0, -16.0], [10.5, -19.0]])
+    penalty = task._reward_joint_speed_limit()
+    assert torch.allclose(penalty, torch.tensor([0.0, -(0.20 + 0.10)]))

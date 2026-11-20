@@ -6,9 +6,13 @@
 # on_cell_change = "lazy"
 # ///
 """Hardware policies on MoLab: train, evaluate, and download the runs and the
-results. BATCH 8 (default) trains go2osc_baseline and tripedal_pronk in one
-stage (95% motor limits, 500 Hz physics, 2000 iterations from scratch);
-BATCH 7 is the earlier two-stage version described below.
+results. BATCH 9 (default) trains the 100 Hz curriculum tasks from scratch
+(go2osc_{baseline,track,even}_curriculum_100hz: pushes ramp in over the first
+500 iterations, start/stop over 800-1200, 95% torque clip, speed taper and a
+joint-speed penalty above 85%; 2500 iterations). BATCH 8 trains
+go2osc_baseline and tripedal_pronk in one stage (95% motor limits, 500 Hz
+physics, 2000 iterations from scratch); BATCH 7 is the earlier two-stage
+version described below.
 
 Policies (go2osc_config.FOLLOWUP_BATCHES[7]), each fine-tuned from its
 committed checkpoint at 95% of the actuator torque and speed limits with
@@ -19,8 +23,9 @@ committed checkpoint at 95% of the actuator torque and speed limits with
 Evaluation: the grid, pushes and start/stop (friction 0.3 if RUN_FRICTION),
 with a progress line per running run every minute.
 
-Split over two notebooks with PART (0: the first policy, 1: the second;
-None: both here). Run the cells top to bottom. Rerunning skips finished runs
+Split over two notebooks with PART (BATCH 7/8 - 0: the first policy, 1: the
+second; BATCH 9 - 0 and 1 take alternate runs of the queue, 8 and 7; None:
+everything here). Run the cells top to bottom. Rerunning skips finished runs
 and evaluations.
 """
 
@@ -124,10 +129,12 @@ def _():
     # BATCH 8: the hardware policies in one stage (tripedal_pronk,
     # go2osc_baseline; 2000 iterations from scratch). BATCH 7: the earlier
     # fine-tunes (1000 iterations from committed checkpoints).
-    BATCH = 8
+    # BATCH 9: the 100 Hz curriculum tasks (baseline, speed tracking, even
+    # load; 2500 iterations from scratch).
+    BATCH = 9
     PART = None
     SEEDS = 5
-    MAX_ITERATIONS = {7: 1000, 8: 2000}[BATCH]
+    MAX_ITERATIONS = {7: 1000, 8: 2000, 9: 2500}[BATCH]
     DEVICE = "cuda:0"
     NUM_ENVS = 4096
     EVAL_JOBS = 2  # evaluations at once on the GPU
@@ -138,12 +145,22 @@ def _():
     _all = {
         7: ["deploy_robust_clip_ft2", "even2.5_deploy_track_clip_ft2"],
         8: ["go2osc_baseline", "tripedal_pronk"],
+        9: [
+            "go2osc_baseline_curriculum_100hz",
+            "go2osc_track_curriculum_100hz",
+            "go2osc_even_curriculum_100hz",
+        ],
     }[BATCH]
-    SETTINGS = _all if PART is None else [_all[PART]]
-    # Hardware tasks (go2osc_baseline) have their own names.
+    # BATCH 9 splits the run queue (alternate runs) instead of the policies.
+    SETTINGS = _all if PART is None or BATCH == 9 else [_all[PART]]
+    # Hardware tasks (go2osc_baseline...) have their own names.
     TASKS = [s if s.startswith("go2osc_") else f"go2osc_wide_{s}" for s in SETTINGS]
     QUEUE = [(t, k) for k in range(SEEDS) for t in TASKS]
+    if BATCH == 9 and PART is not None:
+        QUEUE = QUEUE[PART::2]
     print(f"part {PART}: {SETTINGS}, {len(QUEUE)} runs of {MAX_ITERATIONS} iterations")
+    for _t, _k in QUEUE:
+        print(f"  {_t} seed{_k}")
     return (
         BATCH,
         DEVICE,
@@ -162,7 +179,8 @@ def _(mo):
     mo.md("""
     ## Train
 
-    About 25-40 min per run (500 Hz physics). Time the first run before
+    About 40 min per run at 500 Hz physics (batches 7-8), 21 min at 100 Hz
+    (batch 9, 2500 iterations). Time the first run before
     leaving it; rerun this cell after an interruption to continue.
     """)
     return

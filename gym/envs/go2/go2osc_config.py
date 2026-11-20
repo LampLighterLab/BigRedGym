@@ -86,6 +86,13 @@ class Go2OscCfg(Go2Cfg):
             lin_vel_y = 0.0  # max [m/s]
             yaw_vel = 0.0  # max [rad/s]
 
+        # Start/stop curriculum [first, last] control step (8 per training
+        # iteration): no stop commands or at-rest starts before `first`, then
+        # zero_prob, rest_prob and the share of slow commands that become stop
+        # grow linearly to full at `last` (slow commands that do not stop are
+        # raised to osc.stop_threshold). None: full from the start.
+        startstop_ramp = None
+
     class push_robots(Go2Cfg.push_robots):
         toggle = True
         interval_s = 10
@@ -134,6 +141,9 @@ class Go2OscCfg(Go2Cfg):
         # Stand-still reward: off for stand_grace [s] after a stop command,
         # then phased in over the next stand_grace seconds.
         stand_grace = 0.5
+        # Joint-speed penalty (weight joint_speed_limit): starts at this share
+        # of each joint's velocity limit.
+        speed_soft_limit = 0.85
 
     class scaling(Go2Cfg.scaling):
         phase_vel = 2 * 3.14159 * 4.0
@@ -186,6 +196,7 @@ class Go2OscRunnerCfg(Go2RunnerCfg):
                 cost_of_transport = 0.0
                 flight = 0.0
                 stand_still = 0.0
+                joint_speed_limit = 0.0
 
             class termination_weight:
                 termination = 0.15
@@ -555,6 +566,47 @@ HARDWARE_TASKS = {
         "push": {**ROBUST_PUSH, "ramp_steps": 0},
         "max_iterations": 2000,
     },
+    # go2osc_baseline with curricula (go2osc_baseline itself, trained from
+    # scratch, learned a two-leg hop on FL+RL): pushes grow to full size over
+    # the first 500 iterations (ROBUST_PUSH), and stop commands and at-rest
+    # starts are off until iteration 800, then grow to full by 1200 (8
+    # control steps per iteration).
+    "go2osc_baseline_curriculum": {
+        **DEPLOY_ROBUST,
+        "stand_still": 0.1,
+        **LIMITS95,
+        "push": ROBUST_PUSH,
+        "commands": {**DEPLOY_ROBUST["commands"], "startstop_ramp": [800 * 8, 1200 * 8]},
+        "max_iterations": 2000,
+    },
+}
+# The same curricula at 100 Hz physics (about 1.5x faster to train). At 100 Hz
+# the speed taper alone lets joints overshoot (a calf passes its limit within
+# one physics step), so the policy is also penalized for joint speeds above
+# 85% of the limit (joint_speed_limit); torque stays clipped at 95%. Check
+# peak joint speeds at 500 Hz after training. 2500 iterations: the earlier
+# 100 Hz runs levelled off by ~1000, and start/stop is at full strength only
+# from 1200. track: stronger speed and heading tracking (DEPLOY_TRACK);
+# even: that plus the even-load reward (as tripedal_pronk).
+LIMITS95_100HZ = {
+    "motor_limits": LIMITS95["motor_limits"],
+    "joint_speed_limit": 10.0,
+    "reward_settings": {"speed_soft_limit": 0.85},
+}
+HARDWARE_TASKS["go2osc_baseline_curriculum_100hz"] = {
+    **HARDWARE_TASKS["go2osc_baseline_curriculum"],
+    "sim_hz": None,
+    **LIMITS95_100HZ,
+    "max_iterations": 2500,
+}
+HARDWARE_TASKS["go2osc_track_curriculum_100hz"] = {
+    **HARDWARE_TASKS["go2osc_baseline_curriculum_100hz"],
+    "tracking_lin_vel": DEPLOY_TRACK["tracking_lin_vel"],
+    "heading": DEPLOY_TRACK["heading"],
+}
+HARDWARE_TASKS["go2osc_even_curriculum_100hz"] = {
+    **HARDWARE_TASKS["go2osc_track_curriculum_100hz"],
+    "even_load": 2.5,
 }
 WIDE_SETTINGS.update({k: v for b in FOLLOWUP_BATCHES.values() for k, v in b.items()})
 # Each follow-up setting's reference: the setting it adds one change to.

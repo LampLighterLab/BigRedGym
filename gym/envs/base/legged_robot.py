@@ -345,16 +345,11 @@ class LeggedRobot(BaseTask):
         masked_update(self.root_states[:, 0:7], root_pose, reset_mask)
         masked_update(self.root_states[:, 7:13], root_velocity, reset_mask)
 
-    def _push_scale(self):
-        """Fraction of push_robots.max_push_vel_xy used now (a curriculum
-        can grow it during training); 1 in the base class."""
-        return 1.0
-
     def _push_robots(self):
         """Random pushes the robots. Emulates an impulse by setting a
         randomized base velocity.
         """
-        max_vel = self.cfg.push_robots.max_push_vel_xy * self._push_scale()
+        max_vel = self.cfg.push_robots.max_push_vel_xy
         box_dims = (
             torch.tensor(self.cfg.push_robots.push_box_dims, device=self.device) / 2.0
         )

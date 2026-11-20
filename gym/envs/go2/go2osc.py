@@ -165,12 +165,24 @@ class Go2Osc(Go2):
         (zero), forward commands below osc.stop_threshold also become stop,
         and a stop command has no yaw rate (no turning on the spot). With
         commands.max_accel the forward command then ramps to its new value,
-        except right after a reset, where it starts at it."""
+        except right after a reset, where it starts at it. During the
+        commands.startstop_ramp curriculum, stops come in gradually."""
         previous = self.commands[:, 0].clone()
         super()._resample_commands(command_mask)
         cmd = self.cfg.commands
-        zero_prob = getattr(cmd, "zero_prob", 0.0)
-        stop = torch.abs(self.commands[:, 0]) < self.cfg.osc.stop_threshold
+        threshold = self.cfg.osc.stop_threshold
+        share = self._startstop_scale()
+        zero_prob = getattr(cmd, "zero_prob", 0.0) * share
+        slow = torch.abs(self.commands[:, 0]) < threshold
+        if share < 1.0:
+            # Slow commands stop with probability `share`; the others are
+            # raised to the stop threshold (walking at the slowest speed).
+            keep = command_mask & slow & (
+                torch.rand(self.num_envs, device=self.device) >= share
+            )
+            self.commands[keep, 0] = threshold
+            slow &= ~keep
+        stop = slow
         if zero_prob > 0.0:
             stop |= torch.rand(self.num_envs, device=self.device) < zero_prob
         stop &= command_mask
@@ -332,6 +344,7 @@ class Go2Osc(Go2):
         self._reset_locked_leg(reset_mask)
         # init_state.rest_prob of resets start the base at rest.
         rest_prob = getattr(self.cfg.init_state, "rest_prob", 0.0)
+        rest_prob *= self._startstop_scale()
         if rest_prob > 0.0:
             rest = reset_mask & (
                 torch.rand(self.num_envs, device=self.device) < rest_prob
@@ -406,6 +419,28 @@ class Go2Osc(Go2):
         ramp = getattr(self.cfg.push_robots, "ramp_steps", 0)
         return min(1.0, self.common_step_counter / ramp) if ramp else 1.0
 
+    def _push_robots(self):
+        """Base pushes at the curriculum's size. Scaled here rather than in
+        the base class, so this file works with an unmodified base env."""
+        cfg = self.cfg.push_robots
+        full = cfg.max_push_vel_xy
+        cfg.max_push_vel_xy = full * self._push_scale()
+        try:
+            super()._push_robots()
+        finally:
+            cfg.max_push_vel_xy = full
+
+    def _startstop_scale(self):
+        """Start/stop curriculum: 0 before commands.startstop_ramp[0] control
+        steps, growing linearly to 1 at startstop_ramp[1] (None: always 1)."""
+        ramp = getattr(self.cfg.commands, "startstop_ramp", None)
+        if not ramp:
+            return 1.0
+        first, last = ramp
+        if last <= first:
+            return float(self.common_step_counter >= first)
+        return min(1.0, max(0.0, (self.common_step_counter - first) / (last - first)))
+
     def _reward_power_smooth(self):
         """Penalize joint power that swings within a stride (all legs pushing
         at once, as in a hop): squared deviation of the total joint power from
@@ -428,6 +463,16 @@ class Go2Osc(Go2):
         scale = torch.clamp((self.stop_time - grace) / grace, 0.0, 1.0)
         speed = self.dof_vel[:, self.actuated_dof_indices].square().mean(dim=1)
         return -speed * scale
+
+    def _reward_joint_speed_limit(self):
+        """Penalize joint speeds above reward_settings.speed_soft_limit of each
+        joint's velocity limit: the excess as a share of the limit, summed
+        over the actuated joints (not capped, so a joint far over the limit
+        is pushed back harder)."""
+        idx = self.actuated_dof_indices
+        share = self.dof_vel[:, idx].abs() / self.dof_vel_limits[idx]
+        excess = share - self.cfg.reward_settings.speed_soft_limit
+        return -excess.clamp(min=0.0).sum(dim=1)
 
     def _reward_cost_of_transport(self):
         """Penalize energy per distance: joint power over weight x commanded
