@@ -244,8 +244,12 @@ def run_study(args):
     data_dir, _ = paths()
     logs = data_dir / "logs"
     logs.mkdir(parents=True, exist_ok=True)
+    from gym.envs.go2.go2osc_config import HARDWARE_TASKS
+
     tasks = (
-        None if args.settings is None else {f"go2osc_wide_{s}" for s in args.settings}
+        None
+        if args.settings is None
+        else {s if s in HARDWARE_TASKS else f"go2osc_wide_{s}" for s in args.settings}
     )
     todo = []
     for task, run in study_runs(True):

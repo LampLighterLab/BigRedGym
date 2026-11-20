@@ -183,7 +183,9 @@ def evaluate(args):
 
     from gym.envs.go2.go2osc_config import study_task_name  # noqa: F401  (registers)
 
-    wide = args.task.startswith("go2osc_wide_")
+    from gym.envs.go2.go2osc_config import HARDWARE_TASKS
+
+    wide = args.task.startswith("go2osc_wide_") or args.task in HARDWARE_TASKS
     speeds = WIDE_SPEEDS if wide else STUDY_SPEEDS
     omegas = WIDE_OMEGAS if wide else STUDY_OMEGAS
     play_argv = ["--task", args.task, "--headless", "--no-keyboard", "--no-record"]

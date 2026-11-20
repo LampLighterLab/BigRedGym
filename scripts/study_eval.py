@@ -25,6 +25,7 @@ from pathlib import Path
 
 from eval_progress import JobPool, interval_from_env, unbuffered
 from gym.envs.go2.go2osc_config import (
+    HARDWARE_TASKS,
     STUDY_SETTINGS,
     SWEEP_OMEGAS,
     SWEEP_SPEEDS,
@@ -82,8 +83,10 @@ def get_args(argv=None):
 def study_runs(wide=False):
     """(task, run directory name) of every study run with checkpoints."""
     found = []
-    for setting in WIDE_SETTINGS if wide else STUDY_SETTINGS:
-        task = study_task_name(setting, wide)
+    tasks = [study_task_name(s, wide) for s in (WIDE_SETTINGS if wide else STUDY_SETTINGS)]
+    if wide:
+        tasks += list(HARDWARE_TASKS)  # own names, evaluated like the wide study
+    for task in tasks:
         for run in sorted((Path(GYM_ROOT_DIR) / "logs" / task).glob("*")):
             if any(run.glob("model_*.pt")):
                 found.append((task, run.name))

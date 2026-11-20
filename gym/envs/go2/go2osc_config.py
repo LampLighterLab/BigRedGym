@@ -528,8 +528,8 @@ FOLLOWUP_BATCHES = {
     # (95% motor limits, 500 Hz physics) trained from scratch for 2000
     # iterations instead of fine-tuned, with full-size pushes from the start
     # (ramp_steps 0: the base push code, nothing else needed), so the two
-    # go2osc files alone reproduce them. tripedal_pronk: even load;
-    # baseline_real: the baseline rewards (bundle: tripedal_trot).
+    # go2osc files alone reproduce them. tripedal_pronk: even load (the
+    # baseline-reward version is HARDWARE_TASKS["go2osc_baseline"]).
     8: {
         "tripedal_pronk": {
             "even_load": 2.5,
@@ -539,13 +539,21 @@ FOLLOWUP_BATCHES = {
             "push": {**ROBUST_PUSH, "ramp_steps": 0},
             "max_iterations": 2000,
         },
-        "baseline_real": {
-            **DEPLOY_ROBUST,
-            "stand_still": 0.1,
-            **LIMITS95,
-            "push": {**ROBUST_PUSH, "ramp_steps": 0},
-            "max_iterations": 2000,
-        },
+    },
+}
+# Hardware tasks under their own names (registered with STUDY_TASKS; the
+# evaluation scripts treat them like wide-study tasks). go2osc_baseline: the
+# baseline rewards + start/stop and sim-to-real training (DEPLOY_ROBUST,
+# stand-still 0.1) + 95% torque/speed limits at 500 Hz physics, trained from
+# scratch for 2000 iterations with full-size pushes from the start (the base
+# push code), so go2osc.py and this file alone reproduce it.
+HARDWARE_TASKS = {
+    "go2osc_baseline": {
+        **DEPLOY_ROBUST,
+        "stand_still": 0.1,
+        **LIMITS95,
+        "push": {**ROBUST_PUSH, "ramp_steps": 0},
+        "max_iterations": 2000,
     },
 }
 WIDE_SETTINGS.update({k: v for b in FOLLOWUP_BATCHES.values() for k, v in b.items()})
@@ -583,14 +591,21 @@ def study_task_name(setting, wide=False):
 
 def eval_grid(task):
     """(speeds, frequencies) at which grid_eval.py evaluates a task."""
-    if task.startswith("go2osc_wide_"):
+    if task.startswith("go2osc_wide_") or task in HARDWARE_TASKS:
         return WIDE_SPEEDS, WIDE_OMEGAS
     return SWEEP_SPEEDS, SWEEP_OMEGAS
 
 
 def study_cfgs(setting, wide=False):
-    """Env and runner config classes for one reward-study setting."""
-    changed = dict((WIDE_SETTINGS if wide else STUDY_SETTINGS)[setting])
+    """Env and runner config classes for one reward-study setting (or a
+    HARDWARE_TASKS name: wide, logged under that name)."""
+    hardware = setting in HARDWARE_TASKS
+    changed = dict(
+        HARDWARE_TASKS[setting]
+        if hardware
+        else (WIDE_SETTINGS if wide else STUDY_SETTINGS)[setting]
+    )
+    wide = wide or hardware
     reward_settings = changed.pop("reward_settings", {})
     push = changed.pop("push", None)
     friction = changed.pop("friction", None)
@@ -611,7 +626,7 @@ def study_cfgs(setting, wide=False):
                     pass
 
         class runner(Go2OscFrontLockedOmegaRunnerCfg.runner):
-            experiment_name = study_task_name(setting, wide)
+            experiment_name = setting if hardware else study_task_name(setting, wide)
 
     if init_from is not None:
         RunnerCfg.runner.init_from = init_from  # loaded by scripts/train.py
@@ -704,4 +719,5 @@ def study_cfgs(setting, wide=False):
 STUDY_TASKS = {
     **{study_task_name(s): study_cfgs(s) for s in STUDY_SETTINGS},
     **{study_task_name(s, True): study_cfgs(s, True) for s in WIDE_SETTINGS},
+    **{name: study_cfgs(name) for name in HARDWARE_TASKS},
 }

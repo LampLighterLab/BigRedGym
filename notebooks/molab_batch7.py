@@ -6,7 +6,7 @@
 # on_cell_change = "lazy"
 # ///
 """Hardware policies on MoLab: train, evaluate, and download the runs and the
-results. BATCH 8 (default) trains tripedal_pronk and baseline_real in one
+results. BATCH 8 (default) trains go2osc_baseline and tripedal_pronk in one
 stage (95% motor limits, 500 Hz physics, 2000 iterations from scratch);
 BATCH 7 is the earlier two-stage version described below.
 
@@ -122,7 +122,7 @@ def _():
     # --- edit, then run --------------------------------------------------------
     # PART: 0 or 1 splits the two policies over two notebooks; None runs both.
     # BATCH 8: the hardware policies in one stage (tripedal_pronk,
-    # baseline_real; 2000 iterations from scratch). BATCH 7: the earlier
+    # go2osc_baseline; 2000 iterations from scratch). BATCH 7: the earlier
     # fine-tunes (1000 iterations from committed checkpoints).
     BATCH = 8
     PART = None
@@ -137,10 +137,11 @@ def _():
 
     _all = {
         7: ["deploy_robust_clip_ft2", "even2.5_deploy_track_clip_ft2"],
-        8: ["baseline_real", "tripedal_pronk"],
+        8: ["go2osc_baseline", "tripedal_pronk"],
     }[BATCH]
     SETTINGS = _all if PART is None else [_all[PART]]
-    TASKS = [f"go2osc_wide_{s}" for s in SETTINGS]
+    # Hardware tasks (go2osc_baseline) have their own names.
+    TASKS = [s if s.startswith("go2osc_") else f"go2osc_wide_{s}" for s in SETTINGS]
     QUEUE = [(t, k) for k in range(SEEDS) for t in TASKS]
     print(f"part {PART}: {SETTINGS}, {len(QUEUE)} runs of {MAX_ITERATIONS} iterations")
     return (
