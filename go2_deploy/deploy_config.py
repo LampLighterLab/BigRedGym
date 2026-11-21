@@ -9,18 +9,27 @@ _ENV_CFG = type(task_registry.env_cfgs[TASK_NAME])
 _TRAIN_CFG = type(task_registry.train_cfgs[TASK_NAME])
 
 
+def _single_gain(gains):
+    """Unitree takes one kp/kd here, so training must use one value per gain."""
+    values = set(gains.values())
+    if len(values) != 1:
+        raise ValueError(f"deploy expects one gain for every joint, got {gains}")
+    return values.pop()
+
+
 class DeployConfig:
     task_name = TASK_NAME
 
-    ctrl_freq = 100  # Hz
-
-    kp = 30.0  # Stiffness constant
-    kd = 2.0  # Damping constant
+    # Control rate and PD gains must match training, so take them from the task.
+    ctrl_freq = _ENV_CFG.control.ctrl_frequency  # Hz
+    kp = _single_gain(_ENV_CFG.control.stiffness)  # Stiffness constant
+    kd = _single_gain(_ENV_CFG.control.damping)  # Damping constant
 
     phase_frequency = 2.0  # Go2Trot gait frequency in Hz (cycles/s)
 
-    # Apply exponential moving average to actions
-    exp_moving_avg = True
+    # Apply exponential moving average to actions. Training applies none, and
+    # the actor observes the smoothed action, so leave this off.
+    exp_moving_avg = False
     ema_smoothing_factor = 0.1
 
     # Must match the trained actor exactly, so take it from the task config.
@@ -30,11 +39,12 @@ class DeployConfig:
     class DeployScaling(_ENV_CFG.scaling):
         pass
 
-    # Set ranges of joystick commands
+    # Full joystick deflection commands +/- these values. __init__ rejects any
+    # limit outside the training command ranges.
     command_limits = {
-        "lin_vel_x": 2.0,  # m/s
-        "lin_vel_y": 1.0,  # m/s
-        "yaw_vel": 3.0,  # rad/s
+        "lin_vel_x": 1.0,  # m/s; training covers -1.0 to 2.5
+        "lin_vel_y": 0.5,  # m/s
+        "yaw_vel": 1.5,  # rad/s
     }
 
     # Specify size of observation vector. should not have to modify this
@@ -74,6 +84,26 @@ class DeployConfig:
             raise ValueError("kp should be > 0")
         if self.kd <= 0:
             raise ValueError("kd should be > 0")
+        ranges = _ENV_CFG.commands.ranges
+        # The joystick is symmetric, so x is bounded by the slower direction.
+        trained = {
+            "lin_vel_x": min(-min(ranges.lin_vel_x), max(ranges.lin_vel_x)),
+            "lin_vel_y": ranges.lin_vel_y,
+            "yaw_vel": ranges.yaw_vel,
+        }
+        for name, limit in self.command_limits.items():
+            if not 0 <= limit <= trained[name]:
+                raise ValueError(
+                    f"command_limits[{name!r}] = {limit} is outside the "
+                    f"trained range [0, {trained[name]}]"
+                )
+        if hasattr(_ENV_CFG.control, "gait_freq"):
+            low, high = _ENV_CFG.control.gait_freq
+            if not low <= self.phase_frequency <= high:
+                raise ValueError(
+                    f"phase_frequency {self.phase_frequency} Hz is outside the "
+                    f"trained gait_freq [{low}, {high}]"
+                )
         for obs in self.obs_vector:
             if obs not in self.obs_sizes:
                 raise KeyError("observation " + obs + " not supported")

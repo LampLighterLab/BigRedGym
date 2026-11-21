@@ -54,16 +54,16 @@ Instructions are for Linux (Ubuntu)
 ## Configure deployment
 
 Settings can be configured in `go2_deploy/deploy_config.py`. Options include:
-- Control frequency
-- kp (Stiffness constant)
-- kd (Damping constant)
-- Observation vector: a list of available observations can be found in `obs_sizes`
 - Command limits (ex. pushing the joystick all the way to the right commands x m/s)
 - Gait frequency (`phase_frequency`, in Hz): controls the Go2Trot phase clock and its frequency observation
+- Action smoothing (`exp_moving_avg`): off by default, because training applies none
 
 `TASK_NAME` at the top of `deploy_config.py` selects the trained task (`go2payload`
-by default). The observation vector, observation scaling and nominal posture are
-read from that task's config, so they always match what the actor was trained on.
+by default). The control frequency, kp, kd, observation vector, observation scaling
+and nominal posture are read from that task's config, so they always match what the
+actor was trained on. `DeployConfig()` refuses command limits or a gait frequency
+outside the training ranges; the joystick is symmetric, so the forward limit is
+also bounded by the slowest trained reverse speed.
 
 For current Go2Trot policies, joint-position observations are relative to the
 static nominal posture from the task config (hip 0, thigh 0.96, calf -1.36 radians).
@@ -71,7 +71,7 @@ Scaled policy actions are offsets from that posture. The gait reference is a
 training reward only; deployment retains the sine/cosine phase observations and
 observes the controller's active gait frequency, divided by its observation scale.
 The previous-action observation contains the applied offset after optional EMA
-smoothing. Neither that offset nor the resulting position target is clipped.
+smoothing (off by default). Neither that offset nor the resulting position target is clipped.
 Deployment sends position targets and PD gains to Unitree; this path does not
 compute or clamp torques locally.
 

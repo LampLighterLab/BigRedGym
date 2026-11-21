@@ -194,3 +194,38 @@ def test_existing_lowcmd_receives_permuted_unrestricted_targets_and_scaled_gains
     assert all(motor.kp == controller.cfg.kp * 0.5 for motor in command.motor_cmd[:12])
     assert all(motor.kd == controller.cfg.kd * 0.25 for motor in command.motor_cmd[:12])
     assert all(motor.q == 0.0 for motor in command.motor_cmd[12:])
+
+
+def test_deploy_controller_matches_training_controller():
+    from gym.envs.go2.go2payload_config import Go2PayloadCfg
+
+    cfg = DeployConfig()
+    assert cfg.task_name == "go2payload"
+    assert cfg.ctrl_freq == Go2PayloadCfg.control.ctrl_frequency == 50
+    assert set(Go2PayloadCfg.control.stiffness.values()) == {cfg.kp}
+    assert set(Go2PayloadCfg.control.damping.values()) == {cfg.kd}
+    # Training applies no action smoothing, and the actor observes the result.
+    assert not cfg.exp_moving_avg
+
+
+@pytest.mark.parametrize(
+    "name, limit",
+    [
+        # Symmetric joystick: 2.0 forward also means -2.0 in reverse, and
+        # training only reverses to -1.0 m/s.
+        ("lin_vel_x", 2.0),
+        ("lin_vel_y", 1.0),
+        ("yaw_vel", 3.0),
+    ],
+)
+def test_command_limits_outside_training_are_rejected(monkeypatch, name, limit):
+    limits = dict(DeployConfig.command_limits, **{name: limit})
+    monkeypatch.setattr(DeployConfig, "command_limits", limits)
+    with pytest.raises(ValueError, match=name):
+        DeployConfig()
+
+
+def test_gait_frequency_outside_training_is_rejected(monkeypatch):
+    monkeypatch.setattr(DeployConfig, "phase_frequency", 4.0)
+    with pytest.raises(ValueError, match="gait_freq"):
+        DeployConfig()
