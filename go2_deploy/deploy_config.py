@@ -1,4 +1,6 @@
 import gym.envs  # noqa: F401
+from gym import GYM_ROOT_DIR
+from gym.envs.base.urdf_limits import parse_urdf_position_limits
 from gym.utils.task_registry import task_registry
 import torch
 
@@ -7,6 +9,9 @@ TASK_NAME = "go2payload"
 # Registered configs are instances; DeployScaling subclasses the class itself.
 _ENV_CFG = type(task_registry.env_cfgs[TASK_NAME])
 _TRAIN_CFG = type(task_registry.train_cfgs[TASK_NAME])
+_URDF_POS_LIMITS = parse_urdf_position_limits(
+    _ENV_CFG.asset.file.format(GYM_ROOT_DIR=GYM_ROOT_DIR)
+)
 
 
 def _single_gain(gains):
@@ -73,6 +78,16 @@ class DeployConfig:
         ]
     )
 
+    # URDF [lower, upper] joint limits (rad), same order. Position targets are
+    # clamped to these so the motors never drive into the hard stops.
+    dof_pos_limits = torch.tensor(
+        [_URDF_POS_LIMITS[name] for name in _ENV_CFG.asset.robot_layout.dof_names]
+    )
+
+    # s: INTERMEDIATE ramps linearly from the measured pose to default_dof_pos
+    # over this time; CUSTOM_CTRL can only start once the ramp has finished.
+    intermediate_ramp_time = 2.0
+
     # s: how often terminal should print ctrl freq, instructions
     terminal_log_period = 2.0
 
@@ -84,6 +99,8 @@ class DeployConfig:
             raise ValueError("kp should be > 0")
         if self.kd <= 0:
             raise ValueError("kd should be > 0")
+        if self.intermediate_ramp_time <= 0:
+            raise ValueError("intermediate_ramp_time should be > 0")
         ranges = _ENV_CFG.commands.ranges
         # The joystick is symmetric, so x is bounded by the slower direction.
         trained = {

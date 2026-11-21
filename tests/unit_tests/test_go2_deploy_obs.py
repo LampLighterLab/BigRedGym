@@ -174,12 +174,18 @@ def test_action_target_roundtrip_uses_static_default_pose(task_name):
     )
 
 
-def test_existing_lowcmd_receives_permuted_unrestricted_targets_and_scaled_gains():
+def _lowcmd_controller():
     controller = _controller()
     controller.default_lowcmd = SimpleNamespace(
         motor_cmd=[SimpleNamespace(q=0.0, kp=0.0, kd=0.0) for _ in range(20)]
     )
-    canonical_target = torch.arange(12, dtype=torch.float) - 6
+    return controller
+
+
+def test_existing_lowcmd_receives_permuted_targets_and_scaled_gains():
+    controller = _lowcmd_controller()
+    # Distinct in-range targets, so any permutation error is visible.
+    canonical_target = controller.cfg.default_dof_pos + torch.linspace(-0.3, 0.3, 12)
     action = canonical_target - controller.cfg.default_dof_pos
 
     command = deploy_utility.action_to_lowcmd(
@@ -229,3 +235,48 @@ def test_gait_frequency_outside_training_is_rejected(monkeypatch):
     monkeypatch.setattr(DeployConfig, "phase_frequency", 4.0)
     with pytest.raises(ValueError, match="gait_freq"):
         DeployConfig()
+
+
+def test_lowcmd_clamps_targets_to_urdf_limits():
+    controller = _lowcmd_controller()
+    limits = controller.cfg.dof_pos_limits
+    action = torch.full((12,), 10.0)
+    action[::2] = -10.0
+
+    command = deploy_utility.action_to_lowcmd(controller, action)
+
+    expected = torch.where(action > 0, limits[:, 1], limits[:, 0])
+    torch.testing.assert_close(
+        torch.tensor([motor.q for motor in command.motor_cmd[:12]]),
+        expected[SDK_IN_QGYM_ORDER],
+    )
+
+
+def test_urdf_limits_are_canonical_and_contain_nominal_pose():
+    cfg = DeployConfig()
+    lower, upper = cfg.dof_pos_limits.unbind(1)
+    assert cfg.dof_pos_limits.shape == (12, 2)
+    # FL hip, thigh and calf ranges from go2.urdf.
+    torch.testing.assert_close(lower[:3], torch.tensor([-1.0472, -1.5708, -2.7227]))
+    torch.testing.assert_close(upper[:3], torch.tensor([1.0472, 3.4907, -0.83776]))
+    assert ((lower < cfg.default_dof_pos) & (cfg.default_dof_pos < upper)).all()
+
+
+def test_intermediate_ramp_starts_at_measured_pose_and_ends_at_nominal():
+    controller, message = _controller(), _message()
+    # Unitree stand pose, in SDK motor order (FR, FL, RR, RL).
+    for motor, position in zip(message.motor_state, [0.0, 0.67, -1.30] * 4):
+        motor.q = position
+    start = deploy_utility.get_dof_pos(message)
+    nominal = controller.cfg.default_dof_pos
+
+    def commanded(elapsed):
+        target = deploy_utility.ramp_target(start, nominal, elapsed, 2.0)
+        action = deploy_utility.target_pos_to_action(controller, target)
+        return deploy_utility.action_to_target_pos(controller, action)
+
+    # The first target is where the joints are, not an offset from nominal.
+    torch.testing.assert_close(commanded(0.0), torch.tensor([0.0, 0.67, -1.30] * 4))
+    torch.testing.assert_close(commanded(1.0), (start + nominal) / 2)
+    torch.testing.assert_close(commanded(2.0), nominal)
+    torch.testing.assert_close(commanded(5.0), nominal)
