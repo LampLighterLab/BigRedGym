@@ -43,11 +43,11 @@ class Go2PayloadRunnerCfg(Go2TrotRunnerCfg):
         class noise(Go2TrotRunnerCfg.actor.noise):
             # Std in physical units, keyed by actor obs name; the runner always
             # applies it (add_noise is unused) and divides by obs scaling.
-            # Magnitudes follow Unitree's rl_gym Go2 defaults.
-            base_ang_vel = 0.2  # rad/s
-            projected_gravity = 0.05
-            dof_pos_obs = 0.01  # rad
-            dof_vel = 1.5  # rad/s
+            # Std of Unitree rl_gym's uniform Go2 noise (its scale / sqrt(3)).
+            base_ang_vel = 0.115  # rad/s
+            projected_gravity = 0.029
+            dof_pos_obs = 0.006  # rad
+            dof_vel = 0.87  # rad/s
 
     class critic(Go2TrotRunnerCfg.critic):
         obs = [

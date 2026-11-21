@@ -5,6 +5,7 @@ Usage:
     uv run scripts/play.py --task mini_cheetah --num_envs 8
     uv run scripts/play.py --task mini_cheetah --load_run May08_12-34-56_ \
                            --checkpoint 1500
+    uv run scripts/play.py --task go2payload --payload off    # or --payload 3.0
 
 Supports MuJoCo CPU/Warp and optional VSim checkpoints.
 """
@@ -14,8 +15,34 @@ import random
 
 import torch
 
+from gym.envs.base.domain_randomization import set_domain_randomization_range
 from gym.utils.helpers import set_seed
 from gym.utils.task_registry import task_registry
+
+
+def _payload_arg(value):
+    if value in ("config", "off"):
+        return value
+    try:
+        mass = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f'expected "config", "off" or a mass in kg, got {value!r}'
+        )
+    if mass < 0:
+        raise argparse.ArgumentTypeError(f"payload mass must be >= 0, got {mass}")
+    return mass
+
+
+def apply_payload_override(env_cfg, payload):
+    """Keep the configured payload, remove it, or fix its mass with a centered COM."""
+    if payload == "config":
+        return
+    if payload == "off":
+        set_domain_randomization_range(env_cfg, "payload_mass_range", None)
+        return
+    set_domain_randomization_range(env_cfg, "payload_mass_range", [payload, payload])
+    env_cfg.domain_randomization.payload.com_offset_range = [[0.0, 0.0]] * 3
 
 
 def get_play_args(argv=None):
@@ -46,6 +73,14 @@ def get_play_args(argv=None):
         "--original_cfg",
         action="store_true",
         help="Load environment and runner configs saved with the selected run.",
+    )
+    parser.add_argument(
+        "--payload",
+        type=_payload_arg,
+        default="config",
+        help='"config" keeps the configured payload randomization, "off" removes '
+        "the payload body, and a number fixes the payload mass in kg with its "
+        "COM at the mount (default: config)",
     )
     parser.add_argument("--headless", action="store_true", default=False)
     parser.add_argument(
@@ -88,6 +123,7 @@ def setup(args):
 
     # Play-time overrides — small batch, long episodes, no pushes.
     env_cfg.env.num_envs = args.num_envs
+    apply_payload_override(env_cfg, args.payload)
     env_cfg.env.episode_length_s = 50
     if hasattr(env_cfg, "commands"):
         env_cfg.commands.resampling_time = 9999
