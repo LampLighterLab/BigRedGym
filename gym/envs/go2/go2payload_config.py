@@ -2,6 +2,11 @@ from gym.envs.go2.go2trot_config import Go2TrotCfg, Go2TrotRunnerCfg
 
 
 class Go2PayloadCfg(Go2TrotCfg):
+    class control(Go2TrotCfg.control):
+        # Policy stays at 50 Hz; PD and contacts run 4 substeps per action so
+        # the policy can't exploit coarse 20 ms physics the robot doesn't have.
+        desired_sim_frequency = 200
+
     class commands(Go2TrotCfg.commands):
         class ranges(Go2TrotCfg.commands.ranges):
             # Fixed height: the actor doesn't observe it, matching deploy.
@@ -34,6 +39,15 @@ class Go2PayloadRunnerCfg(Go2TrotRunnerCfg):
             "phase_obs",
             "phase_frequency",
         ]
+
+        class noise(Go2TrotRunnerCfg.actor.noise):
+            # Std in physical units, keyed by actor obs name; the runner always
+            # applies it (add_noise is unused) and divides by obs scaling.
+            # Magnitudes follow Unitree's rl_gym Go2 defaults.
+            base_ang_vel = 0.2  # rad/s
+            projected_gravity = 0.05
+            dof_pos_obs = 0.01  # rad
+            dof_vel = 1.5  # rad/s
 
     class critic(Go2TrotRunnerCfg.critic):
         obs = [
