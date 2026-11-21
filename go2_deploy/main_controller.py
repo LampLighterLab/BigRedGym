@@ -47,7 +47,7 @@ class MainController:
             self.obs_vec_size += self.cfg.obs_sizes[obs]
 
         self._init_buffers()
-        if self.cfg.task_name == "go2trot":
+        if "phase_obs" in self.cfg.obs_vector:
             self._init_go2trot_buffers()
 
         self._init_unitree_clients()
@@ -162,7 +162,7 @@ class MainController:
     # Read last lowstate msg, publish LowCmd_
     def _control_loop(self):
         t = time.monotonic()
-        if self.cfg.task_name == "go2trot":
+        if "phase_obs" in self.cfg.obs_vector:
             self._process_go2trot_buffers(t)
 
         with self.last_command_lock:

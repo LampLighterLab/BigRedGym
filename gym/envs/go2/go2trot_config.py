@@ -65,8 +65,8 @@ class Go2TrotCfg(Go2Cfg):
             lin_vel_x = [-1.0, -0.5, 0.0, 0.5, 1.0, 1.75, 2.5]
             lin_vel_y = 0.5
             yaw_vel = 1.5
-            # Fixed height: the actor doesn't observe it, matching deploy.
-            base_height = [0.30, 0.30]
+            base_height = [0.18, 0.38]
+            #test these numbers and expand the range if everything works
 
     class push_robots(Go2Cfg.push_robots):
         toggle = True
@@ -81,14 +81,6 @@ class Go2TrotCfg(Go2Cfg):
                 "p_gains": [0.9, 1.1],
                 "d_gains": [0.8, 1.2],
             }
-
-        class payload(Go2Cfg.domain_randomization.payload):
-            mass_range = [0.0, 5.0]
-            # Base collision box top is z=0.057; box center sits half its
-            # height above that. Re-measure against the hardware mount.
-            mount_pos = [0.0, 0.0, 0.097]
-            com_offset_range = [[-0.05, 0.05], [-0.02, 0.02], [-0.01, 0.02]]
-            size = [0.2, 0.12, 0.08]
 
     class asset(Go2Cfg.asset):
         file = "{GYM_ROOT_DIR}/resources/robots/" + "go2/urdf/go2.urdf"
@@ -115,8 +107,6 @@ class Go2TrotCfg(Go2Cfg):
         dof_pos_target = 4 * [0.2, 0.5, 0.5]
         tau_ff = 4 * [23.7, 23.7, 45.43]
         base_height_target = 0.3
-        # [mass kg, COM offset x, y, z m], matching domain_randomization.payload.
-        payload_obs = [5.0, 0.05, 0.02, 0.02]
 
 
 class Go2TrotRunnerCfg(Go2RunnerCfg):
@@ -133,6 +123,7 @@ class Go2TrotRunnerCfg(Go2RunnerCfg):
             "dof_pos_target",
             "phase_obs",
             "phase_frequency",
+            "base_height_target",
         ]
         normalize_obs = False
         smooth_exploration = False
@@ -165,7 +156,7 @@ class Go2TrotRunnerCfg(Go2RunnerCfg):
             "dof_pos_target",
             "phase_obs",
             "phase_frequency",
-            "payload_obs",
+            "base_height_target",
         ]
         normalize_obs = False
 

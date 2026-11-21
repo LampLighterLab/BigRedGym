@@ -20,11 +20,11 @@ def test_payload_box_inertia_matches_solid_box():
     )
 
 
-def test_go2trot_payload_body_is_welded_visual_box():
+def test_go2payload_payload_body_is_welded_visual_box():
     from gym.envs.base.mujoco_cpu_backend import MuJocoCPUBackend
-    from gym.envs.go2.go2trot_config import Go2TrotCfg
+    from gym.envs.go2.go2payload_config import Go2PayloadCfg
 
-    cfg = Go2TrotCfg()
+    cfg = Go2PayloadCfg()
     payload_cfg = cfg.domain_randomization.payload
     model = MuJocoCPUBackend()._load_model(cfg, discard_visual=False)
     body = _payload_id(model)
@@ -57,10 +57,10 @@ def test_go2trot_payload_body_is_welded_visual_box():
 def test_payload_stays_out_of_canonical_layout():
     from gym.envs.base.mujoco_cpu_backend import MuJocoCPUBackend
     from gym.envs.go2.go2_config import Go2Cfg
-    from gym.envs.go2.go2trot_config import Go2TrotCfg
+    from gym.envs.go2.go2payload_config import Go2PayloadCfg
 
     with_payload = MuJocoCPUBackend()
-    with_payload.setup(Go2TrotCfg(), num_envs=1, device="cpu", task=None)
+    with_payload.setup(Go2PayloadCfg(), num_envs=1, device="cpu", task=None)
     without_payload = MuJocoCPUBackend()
     without_payload.setup(Go2Cfg(), num_envs=1, device="cpu", task=None)
     try:
@@ -85,11 +85,11 @@ def test_payload_stays_out_of_canonical_layout():
         without_payload.close()
 
 
-def _go2trot_payload_cfg():
-    """Go2Trot with only the payload enabled, so loads are the sole difference."""
-    from gym.envs.go2.go2trot_config import Go2TrotCfg
+def _go2payload_payload_cfg():
+    """Go2Payload with only the payload enabled, so loads are the sole difference."""
+    from gym.envs.go2.go2payload_config import Go2PayloadCfg
 
-    cfg = Go2TrotCfg()
+    cfg = Go2PayloadCfg()
     cfg.seed = 3
     cfg.domain_randomization.startup.link_mass_scale_range = None
     cfg.domain_randomization.startup.contact_friction_range = None
@@ -130,7 +130,7 @@ def test_mujoco_cpu_set_payload_updates_selected_models_only():
     from gym.envs.base.mujoco_cpu_backend import MuJocoCPUBackend
 
     backend = MuJocoCPUBackend()
-    backend.setup(_go2trot_payload_cfg(), num_envs=3, device="cpu", task=None)
+    backend.setup(_go2payload_payload_cfg(), num_envs=3, device="cpu", task=None)
     try:
         body = backend._payload_body_id
         root = backend._mjm.body_parentid[body]
@@ -171,7 +171,7 @@ def test_mujoco_cpu_payload_weight_reaches_ground():
     from gym.envs.base.mujoco_cpu_backend import MuJocoCPUBackend
 
     backend = MuJocoCPUBackend()
-    backend.setup(_go2trot_payload_cfg(), num_envs=2, device="cpu", task=None)
+    backend.setup(_go2payload_payload_cfg(), num_envs=2, device="cpu", task=None)
     try:
         _assert_payload_weight_reaches_ground(backend)
     finally:
@@ -183,7 +183,7 @@ def test_set_payload_validates_inputs_and_enablement():
     from gym.envs.go2.go2_config import Go2Cfg
 
     enabled = MuJocoCPUBackend()
-    enabled.setup(_go2trot_payload_cfg(), num_envs=2, device="cpu", task=None)
+    enabled.setup(_go2payload_payload_cfg(), num_envs=2, device="cpu", task=None)
     disabled = MuJocoCPUBackend()
     disabled.setup(Go2Cfg(), num_envs=2, device="cpu", task=None)
     try:
@@ -221,7 +221,7 @@ def test_mujoco_warp_payload_is_per_world():
     from gym.envs.base.mujoco_warp_backend import MuJocoWarpBackend
 
     backend = MuJocoWarpBackend()
-    backend.setup(_go2trot_payload_cfg(), num_envs=2, device="cuda:0", task=None)
+    backend.setup(_go2payload_payload_cfg(), num_envs=2, device="cuda:0", task=None)
     try:
         for name in ("body_mass", "body_inertia", "body_ipos", "body_subtreemass"):
             assert getattr(backend._m, name).shape[0] == 2, name
@@ -234,23 +234,23 @@ def test_mujoco_warp_payload_is_per_world():
         backend.close()
 
 
-def _build_go2trot_task(num_envs=4):
-    from gym.envs.go2.go2trot import Go2Trot
-    from gym.envs.go2.go2trot_config import Go2TrotCfg, Go2TrotRunnerCfg
+def _build_go2payload_task(num_envs=4):
+    from gym.envs.go2.go2payload import Go2Payload
+    from gym.envs.go2.go2payload_config import Go2PayloadCfg, Go2PayloadRunnerCfg
     from gym.utils.task_registry import select_backend, task_registry
 
-    cfg = Go2TrotCfg()
-    runner_cfg = Go2TrotRunnerCfg()
+    cfg = Go2PayloadCfg()
+    runner_cfg = Go2PayloadRunnerCfg()
     cfg.env.num_envs = num_envs
     cfg.seed = 5
     cfg.push_robots.toggle = False
     task_registry.convert_frequencies_to_params(cfg, runner_cfg)
     backend = select_backend(cfg, "cpu", "mujoco")
-    return Go2Trot(cfg, "cpu", True, backend)
+    return Go2Payload(cfg, "cpu", True, backend)
 
 
-def test_go2trot_task_resamples_payload_only_for_reset_envs():
-    env = _build_go2trot_task()
+def test_go2payload_task_resamples_payload_only_for_reset_envs():
+    env = _build_go2payload_task()
     try:
         backend = env._backend
         payload_cfg = env.cfg.domain_randomization.payload
@@ -285,14 +285,14 @@ def test_go2trot_task_resamples_payload_only_for_reset_envs():
         env._backend.close()
 
 
-def test_go2trot_payload_observation_is_critic_only_and_tracks_resets():
-    from gym.envs.go2.go2trot_config import Go2TrotRunnerCfg
+def test_go2payload_payload_observation_is_critic_only_and_tracks_resets():
+    from gym.envs.go2.go2payload_config import Go2PayloadRunnerCfg
 
-    runner_cfg = Go2TrotRunnerCfg()
+    runner_cfg = Go2PayloadRunnerCfg()
     assert "payload_obs" in runner_cfg.critic.obs
     assert "payload_obs" not in runner_cfg.actor.obs
 
-    env = _build_go2trot_task()
+    env = _build_go2payload_task()
     try:
         backend = env._backend
         mount = torch.tensor(env.cfg.domain_randomization.payload.mount_pos)
@@ -317,19 +317,19 @@ def test_go2trot_payload_observation_is_critic_only_and_tracks_resets():
         env._backend.close()
 
 
-def test_go2trot_payload_observation_is_zero_when_disabled():
+def test_go2payload_payload_observation_is_zero_when_disabled():
     from gym.envs.base.domain_randomization import apply_domain_randomization_override
-    from gym.envs.go2.go2trot import Go2Trot
-    from gym.envs.go2.go2trot_config import Go2TrotCfg, Go2TrotRunnerCfg
+    from gym.envs.go2.go2payload import Go2Payload
+    from gym.envs.go2.go2payload_config import Go2PayloadCfg, Go2PayloadRunnerCfg
     from gym.utils.task_registry import select_backend, task_registry
 
-    cfg = Go2TrotCfg()
-    runner_cfg = Go2TrotRunnerCfg()
+    cfg = Go2PayloadCfg()
+    runner_cfg = Go2PayloadRunnerCfg()
     cfg.env.num_envs = 2
     cfg.seed = 5
     apply_domain_randomization_override(cfg, "off")
     task_registry.convert_frequencies_to_params(cfg, runner_cfg)
-    env = Go2Trot(cfg, "cpu", True, select_backend(cfg, "cpu", "mujoco"))
+    env = Go2Payload(cfg, "cpu", True, select_backend(cfg, "cpu", "mujoco"))
     try:
         assert env._backend._payload_body_id is None
         torch.testing.assert_close(env.payload_obs, torch.zeros(2, 4))

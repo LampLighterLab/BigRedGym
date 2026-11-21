@@ -1,9 +1,16 @@
-from gym.envs.go2.go2trot_config import Go2TrotCfg
+import gym.envs  # noqa: F401
+from gym.utils.task_registry import task_registry
 import torch
+
+# Scaling, nominal posture and actor inputs all come from this task's config.
+TASK_NAME = "go2payload"
+# Registered configs are instances; DeployScaling subclasses the class itself.
+_ENV_CFG = type(task_registry.env_cfgs[TASK_NAME])
+_TRAIN_CFG = type(task_registry.train_cfgs[TASK_NAME])
 
 
 class DeployConfig:
-    task_name = "go2trot"
+    task_name = TASK_NAME
 
     ctrl_freq = 100  # Hz
 
@@ -16,19 +23,11 @@ class DeployConfig:
     exp_moving_avg = True
     ema_smoothing_factor = 0.1
 
-    obs_vector = [
-        "base_ang_vel",
-        "projected_gravity",
-        "commands",
-        "dof_pos_obs",
-        "dof_vel",
-        "dof_pos_target",
-        "phase_obs",
-        "phase_frequency",
-    ]  # add later? foot contact
+    # Must match the trained actor exactly, so take it from the task config.
+    obs_vector = list(_TRAIN_CFG.actor.obs)
 
     # Scale observations
-    class DeployScaling(Go2TrotCfg.scaling):
+    class DeployScaling(_ENV_CFG.scaling):
         pass
 
     # Set ranges of joystick commands
@@ -57,9 +56,9 @@ class DeployConfig:
             angle
             for leg in ("FL", "FR", "RL", "RR")
             for angle in (
-                Go2TrotCfg.init_state.default_joint_angles["hip_joint"],
-                Go2TrotCfg.init_state.default_joint_angles[f"{leg}_thigh_joint"],
-                Go2TrotCfg.init_state.default_joint_angles["calf_joint"],
+                _ENV_CFG.init_state.default_joint_angles["hip_joint"],
+                _ENV_CFG.init_state.default_joint_angles[f"{leg}_thigh_joint"],
+                _ENV_CFG.init_state.default_joint_angles["calf_joint"],
             )
         ]
     )

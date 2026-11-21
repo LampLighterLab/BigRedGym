@@ -61,8 +61,12 @@ Settings can be configured in `go2_deploy/deploy_config.py`. Options include:
 - Command limits (ex. pushing the joystick all the way to the right commands x m/s)
 - Gait frequency (`phase_frequency`, in Hz): controls the Go2Trot phase clock and its frequency observation
 
+`TASK_NAME` at the top of `deploy_config.py` selects the trained task (`go2payload`
+by default). The observation vector, observation scaling and nominal posture are
+read from that task's config, so they always match what the actor was trained on.
+
 For current Go2Trot policies, joint-position observations are relative to the
-static nominal posture from `Go2TrotCfg` (hip 0, thigh 0.96, calf -1.36 radians).
+static nominal posture from the task config (hip 0, thigh 0.96, calf -1.36 radians).
 Scaled policy actions are offsets from that posture. The gait reference is a
 training reward only; deployment retains the sine/cosine phase observations and
 observes the controller's active gait frequency, divided by its observation scale.

@@ -744,9 +744,12 @@ def test_payload_mass_range_rejects_invalid_bounds(values):
         payload_mass_range(cfg)
 
 
-def test_go2trot_payload_config():
+def test_only_go2payload_has_payload_config():
+    from gym.envs.go2.go2payload_config import Go2PayloadCfg
     from gym.envs.go2.go2trot_config import Go2TrotCfg
     from gym.envs.go2.go2_config import Go2Cfg
 
-    assert payload_mass_range(Go2TrotCfg) == (0.0, 5.0)
+    assert payload_mass_range(Go2PayloadCfg) == (0.0, 5.0)
+    # The Assignment 4 baseline and plain Go2 stay unloaded.
+    assert payload_mass_range(Go2TrotCfg) is None
     assert payload_mass_range(Go2Cfg) is None
