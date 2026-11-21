@@ -54,20 +54,25 @@ Instructions are for Linux (Ubuntu)
 ## Configure deployment
 
 Settings can be configured in `go2_deploy/deploy_config.py`. Options include:
-- Control frequency
-- kp (Stiffness constant)
-- kd (Damping constant)
-- Observation vector: a list of available observations can be found in `obs_sizes`
 - Command limits (ex. pushing the joystick all the way to the right commands x m/s)
 - Gait frequency (`phase_frequency`, in Hz): controls the Go2Trot phase clock and its frequency observation
+- Action smoothing (`exp_moving_avg`): off by default, because training applies none
+
+`TASK_NAME` at the top of `deploy_config.py` selects the trained task (`go2payload`
+by default). The control frequency, kp, kd, observation vector, observation scaling
+and nominal posture are read from that task's config, so they always match what the
+actor was trained on. `DeployConfig()` refuses command limits or a gait frequency
+outside the training ranges; the joystick is symmetric, so the forward limit is
+also bounded by the slowest trained reverse speed.
 
 For current Go2Trot policies, joint-position observations are relative to the
-static nominal posture from `Go2TrotCfg` (hip 0, thigh 0.96, calf -1.36 radians).
+static nominal posture from the task config (hip 0, thigh 0.96, calf -1.36 radians).
 Scaled policy actions are offsets from that posture. The gait reference is a
 training reward only; deployment retains the sine/cosine phase observations and
 observes the controller's active gait frequency, divided by its observation scale.
 The previous-action observation contains the applied offset after optional EMA
-smoothing. Neither that offset nor the resulting position target is clipped.
+smoothing (off by default), unclipped as in training. The position target sent to
+the motors is clamped to the URDF joint limits.
 Deployment sends position targets and PD gains to Unitree; this path does not
 compute or clamp torques locally.
 
@@ -85,8 +90,8 @@ If anything goes wrong, the emergency stop on the wireless controller is X or th
 - There are 4 states the robot can be in:
     - `RECOVERY`: Initially when the script starts running, the robot is in this mode. You must enter this state from `EMERGENCY_STOP` otherwise. The default Unitree controller can be used to make the robot walk, do tricks, etc. The `F1` key on the remote control can be used to disable/enable the A, B, X, and Y buttons, so that the default Unitree button combinations can be used without accidentally turning on a different state.
     - `EMERGENCY_STOP`: The robot will immediately start damping, wait around 15 seconds, and then stand up again. The robot will automatically enter the `RECOVERY` state.
-    - `INTERMEDIATE`: The robot will hold its current position. This is for testing to make sure the kp and kd values are good, etc.
-    - `CUSTOM_CTRL`: The robot will use the policy you trained to move.
+    - `INTERMEDIATE`: The robot ramps over `intermediate_ramp_time` (2 s) from its measured pose to the policy's nominal posture, then holds it. Enter it from `RECOVERY`. This is also for checking that the kp and kd values are good.
+    - `CUSTOM_CTRL`: The robot will use the policy you trained to move. It can only be entered from `INTERMEDIATE` once the ramp has finished, so the policy always starts from its nominal posture.
 - To stop running the script, return to `RECOVERY`, lie the robot on the ground, and press `Ctrl+C` in the terminal.
 - Logs of the robot data can be found in `logs/deploy/`.
 

@@ -25,10 +25,10 @@ RAMP = ["#86b6ef", "#5598e7", "#2a78d6", "#1c5cab", "#104281", "#0d366b"]
 
 
 def attach_payload(env_cfg):
-    """Give any Go2Trot config the current payload block, with a fixed COM."""
-    from gym.envs.go2.go2trot_config import Go2TrotCfg
+    """Give any Go2Trot config the Go2Payload payload block, with a fixed COM."""
+    from gym.envs.go2.go2payload_config import Go2PayloadCfg
 
-    current = Go2TrotCfg.domain_randomization.payload
+    current = Go2PayloadCfg.domain_randomization.payload
     env_cfg.domain_randomization.payload = type(
         "payload",
         (),
@@ -161,7 +161,10 @@ def plot(data, args, path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--experiment_name", default="go2trot")
+    parser.add_argument(
+        "--task", choices=("go2trot", "go2payload"), default="go2payload"
+    )
+    parser.add_argument("--experiment_name", default=None, help="defaults to --task")
     parser.add_argument("--load_run", required=True)
     parser.add_argument("--checkpoint", type=int, default=-1)
     parser.add_argument("--original_cfg", action="store_true")
@@ -188,11 +191,12 @@ def main():
         help="path prefix; writes <output>.npz and <output>.png",
     )
     args = parser.parse_args()
+    args.experiment_name = args.experiment_name or args.task
     import gym.envs  # noqa: F401
 
     env_cfg, train_cfg = copy.deepcopy(
         task_registry.get_cfgs(
-            "go2trot",
+            args.task,
             original_cfg=args.original_cfg,
             experiment_name=args.experiment_name,
             load_run=args.load_run,
@@ -216,7 +220,7 @@ def main():
     path = get_load_path(
         name=args.experiment_name, load_run=args.load_run, checkpoint=args.checkpoint
     )
-    env = task_registry.make_env("go2trot", env_cfg, "cpu", True, "mujoco")
+    env = task_registry.make_env(args.task, env_cfg, "cpu", True, "mujoco")
     try:
         runner = task_registry.make_alg_runner(env, train_cfg)
         state = torch.load(path, weights_only=True, map_location="cpu")

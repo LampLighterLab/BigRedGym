@@ -47,7 +47,7 @@ class MainController:
             self.obs_vec_size += self.cfg.obs_sizes[obs]
 
         self._init_buffers()
-        if self.cfg.task_name == "go2trot":
+        if "phase_obs" in self.cfg.obs_vector:
             self._init_go2trot_buffers()
 
         self._init_unitree_clients()
@@ -162,7 +162,7 @@ class MainController:
     # Read last lowstate msg, publish LowCmd_
     def _control_loop(self):
         t = time.monotonic()
-        if self.cfg.task_name == "go2trot":
+        if "phase_obs" in self.cfg.obs_vector:
             self._process_go2trot_buffers(t)
 
         with self.last_command_lock:
@@ -206,7 +206,13 @@ class MainController:
         if self._state == State.CUSTOM_CTRL:
             return self.rl_controller.act(last_obs)
         elif self._state == State.INTERMEDIATE:
-            return deploy_utility.target_pos_to_action(self, self.intermediate_pos)
+            target = deploy_utility.ramp_target(
+                self.intermediate_start_pos,
+                self.cfg.default_dof_pos,
+                time.monotonic() - self.intermediate_start_time,
+                self.cfg.intermediate_ramp_time,
+            )
+            return deploy_utility.target_pos_to_action(self, target)
         else:
             return self.last_action[0]
 
@@ -320,16 +326,7 @@ class MainController:
             print("Must be in recovery state to switch to intermediate")
             return
 
-        self._state = State.INTERMEDIATE
         print("Switching to intermediate")
-
-        self.intermediate_pos = (
-            torch.tensor(
-                deploy_utility._get_obs_dof_pos_obs(self, self.last_lowstate_msg)
-            )
-            .detach()
-            .clone()
-        )
 
         self.motion_switcher_client.ReleaseMode()
         mode = self.motion_switcher_client.CheckMode()[1]["name"]
@@ -339,16 +336,29 @@ class MainController:
             self.motion_switcher_client.ReleaseMode()
             mode = self.motion_switcher_client.CheckMode()[1]["name"]
 
+        # Ramp from the pose measured as the PD loop starts, so the first
+        # target equals where the joints are.
+        with self.last_lowstate_msg_lock:
+            self.intermediate_start_pos = deploy_utility.get_dof_pos(
+                self.last_lowstate_msg
+            )
+        self.intermediate_start_time = time.monotonic()
+        self._state = State.INTERMEDIATE
         self.lowcmd_thread.Start()
+        print(
+            f"Ramping to the nominal pose over {self.cfg.intermediate_ramp_time}s"
+        )
 
     def switch_to_custom_controller(self):
         self._custom_ctrl_flag = False
 
-        if self._state != State.INTERMEDIATE and self._state != State.RECOVERY:
-            print(
-                "Must be in recovery or intermediate state"
-                + "to switch to custom controller!"
-            )
+        # The policy only starts from the nominal pose, as in training.
+        if self._state != State.INTERMEDIATE:
+            print("Must be in intermediate state to switch to custom controller!")
+            return
+        elapsed = time.monotonic() - self.intermediate_start_time
+        if elapsed < self.cfg.intermediate_ramp_time:
+            print("Wait for the intermediate ramp to finish before custom control")
             return
 
         self._state = State.CUSTOM_CTRL
