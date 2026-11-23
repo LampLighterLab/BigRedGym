@@ -1,0 +1,273 @@
+# SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES.
+# All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+# THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Copyright (c) 2021 ETH Zurich, Nikita Rudin
+
+import mujoco
+
+from .base_config import BaseConfig
+from .domain_randomization import DomainRandomizationCfg
+from .mujoco_config import MuJoCoCfg
+
+
+class LeggedRobotCfg(BaseConfig):
+    class env:
+        num_envs = 4096
+        num_actuators = 12
+        env_spacing = 3.0
+        episode_length_s = 20  # episode length in seconds
+
+    class terrain:
+        mesh_type = "plane"  # supported values: None, "plane"
+        static_friction = 1.0
+        dynamic_friction = 1.0
+        restitution = 0.0
+
+    class commands:
+        resampling_time = 10.0  # time before command are changed[s]
+
+        class ranges:
+            lin_vel_x = [-1.0, 1.0]  # min max [m/s]
+            lin_vel_y = 1.0  # max [m/s]
+            yaw_vel = 1  # max [rad/s]
+
+    class push_robots:
+        toggle = True
+        interval_s = 15
+        max_push_vel_xy = 0.05
+        push_box_dims = [0.2, 0.2, 0.2]  # x,y,z [m]
+
+    class domain_randomization(DomainRandomizationCfg):
+        pass
+
+    class init_state:
+        # * target state when action = 0, also reset positions for basic mode
+        default_joint_angles = {"joint_a": 0.0, "joint_b": 0.0}
+
+        # * reset setup chooses how the initial conditions are chosen.
+        # * "reset_to_basic" = a single position
+        # * "reset_to_range" = uniformly random from a range defined below
+        reset_mode = "reset_to_basic"
+
+        # * default COM for basic initialization
+        pos = [0.0, 0.0, 1.0]  # x,y,z [m]
+        rot = [0.0, 0.0, 0.0, 1.0]  # x,y,z,w [quat]
+        lin_vel = [0.0, 0.0, 0.0]  # x,y,z [m/s]
+        ang_vel = [0.0, 0.0, 0.0]  # x,y,z [rad/s]
+
+        # * initial conditiosn for reset_to_range
+        dof_pos_range = {"joint_a": [-1.0, 1.0], "joint_b": [-1.0, 1.0]}
+        dof_vel_range = {"joint_a": [-1.0, 1.0], "joint_b": [-1.0, 1.0]}
+        root_pos_range = [
+            [0.0, 0.0],  # x
+            [0.0, 0.0],  # y
+            [0.5, 0.75],  # z
+            [0.0, 0.0],  # roll
+            [0.0, 0.0],  # pitch
+            [0.0, 0.0],
+        ]  # yaw
+        root_vel_range = [
+            [-0.1, 0.1],  # x
+            [-0.1, 0.1],  # y
+            [-0.1, 0.1],  # z
+            [-0.1, 0.1],  # roll
+            [-0.1, 0.1],  # pitch
+            [-0.1, 0.1],
+        ]  # yaw
+
+    class control:
+        # * PD Drive parameters:
+        stiffness = {"joint_a": 10.0, "joint_b": 15.0}  # [N*m/rad]
+        damping = {"joint_a": 1.0, "joint_b": 1.5}  # [N*m*s/rad]
+        ctrl_frequency = 100
+        desired_sim_frequency = 200
+
+    class asset:
+        file = ""
+        vsim_visual_mesh_dir = None
+        mujoco_visual_model = None
+        # * name of the feet bodies,
+        # * used to index body state and contact force tensors
+        foot_name = "foot"
+        penalize_contacts_on = []
+        terminate_after_contacts_on = []
+        end_effector_names = []
+        disable_gravity = False
+        disable_motors = False
+        fix_base_link = False
+        rotor_inertia = 0.0
+        joint_damping = 0.0
+
+    class reward_settings:
+        # * tracking reward = exp(-error^2/sigma)
+        tracking_sigma = 0.25
+        # * percentage of urdf limits, values above this limit are penalized
+        soft_dof_pos_limit = 1.0
+        soft_dof_vel_limit = 1.0
+        soft_torque_limit = 1.0
+        base_height_target = 1.0
+        # * forces above this value are penalized
+        max_contact_force = 100.0
+
+    class scaling:
+        commands = 1
+        # * Action scales
+        tau_ff = 1  # scale by torque limits
+        dof_pos = 1
+        dof_pos_obs = dof_pos
+        dof_pos_target = dof_pos  # scale by range of motion
+
+    # * viewer camera:
+    class viewer:
+        ref_env = 0
+        pos = [10, 0, 6]  # [m]
+        lookat = [11.0, 5, 3.0]  # [m]
+        # MuJoCo passive viewer only: its side panels bind most letters to
+        # visualisation toggles, which collide with keyboard teleop (see
+        # gym/utils/interfaces/teleop_bindings.py).  Off by default;
+        # scripts/play.py --viewer_ui turns them back on.
+        show_ui = False
+
+    class mujoco(MuJoCoCfg):
+        # Warp truncates constraints if this per-world buffer overflows.
+        # Contact-rich Go2 poses reach 200 rows; leave headroom.
+        njmax = 256
+
+        # Contact response fitted to VSim's Go2 drop at 500 Hz. Other robot
+        # families can override this to retain their own contact tuning.
+        solref = [0.005, 1.0]
+
+        ccd_iterations = 50
+        # MuJoCo 3.11's convex multi-contact CCD can crash on overlapping
+        # Go2 lower-leg cylinders. Primitive multi-point contacts still work.
+        disableflags = int(mujoco.mjtDisableBit.mjDSBL_MULTICCD)
+
+
+class LeggedRobotRunnerCfg(BaseConfig):
+    seed = -1
+    runner_class_name = "OnPolicyRunner"
+
+    class logging:
+        enable_local_saving = True
+
+    class actor:
+        init_noise_std = 1.0
+        hidden_dims = [512, 256, 128]
+        # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
+        activation = "elu"
+        normalize_obs = True
+        smooth_exploration = False
+
+        obs = [
+            "observation_a",
+            "observation_b",
+            "these_need_to_be_atributes_(states)_of_the_robot_env",
+        ]
+        critic_obs = [
+            "observation_x",
+            "observation_y",
+            "critic_obs_can_be_the_same_or_different_than_actor_obs",
+        ]
+
+        actions = ["q_des"]
+        disable_actions = False
+
+        class noise:
+            dof_pos_obs = 0.01
+            dof_vel = 1.5
+            lin_vel = 0.1
+            ang_vel = 0.2
+            projected_gravity = 0.05
+
+    class critic:
+        hidden_dims = [512, 256, 128]
+        # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
+        activation = "elu"
+        normalize_obs = True
+        obs = [
+            "observation_x",
+            "observation_y",
+            "critic_obs_can_be_the_same_or_different_than_actor_obs",
+        ]
+
+        class reward:
+            class weights:
+                tracking_lin_vel = 0.0
+                tracking_ang_vel = 0.0
+                lin_vel_z = 0
+                ang_vel_xy = 0.0
+                orientation = 0.0
+                torques = 0.0
+                dof_vel = 0.0
+                base_height = 0.0
+                collision = 0.0
+                action_rate = 0.0
+                action_rate2 = 0.0
+                stand_still = 0.0
+                dof_pos_limits = 0.0
+
+            class termination_weight:
+                termination = 0.01
+
+    class algorithm:
+        # both
+        gamma = 0.99
+        lam = 0.95
+        # shared
+        batch_size = 2**15
+        max_gradient_steps = 24
+        # new
+        clip_param = 0.2
+        learning_rate = 1.0e-3
+        max_grad_norm = 1.0
+        rollout_size = 2**16
+        # Critic
+        use_clipped_value_loss = True
+        # Actor
+        entropy_coef = 0.01
+        schedule = "adaptive"  # could be adaptive, fixed
+        desired_kl = 0.01
+        lr_range = [2e-5, 1e-2]
+        lr_ratio = 1.5
+
+    class runner:
+        policy_class_name = "ActorCritic"
+        algorithm_class_name = "PPO2"
+        max_iterations = 1500
+        save_interval = 50
+        run_name = ""
+        experiment_name = "legged_robot"
+
+        # load and resume
+        resume = False
+        load_run = -1  # -1 = last run
+        checkpoint = -1  # -1 = last saved model
+        resume_path = None  # updated from load_run and chkpt
+        device = "cpu"

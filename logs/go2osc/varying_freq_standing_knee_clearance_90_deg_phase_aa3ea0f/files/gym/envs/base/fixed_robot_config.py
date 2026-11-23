@@ -1,0 +1,175 @@
+from .base_config import BaseConfig
+from .domain_randomization import DomainRandomizationCfg
+from .mujoco_config import MuJoCoCfg
+
+
+class FixedRobotCfg(BaseConfig):
+    class mujoco(MuJoCoCfg):
+        pass
+
+    class domain_randomization(DomainRandomizationCfg):
+        pass
+
+    class env:
+        num_envs = 4096
+        num_actuators = 1
+        env_spacing = 4.0
+        root_height = 2.0
+        episode_length_s = 4  # episode length in seconds
+
+    class terrain:
+        mesh_type = None
+        static_friction = 1.0
+        dynamic_friction = 1.0
+        restitution = 0.0
+
+    class init_state:
+        # * reset_mode chooses how the initial conditions are chosen.
+        # * "reset_to_basic" = a single position
+        # * "reset_to_range" = uniformly random from a range defined below
+        reset_mode = "reset_to_basic"
+
+        # * target state when action = 0, also reset positions for basic mode
+        default_joint_angles = {"joint_a": 0.0, "joint_b": 0.0}
+
+        # * initial conditiosn for reset_to_range
+        dof_pos_range = {"joint_a": [-1.0, 1.0], "joint_b": [-1.0, 1.0]}
+        dof_vel_range = {"joint_a": [-1.0, 1.0], "joint_b": [-1.0, 1.0]}
+
+    class control:
+        # PD Drive parameters:
+        stiffness = {"joint_a": 10.0}  # [N*m/rad]
+        damping = {"joint_a": 0.5}  # [N*m*s/rad]
+
+        actuated_joint_names = []
+
+        ctrl_frequency = 100
+        desired_sim_frequency = 100
+
+    class asset:
+        file = ""
+        vsim_visual_mesh_dir = None
+        mujoco_visual_model = None
+        penalize_contacts_on = []
+        terminate_after_contacts_on = []
+        disable_gravity = False
+        disable_motors = False
+        fix_base_link = True  # fix the base of the robot
+        rotor_inertia = 0.0
+        joint_damping = 0.0
+
+    class reward_settings:
+        tracking_sigma = 0.25  # tracking reward = exp(-error^2/sigma)
+        # * centage of urdf limits, values above this limit are penalized
+        soft_dof_pos_limit = 1.0
+        soft_dof_vel_limit = 1.0
+        soft_torque_limit = 1.0  # ! may want to turn this off
+
+    class scaling:
+        dof_pos = 1.0
+        dof_vel = 1.0
+
+        # Action scales
+        tau_ff = 10
+        dof_pos_target = 0.25
+
+    # viewer camera:
+    class viewer:
+        ref_env = 0
+        pos = [10, 0, 6]  # [m]
+        lookat = [11.0, 5, 3.0]  # [m]
+        # MuJoCo passive viewer only: its side panels bind most letters to
+        # visualisation toggles, which collide with keyboard teleop (see
+        # gym/utils/interfaces/teleop_bindings.py).  Off by default;
+        # scripts/play.py --viewer_ui turns them back on.
+        show_ui = False
+
+    class sim:
+        dt = 0.005
+        substeps = 1
+        gravity = [0.0, 0.0, -9.81]  # [m/s^2]
+        up_axis = 1  # 0 is y, 1 is z
+
+
+class FixedRobotCfgPPO(BaseConfig):
+    seed = -1
+    runner_class_name = "OnPolicyRunner"
+
+    class logging:
+        enable_local_saving = True
+
+    class actor:
+        init_noise_std = 1.0
+        hidden_dims = [512, 256, 128]
+        # * can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
+        activation = "elu"
+        obs = [
+            "observation_a",
+            "observation_b",
+            "these_need_to_be_atributes_(states)_of_the_robot_env",
+        ]
+        normalize_obs = True
+        smooth_exploration = False
+        actions = ["tau_ff"]
+        disable_actions = False
+
+        class noise:
+            observation_a = 0.1  # implement as needed, also in your robot class
+
+    class critic:
+        hidden_dims = [512, 256, 128]
+        activation = "elu"
+        normalize_obs = True
+        obs = [
+            "observation_x",
+            "observation_y",
+            "critic_obs_can_be_the_same_or_different_than_actor_obs",
+        ]
+
+        class rewards:
+            class weights:
+                torques = 0.0
+                dof_vel = 0.0
+                collision = 0.0
+                action_rate = 0.0
+                action_rate2 = 0.0
+                dof_pos_limits = 1.0
+
+            class termination_weight:
+                termination = 0.0
+
+    class algorithm:
+        gamma = 0.99
+        lam = 0.95
+        batch_size = 2**15
+        max_gradient_steps = 24
+        # New transitions per PPO update, independent of optimizer minibatches.
+        rollout_size = 2**16
+
+        clip_param = 0.2
+        learning_rate = 1.0e-3
+        max_grad_norm = 1.0
+        # Critic
+        use_clipped_value_loss = True
+        # Actor
+        entropy_coef = 0.01
+        schedule = "adaptive"  # could be adaptive, fixed
+        desired_kl = 0.01
+
+    class runner:
+        policy_class_name = "ActorCritic"
+        algorithm_class_name = "PPO2"
+        max_iterations = 500  # number of policy updates
+
+        # * logging
+        # * check for potential saves every this many iterations
+        save_interval = 50
+        run_name = ""
+        experiment_name = "fixed_robot"
+
+        # load and resume
+        resume = False
+        load_run = -1  # -1 = last run
+        checkpoint = -1  # -1 = last saved model
+        resume_path = None  # updated from load_run and chkpt
+        device = "cpu"

@@ -1,0 +1,475 @@
+"""Shared base for MuJoCo backends (CPU and Warp).
+
+Handles URDF loading via MjSpec, model configuration (free joint, ground
+plane, physics params), metadata extraction, and contact index building.
+Subclasses implement tensor allocation, step, reset, and rendering.
+"""
+
+import os
+import xml.etree.ElementTree as ET
+
+import numpy as np
+import torch
+import mujoco
+
+from gym import GYM_ROOT_DIR
+from gym.envs.base.robot_layout import RobotLayout
+from gym.envs.base.sim_backend import SimBackend
+from gym.envs.base.urdf_limits import parse_urdf_limits
+from gym.envs.base.urdf_visuals import replace_visuals_from_mjcf
+
+# Quaternion convention helpers: MuJoCo [w,x,y,z] ↔ task-layer [x,y,z,w]
+WXYZ_TO_XYZW = [1, 2, 3, 0]
+XYZW_TO_WXYZ = [3, 0, 1, 2]
+
+
+class MuJocoBackendBase(SimBackend):
+    """Abstract base with shared MuJoCo setup logic.
+
+    Subclasses must implement: _allocate_tensors(), step(), reset_state(),
+    and the state tensor properties (dof_pos, dof_vel, dof_state, root_states,
+    rigid_body_states, contact_forces).
+    """
+
+    def __init__(self) -> None:
+        self._mjm: mujoco.MjModel = None
+        self._device: str = "cpu"
+        self._num_envs: int = 0
+        self._num_dof: int = 0
+        self._num_bodies: int = 0
+        self._dof_names: list = []
+        self._body_names: list = []
+        self._native_dof_names: list = []
+        self._native_body_names: list = []
+        self._canonical_to_native_dof: torch.Tensor = None
+        self._native_to_canonical_dof: torch.Tensor = None
+        self._canonical_to_native_body: torch.Tensor = None
+        self._canonical_to_native_dof_np: np.ndarray = None
+        self._native_to_canonical_dof_np: np.ndarray = None
+        self._canonical_to_native_body_np: np.ndarray = None
+        self._dof_position_limits: torch.Tensor = None
+        # Floating-base offsets (0 for fixed-base)
+        self._has_free_joint: bool = False
+        self._qpos_offset: int = 0
+        self._qvel_offset: int = 0
+
+        # Contact body indices (set by setup)
+        self._penalised_contact_indices: torch.Tensor = None
+        self._termination_contact_indices: torch.Tensor = None
+
+        # Domain-parameter source of truth. The CPU backend activates these
+        # values on its shared model per environment; Warp overrides them with
+        # per-world native views.
+        self._contact_friction_t: torch.Tensor = None
+        self._nominal_contact_friction: float = 1.0
+        self._link_mass_t: torch.Tensor = None
+        self._link_inertia_t: torch.Tensor = None
+        self._nominal_link_mass: torch.Tensor = None
+        self._nominal_link_inertia: torch.Tensor = None
+
+    # ── SimBackend.device ─────────────────────────────────────────────────────
+
+    @property
+    def device(self) -> str:
+        return self._device
+
+    # ── Metadata ──────────────────────────────────────────────────────────────
+
+    @property
+    def num_dof(self) -> int:
+        return self._num_dof
+
+    @property
+    def num_bodies(self) -> int:
+        return self._num_bodies
+
+    @property
+    def dof_names(self) -> list:
+        return self._dof_names
+
+    @property
+    def body_names(self) -> list:
+        return self._body_names
+
+    def find_body_index(self, name: str) -> int:
+        return self._body_names.index(name)
+
+    # ── Contact indices ────────────────────────────────────────────────────────
+
+    @property
+    def penalised_contact_indices(self) -> torch.Tensor:
+        return self._penalised_contact_indices
+
+    @property
+    def termination_contact_indices(self) -> torch.Tensor:
+        return self._termination_contact_indices
+
+    @property
+    def link_mass(self) -> torch.Tensor:
+        return self._link_mass_t
+
+    @property
+    def link_inertia(self) -> torch.Tensor:
+        return self._link_inertia_t
+
+    # ── World building ─────────────────────────────────────────────────────────
+
+    def _load_model(
+        self, cfg, discard_visual: bool = False, visual_model_path: str | None = None
+    ) -> mujoco.MjModel:
+        """Load URDF, configure model (free joint, ground, physics), return MjModel."""
+        asset_path = cfg.asset.file.format(GYM_ROOT_DIR=GYM_ROOT_DIR)
+        # Cache URDF effort/velocity limits — MuJoCo drops these on import
+        # (it expects them on actuators, but we have none).
+        self._urdf_limits = self._parse_urdf_limits(asset_path)
+        spec = self._load_urdf_spec(asset_path, visual_model_path)
+        spec.compiler.balanceinertia = True
+        spec.compiler.discardvisual = discard_visual
+
+        # Disable fusing links connected with rigid joints
+        spec.compiler.fusestatic = False
+
+        # Add free joint for floating-base robots
+        if not getattr(cfg.asset, "fix_base_link", True):
+            root_body = spec.worldbody.first_body()
+            freejoint = root_body.add_freejoint()
+            freejoint.name = "root"
+
+        if not discard_visual:
+            # Menagerie-style viewer defaults
+            spec.visual.global_.azimuth = 150
+            spec.visual.global_.elevation = -20
+            spec.visual.quality.shadowsize = 4096
+            spec.visual.headlight.ambient = [0.3, 0.3, 0.3]
+            spec.visual.headlight.diffuse = [0.6, 0.6, 0.6]
+            spec.visual.headlight.specular = [0.0, 0.0, 0.0]
+
+            # Gradient skybox + directional light apply to rendered scenes.
+            sky = spec.add_texture()
+            sky.name = "skybox"
+            sky.type = mujoco.mjtTexture.mjTEXTURE_SKYBOX
+            sky.builtin = mujoco.mjtBuiltin.mjBUILTIN_GRADIENT
+            sky.rgb1 = [0.3, 0.5, 0.7]
+            sky.rgb2 = [0.0, 0.0, 0.0]
+            sky.width = 512
+            sky.height = 3072
+
+            light = spec.worldbody.add_light()
+            light.type = mujoco.mjtLightType.mjLIGHT_DIRECTIONAL
+            light.pos = [0, 0, 1.5]
+            light.dir = [0, 0, -1]
+            light.castshadow = True
+
+        # Checker ground plane only when terrain config requests one
+        terrain_cfg = getattr(cfg, "terrain", None)
+        terrain_sliding_friction = None
+        if (
+            terrain_cfg is not None
+            and getattr(terrain_cfg, "mesh_type", None) == "plane"
+        ):
+            if not discard_visual:
+                gtex = spec.add_texture()
+                gtex.name = "groundplane"
+                gtex.type = mujoco.mjtTexture.mjTEXTURE_2D
+                gtex.builtin = mujoco.mjtBuiltin.mjBUILTIN_CHECKER
+                gtex.mark = mujoco.mjtMark.mjMARK_EDGE
+                gtex.rgb1 = [0.2, 0.3, 0.4]
+                gtex.rgb2 = [0.1, 0.2, 0.3]
+                gtex.markrgb = [0.8, 0.8, 0.8]
+                gtex.width = 300
+                gtex.height = 300
+
+                gmat = spec.add_material()
+                gmat.name = "groundplane"
+                gmat.textures[mujoco.mjtTextureRole.mjTEXROLE_RGB] = "groundplane"
+                gmat.texrepeat = [5, 5]
+                gmat.texuniform = True
+                gmat.reflectance = 0.2
+
+            ground = spec.worldbody.add_geom()
+            ground.type = mujoco.mjtGeom.mjGEOM_PLANE
+            ground.size = [0, 0, 0.05]
+            if not discard_visual:
+                ground.material = "groundplane"
+            # MuJoCo has one Coulomb coefficient for both sticking and
+            # sliding; its three slots are sliding, torsional, and rolling
+            # friction, not static, dynamic, and rolling. Use the configured
+            # dynamic coefficient for the shared sliding coefficient. The
+            # task configs normally keep static and dynamic friction equal.
+            terrain_sliding_friction = getattr(
+                terrain_cfg,
+                "dynamic_friction",
+                getattr(terrain_cfg, "static_friction", 1.0),
+            )
+            ground.friction = [terrain_sliding_friction, 0.005, 0.0001]
+
+        if terrain_sliding_friction is not None:
+            self._nominal_contact_friction = float(terrain_sliding_friction)
+
+        spec.njmax = cfg.mujoco.njmax
+        spec.option.ccd_iterations = cfg.mujoco.ccd_iterations
+        spec.option.disableflags = cfg.mujoco.disableflags
+
+        mjm = spec.compile()
+        if visual_model_path is not None:
+            # Group 3 is hidden by default in MuJoCo. Keep collision geometry
+            # available for inspection without covering the detailed visuals.
+            collision = (mjm.geom_contype != 0) | (mjm.geom_conaffinity != 0)
+            mjm.geom_group[collision & (mjm.geom_bodyid != 0)] = 3
+        mjm.geom_solref[:] = cfg.mujoco.solref
+        if terrain_sliding_friction is not None:
+            # MuJoCo combines same-priority geom friction using the larger
+            # coefficient. URDF-imported robot geoms otherwise retain the
+            # default sliding coefficient of 1.0 and silently override a
+            # lower terrain value. Give robot and ground the same explicit
+            # material semantics, matching the VSim backend.
+            mjm.geom_friction[:] = [terrain_sliding_friction, 0.005, 0.0001]
+
+        # Physics parameters from cfg
+        sim_dt = getattr(cfg, "sim_dt", None)
+        if sim_dt is None:
+            sim_dt = getattr(cfg.sim, "dt", 0.005) if hasattr(cfg, "sim") else 0.005
+        mjm.opt.timestep = sim_dt
+        sim_cfg = getattr(cfg, "sim", None)
+        if sim_cfg is not None and hasattr(sim_cfg, "gravity"):
+            mjm.opt.gravity[:] = np.array(sim_cfg.gravity, dtype=np.float64)
+        if getattr(cfg.asset, "disable_gravity", False):
+            mjm.opt.gravity[:] = 0.0
+
+        return mjm
+
+    def _initialize_link_properties(
+        self,
+        mjm: mujoco.MjModel,
+        num_envs: int,
+        device: str,
+    ) -> None:
+        body_indices = self._canonical_to_native_body_np
+        self._nominal_link_mass = torch.tensor(
+            mjm.body_mass[body_indices].copy(), dtype=torch.float, device=device
+        ).unsqueeze(0)
+        self._nominal_link_inertia = torch.tensor(
+            mjm.body_inertia[body_indices].copy(), dtype=torch.float, device=device
+        ).unsqueeze(0)
+        self._link_mass_t = self._nominal_link_mass.repeat(num_envs, 1)
+        self._link_inertia_t = self._nominal_link_inertia.repeat(num_envs, 1, 1)
+
+    @staticmethod
+    def _set_model_contact_friction(model: mujoco.MjModel, coefficient: float) -> None:
+        """Set one portable sliding coefficient without changing other slots."""
+        model.geom_friction[:, 0] = coefficient
+        if model.npair:
+            # Explicit pair friction has two tangential directions followed by
+            # torsional and rolling slots; it overrides geom mixing.
+            model.pair_friction[:, 0:2] = coefficient
+
+    def _configure_model(self, mjm: mujoco.MjModel, cfg, device: str) -> None:
+        """Detect floating-base, set damping/contacts, extract metadata."""
+        self._mjm = mjm
+
+        # Detect floating-base (free joint adds 1 extra qpos for quaternion)
+        self._has_free_joint = mjm.nq == mjm.nv + 1
+        if self._has_free_joint:
+            self._qpos_offset = 7
+            self._qvel_offset = 6
+            self._num_dof = mjm.nv - 6
+        else:
+            assert mjm.nq == mjm.nv, (
+                f"Unexpected nq/nv: nq={mjm.nq}, nv={mjm.nv}. "
+                f"Expected nq==nv (fixed-base) or nq==nv+1 (free joint)."
+            )
+            self._qpos_offset = 0
+            self._qvel_offset = 0
+            self._num_dof = mjm.nv
+
+        # Contacts: disable for fixed-base (no ground), keep for floating-base
+        if not self._has_free_joint:
+            mjm.geom_contype[:] = 0
+            mjm.geom_conaffinity[:] = 0
+
+        # Extract native metadata, then build the stable task-facing layout.
+        self._native_body_names = [
+            mujoco.mj_id2name(mjm, mujoco.mjtObj.mjOBJ_BODY, i) or f"body_{i}"
+            for i in range(mjm.nbody)
+        ]
+
+        jnt_start = 1 if self._has_free_joint else 0
+        self._native_dof_names = [
+            mujoco.mj_id2name(mjm, mujoco.mjtObj.mjOBJ_JOINT, i) or f"joint_{i}"
+            for i in range(jnt_start, mjm.njnt)
+        ]
+        scalar_joint_types = {
+            mujoco.mjtJoint.mjJNT_HINGE,
+            mujoco.mjtJoint.mjJNT_SLIDE,
+        }
+        robot_joint_types = set(mjm.jnt_type[jnt_start:].tolist())
+        if (
+            len(self._native_dof_names) != self._num_dof
+            or not robot_joint_types <= scalar_joint_types
+        ):
+            raise ValueError(
+                "only scalar hinge/slide robot joints are currently supported: "
+                f"{len(self._native_dof_names)} joints for {self._num_dof} DOFs, "
+                f"joint types={sorted(robot_joint_types)}"
+            )
+
+        self._robot_layout = RobotLayout.from_cfg(cfg)
+        world_name = self._native_body_names[0]
+        self._robot_layout.validate_native(
+            self._native_dof_names,
+            self._native_body_names,
+            allowed_extra_body_names=[world_name],
+        )
+        self._dof_names = list(self._robot_layout.dof_names)
+        self._body_names = list(self._robot_layout.body_names)
+        self._num_dof = len(self._dof_names)
+        self._num_bodies = len(self._body_names)
+
+        canonical_to_native_dof = self._robot_layout.canonical_to_native_dof(
+            self._native_dof_names
+        )
+        native_to_canonical_dof = self._robot_layout.native_to_canonical_dof(
+            self._native_dof_names
+        )
+        canonical_to_native_body = self._robot_layout.canonical_to_native_body(
+            self._native_body_names
+        )
+        self._canonical_to_native_dof_np = np.asarray(
+            canonical_to_native_dof, dtype=np.int64
+        )
+        self._native_to_canonical_dof_np = np.asarray(
+            native_to_canonical_dof, dtype=np.int64
+        )
+        self._canonical_to_native_body_np = np.asarray(
+            canonical_to_native_body, dtype=np.int64
+        )
+        self._canonical_to_native_dof = torch.tensor(
+            canonical_to_native_dof, dtype=torch.long, device=device
+        )
+        self._native_to_canonical_dof = torch.tensor(
+            native_to_canonical_dof, dtype=torch.long, device=device
+        )
+        self._canonical_to_native_body = torch.tensor(
+            canonical_to_native_body, dtype=torch.long, device=device
+        )
+        native_position_limits = mjm.jnt_range[jnt_start:].copy()
+        limited = mjm.jnt_limited[jnt_start:].astype(bool)
+        native_position_limits[~limited, 0] = -np.inf
+        native_position_limits[~limited, 1] = np.inf
+        self._dof_position_limits = torch.tensor(
+            native_position_limits[self._canonical_to_native_dof_np],
+            dtype=torch.float,
+            device=device,
+        )
+
+        # Config vectors are canonical; MuJoCo model arrays are native.
+        damping = getattr(cfg.asset, "joint_damping", 0.0)
+        armature = getattr(cfg.asset, "rotor_inertia", 0.0)
+        if np.ndim(damping) == 0:
+            mjm.dof_damping[self._qvel_offset :] = damping
+        else:
+            mjm.dof_damping[self._qvel_offset :] = np.asarray(damping)[
+                self._native_to_canonical_dof_np
+            ]
+        if np.ndim(armature) == 0:
+            mjm.dof_armature[self._qvel_offset :] = armature
+        else:
+            mjm.dof_armature[self._qvel_offset :] = np.asarray(armature)[
+                self._native_to_canonical_dof_np
+            ]
+
+        # Contact index tensors
+        self._penalised_contact_indices = self.build_contact_indices(
+            getattr(cfg.asset, "penalize_contacts_on", []), device
+        )
+        self._termination_contact_indices = self.build_contact_indices(
+            getattr(cfg.asset, "terminate_after_contacts_on", []), device
+        )
+
+    def _run_task_callbacks(self, mjm: mujoco.MjModel, task) -> None:
+        """Call task hooks (num_dof, env origins, dof props)."""
+        if task is not None:
+            task.num_dof = self._num_dof
+        if task is not None and hasattr(task, "_get_env_origins"):
+            task._get_env_origins()
+        if task is not None and hasattr(task, "_process_dof_props"):
+            task._process_dof_props(self._make_dof_props(mjm), env_id=0)
+
+    def _clamp_dof_positions(self, positions: torch.Tensor) -> torch.Tensor:
+        """Apply native scalar-joint limits to canonical reset positions."""
+        return torch.maximum(
+            torch.minimum(positions, self._dof_position_limits[:, 1]),
+            self._dof_position_limits[:, 0],
+        )
+
+    # ── Helpers ────────────────────────────────────────────────────────────────
+
+    def _make_dof_props(self, mjm: mujoco.MjModel) -> dict:
+        """Build DOF-properties dict expected by task._process_dof_props.
+
+        Keys match the task callback contract: lower, upper, velocity, effort.
+        Only includes actuated joints (skips free joint for floating-base).
+        Effort/velocity come from <limit> tags parsed out of the URDF —
+        MuJoCo's URDF importer discards those because it expects them on
+        actuators, which this backend does not create.
+        """
+        jnt_start = 1 if self._has_free_joint else 0
+        n = mjm.njnt - jnt_start
+        limited = mjm.jnt_limited[jnt_start : mjm.njnt].astype(bool)
+        lower_native = np.where(limited, mjm.jnt_range[jnt_start : mjm.njnt, 0], -1e6)
+        upper_native = np.where(limited, mjm.jnt_range[jnt_start : mjm.njnt, 1], 1e6)
+        effort_native = np.full(n, 1e6, dtype=np.float64)
+        velocity_native = np.full(n, 1e6, dtype=np.float64)
+        for i, jname in enumerate(self._native_dof_names):
+            if jname in self._urdf_limits:
+                eff, vel = self._urdf_limits[jname]
+                effort_native[i] = eff
+                velocity_native[i] = vel
+        order = self._canonical_to_native_dof_np
+        lower = lower_native[order]
+        upper = upper_native[order]
+        effort = effort_native[order]
+        velocity = velocity_native[order]
+        return {"lower": lower, "upper": upper, "velocity": velocity, "effort": effort}
+
+    @staticmethod
+    def _load_urdf_spec(
+        urdf_path: str, visual_model_path: str | None = None
+    ) -> "mujoco.MjSpec":
+        """Load URDF as MjSpec, preserving <visual> meshes where MuJoCo supports them.
+
+        MuJoCo's URDF importer discards <visual> geoms during file parse unless
+        the URDF embeds <mujoco><compiler discardvisual="false"/></mujoco>. The
+        same embedded tag also leaves the spec mutable post-parse — without it,
+        later add_texture/add_material calls are silently pruned at compile.
+        We always inject the tag; for URDFs whose <visual> blocks reference
+        meshes MuJoCo can't read (.dae/.collada), we first strip those blocks
+        so the compile doesn't fail looking for a decoder.
+        """
+        root = ET.parse(urdf_path).getroot()
+        if visual_model_path is not None:
+            replace_visuals_from_mjcf(root, visual_model_path)
+        has_unsupported = any(
+            (m.get("filename") or "").lower().endswith((".dae", ".collada"))
+            for m in root.iter("mesh")
+        )
+        if has_unsupported:
+            for link in root.iter("link"):
+                for v in list(link.findall("visual")):
+                    link.remove(v)
+        mj = root.find("mujoco")
+        if mj is None:
+            mj = ET.SubElement(root, "mujoco")
+        comp = mj.find("compiler")
+        if comp is None:
+            comp = ET.SubElement(mj, "compiler")
+        comp.set("discardvisual", "false")
+        comp.set("strippath", "false")
+        spec = mujoco.MjSpec.from_string(ET.tostring(root, encoding="unicode"))
+        spec.modelfiledir = os.path.abspath(os.path.dirname(urdf_path))
+        return spec
+
+    @staticmethod
+    def _parse_urdf_limits(urdf_path: str) -> dict:
+        """Shared implementation lives in gym.envs.base.urdf_limits."""
+        return parse_urdf_limits(urdf_path)

@@ -1,4 +1,15 @@
-"""Go2 oscillator observations and buffers for the saved go2osc policy."""
+"""Go2 oscillator observations and buffers for the saved go2osc policy.
+
+To run our trained task:
+
+```
+uv run --frozen python scripts/play.py \
+  --task go2osc --device cpu --num_envs 1 \
+  --experiment_name go2osc \
+  --load_run varying_freq_standing_knee_clearance_90_deg_phase_aa3ea0f \
+  --checkpoint 1000 --original_cfg
+```
+"""
 
 import math
 import threading

@@ -1,0 +1,233 @@
+import torch
+
+from gym.envs.mit_humanoid.mit_humanoid import MIT_Humanoid
+
+# random dataset generated from RS unit test for coupling
+q_joint = torch.tensor(
+    [
+        0.680375,
+        -0.211234,
+        0.566198,
+        0.59688,
+        0.823295,
+        -0.604897,
+        -0.329554,
+        0.536459,
+        -0.444451,
+        0.10794,
+        -0.0452059,
+        0.257742,
+        -0.270431,
+        0.0268018,
+        0.904459,
+        0.83239,
+        0.271423,
+        0.434594,
+    ]
+)
+qd_joint = torch.tensor(
+    [
+        -0.716795,
+        0.213938,
+        -0.967399,
+        -0.514226,
+        -0.725537,
+        0.608353,
+        -0.686642,
+        -0.198111,
+        -0.740419,
+        -0.782382,
+        0.997849,
+        -0.563486,
+        0.0258648,
+        0.678224,
+        0.22528,
+        -0.407937,
+        0.275105,
+        0.0485743,
+    ]
+)
+q_des = torch.tensor(
+    [
+        -0.793511,
+        -0.775164,
+        -0.39815,
+        -0.498853,
+        -0.183733,
+        0.438987,
+        0.81376,
+        0.796708,
+        0.886935,
+        -0.128871,
+        0.515327,
+        -0.341606,
+        0.678451,
+        -0.92871,
+        0.988423,
+        -0.348077,
+        -0.156955,
+        -0.781696,
+    ]
+)
+qd_des = torch.tensor(
+    [
+        -1.18467,
+        -0.854435,
+        1.85749,
+        -1.46987,
+        1.04922,
+        -0.404467,
+        -1.13309,
+        -1.43643,
+        -0.369309,
+        1.08526,
+        0.557372,
+        0.652162,
+        -1.68233,
+        -1.99894,
+        -1.08062,
+        -1.41145,
+        0.938655,
+        -0.78417,
+    ]
+)
+tau_ff = torch.tensor(
+    [
+        3.84593,
+        2.71134,
+        4.00386,
+        -3.13416,
+        -0.159299,
+        -4.22591,
+        -2.84547,
+        -0.828138,
+        4.38774,
+        -2.48162,
+        2.86756,
+        -2.46803,
+        -4.25661,
+        -1.52445,
+        4.32791,
+        1.73937,
+        -1.22609,
+        -3.53073,
+    ]
+)
+kp_joint = torch.tensor(
+    [
+        8.43949,
+        8.15695,
+        6.06515,
+        1.13744,
+        0.861659,
+        8.35853,
+        3.72243,
+        2.03301,
+        4.82449,
+        9.47334,
+        6.59952,
+        8.59631,
+        7.72531,
+        8.89196,
+        7.26054,
+        3.6288,
+        3.16177,
+        0.916992,
+    ]
+)
+kd_joint = torch.tensor(
+    [
+        1.3877,
+        0.160055,
+        1.26392,
+        0.223314,
+        1.29034,
+        1.87941,
+        1.80211,
+        0.363936,
+        0.30053,
+        1.74705,
+        1.81245,
+        1.55709,
+        1.53503,
+        1.70865,
+        1.42665,
+        1.12079,
+        0.396755,
+        0.317992,
+    ]
+)
+# expected output
+tau_act = torch.tensor(
+    [
+        -9.2422,
+        -2.0596,
+        1.72537,
+        -7.52607,
+        -0.914219,
+        2.59592,
+        0.605894,
+        -0.749719,
+        38.464,
+        11.7989,
+        5.76847,
+        -5.72733,
+        0.45167,
+        -14.5952,
+        3.07447,
+        -3.66905,
+        -2.31725,
+        -4.91086,
+    ]
+)
+
+
+def test_coupling():
+    robot = MIT_Humanoid.__new__(MIT_Humanoid)
+    robot.J = torch.eye(len(q_joint))
+    robot.J[4, 3] = 1
+    robot.J[9, 8] = 1
+    robot.J_inv_T = torch.inverse(robot.J.T)
+
+    tau = robot._apply_coupling(
+        q_joint.unsqueeze(0),
+        qd_joint.unsqueeze(0),
+        q_des.unsqueeze(0),
+        qd_des.unsqueeze(0),
+        kp_joint.unsqueeze(0),
+        kd_joint.unsqueeze(0),
+        tau_ff.unsqueeze(0),
+    ).squeeze(0)
+    assert torch.allclose(tau, tau_act, atol=1e-4)
+
+
+def test_sampled_history_update_preserves_unselected_environments():
+    robot = MIT_Humanoid.__new__(MIT_Humanoid)
+    robot.num_dof = 2
+    robot.sampled_history_threshold = 2
+    robot.sampled_history_counter = torch.tensor([0, 1, 2])
+    robot.dof_pos_target = torch.tensor([[10.0, 11.0], [20.0, 21.0], [30.0, 31.0]])
+    robot.dof_pos = robot.dof_pos_target + 100.0
+    robot.dof_vel = robot.dof_pos_target + 200.0
+    robot.sampled_history_dof_pos_target = torch.arange(18.0).reshape(3, 6)
+    robot.sampled_history_dof_pos = robot.sampled_history_dof_pos_target + 100.0
+    robot.sampled_history_dof_vel = robot.sampled_history_dof_pos_target + 200.0
+    before = (
+        robot.sampled_history_dof_pos_target.clone(),
+        robot.sampled_history_dof_pos.clone(),
+        robot.sampled_history_dof_vel.clone(),
+    )
+
+    robot._update_sampled_history_buffers()
+
+    histories = (
+        (robot.sampled_history_dof_pos_target, robot.dof_pos_target),
+        (robot.sampled_history_dof_pos, robot.dof_pos),
+        (robot.sampled_history_dof_vel, robot.dof_vel),
+    )
+    for (history, current), previous in zip(histories, before):
+        torch.testing.assert_close(history[[0, 2]], previous[[0, 2]])
+        expected = torch.roll(previous[1], robot.num_dof)
+        expected[: robot.num_dof] = current[1]
+        torch.testing.assert_close(history[1], expected)
+    assert torch.equal(robot.sampled_history_counter, torch.tensor([1, 0, 3]))
