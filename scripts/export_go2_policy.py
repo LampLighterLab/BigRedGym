@@ -2,8 +2,8 @@
 
 Run on the PC (it builds the training env to load the checkpoint):
 
-    uv run --frozen python scripts/export_go2_policy.py --name trot_v1
-    uv run --frozen python scripts/export_go2_policy.py --name trot_v1 \
+    uv run --frozen python scripts/export_go2_policy.py --task go2trot --name trot_v1
+    uv run --frozen python scripts/export_go2_policy.py --task go2trot --name trot_v1 \
         --run_name <run>
 
 Writes logs/policies/<name>/ (policy.pt, deploy_meta.json).
@@ -18,6 +18,7 @@ import subprocess
 from go2_deploy.deploy_config import DeployConfig
 from go2_deploy.policy_bundle import export_bundle
 from go2_deploy.rl_controller import setup_actor
+from go2_deploy.utility.import_custom_impl import load_custom_impl
 
 DEFAULT_OUT_ROOT = os.path.join("logs", "policies")
 
@@ -34,36 +35,18 @@ def git_commit():
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--name", required=True, help="Bundle name")
-    parser.add_argument("--run_name", help="Training run in logs/ (default: latest)")
-    parser.add_argument("--out_root", default=DEFAULT_OUT_ROOT)
-    parser.add_argument("--experiment_name")
-    parser.add_argument("--checkpoint", type=int, default=-1)
     parser.add_argument(
-        "--current_cfg", action="store_true",
-        help="Use the checked-out training config when the saved run config is absent",
+        "--task", required=True, help="Task name, e.g. go2trot (selects the custom_impl)"
     )
+    parser.add_argument("--run_name", help="Training run in logs/<task>/ (default: latest)")
+    parser.add_argument("--out_root", default=DEFAULT_OUT_ROOT)
     args = parser.parse_args()
-    if args.current_cfg and (
-        not args.experiment_name or not args.run_name or args.checkpoint < 0
-    ):
-        parser.error("--current_cfg requires an explicit experiment, run and checkpoint")
 
-    cfg = DeployConfig()
-    actor = setup_actor(
-        run_name=args.run_name,
-        deploy_cfg=cfg,
-        experiment_name=args.experiment_name,
-        checkpoint=args.checkpoint,
-        original_cfg=not args.current_cfg,
-    )
+    custom_impl = load_custom_impl(args.task)
+    cfg = DeployConfig(custom_impl)
+    actor = setup_actor(args.run_name, cfg)
     out_dir = os.path.join(args.out_root, args.name)
-    provenance = {
-        "run_name": args.run_name or "latest",
-        "experiment_name": args.experiment_name,
-        "checkpoint": args.checkpoint,
-        "config_source": "working_tree" if args.current_cfg else "saved_run",
-        "git_commit": git_commit(),
-    }
+    provenance = {"run_dir": cfg.run_dir, "git_commit": git_commit()}
     meta_path = export_bundle(actor, cfg, out_dir, provenance)
     print(f"Wrote {meta_path}")
 

@@ -7,8 +7,6 @@ from go2_deploy.unitree_remote_controller import UnitreeRemoteController, RCHand
 from go2_deploy.utility import deploy_utility
 from go2_deploy.utility.csv_logger import CSVLogger
 from go2_deploy.utility.thread import RecurrentThread
-from go2_deploy.deploy_config import DeployConfig
-from go2_deploy.utility.import_custom_impl import custom_impl
 
 import torch
 from unitree_sdk2py.core.channel import (
@@ -79,7 +77,6 @@ class MainController:
 
         # LowState_: last recieved lowstate msg
         self.last_lowstate_msg = None
-        self.last_lowstate_time = None
         self.last_lowstate_msg_lock = threading.Lock()
 
         # torch tensor: obs vector computed from last_lowstate_msg
@@ -103,7 +100,7 @@ class MainController:
 
     # initialize student-provided custom buffers
     def _init_custom_buffers(self):
-        custom_buffers_dict = custom_impl.get_custom_buffers_dict()
+        custom_buffers_dict = self.cfg.custom_impl.get_custom_buffers_dict()
         for key, value in custom_buffers_dict.items():
             setattr(self, key, value)
 
@@ -142,7 +139,6 @@ class MainController:
         t = time.monotonic()
         with self.last_lowstate_msg_lock:
             self.last_lowstate_msg = msg
-            self.last_lowstate_time = t
             self.remote_controller.parse(msg.wireless_remote)
         self.rc_handler._process_input()
 
@@ -161,29 +157,17 @@ class MainController:
 
     # Process student-provided custom buffers in control loop
     def _process_custom_buffers(self, t):
-        custom_impl.update_custom_buffers(self, t)
+        self.cfg.custom_impl.update_custom_buffers(self, t)
 
-
-    def _control_loop(self):
-        if self._estop_flag:
-         return
-
-        if self._state not in (State.INTERMEDIATE, State.CUSTOM_CTRL):
-            return
-        
-        try:
-            self._control_step()
-
-        except Exception as exc:
-            print(f"Control error: {exc}")
-            self.request_emergency_stop()
 
     # Read last lowstate msg, publish LowCmd_
     # KNOWN RISK: if this process dies outright (OOM, kill) while in
     # CUSTOM_CTRL, LowCmd_ stops and the RC's X can no longer reach us.
     # See "Known risks" in README_DEPLOY.md.
-    def _control_step(self):
+    def _control_loop(self):
         t = time.monotonic()
+
+        self._process_custom_buffers(t)
 
         with self.last_command_lock:
             self.last_command = torch.tensor(
@@ -199,28 +183,9 @@ class MainController:
             self.last_sportmodestate_msg_lock,
             self.last_obs_lock,
         ):
-            t = time.monotonic()
-
-            if self.last_lowstate_msg is None:
-                raise RuntimeError("Missing sensor data")
-
-            if t - self.last_lowstate_time > 0.1:
-                raise RuntimeError("Stale sensor data")
-
-            self._process_custom_buffers(t)
-
             self.last_obs = self.msg_to_obs(self.last_lowstate_msg)
             last_obs = self.last_obs.clone().detach()
-
         action = self._act(last_obs)
-
-        if action.shape != (12,) or not torch.isfinite(action).all():
-            raise RuntimeError("Invalid policy action")
-
-        if self._state == State.CUSTOM_CTRL:
-            validate = getattr(custom_impl, "validate_action", None)
-            if validate is not None:
-                validate(self, action)
 
         with self.last_action_lock:
             self.last_action[1] = self.last_action[0]
@@ -245,7 +210,7 @@ class MainController:
         if self._state == State.CUSTOM_CTRL:
             return self.rl_controller.act(last_obs)
         elif self._state == State.INTERMEDIATE:
-            return self.intermediate_pos
+            return deploy_utility.target_pos_to_action(self, self.intermediate_pos)
         else:
             return self.last_action[0]
 
@@ -420,9 +385,6 @@ class MainController:
     # Utility -----------------------------------------------------
 
     def _create_lowcmd_thread(self):
-        if hasattr(self, "last_osc_update_t"):
-            self.last_osc_update_t = None
-            
         self.lowcmd_thread = RecurrentThread(
             interval=1 / self.cfg.ctrl_freq, target=self._control_loop
         )

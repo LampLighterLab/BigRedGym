@@ -18,7 +18,7 @@ from datetime import datetime
 import torch
 
 from go2_deploy.deploy_config import DeployConfig
-from go2_deploy.utility.import_custom_impl import phase
+from go2_deploy.utility.import_custom_impl import load_custom_impl
 
 META_FILE = "deploy_meta.json"
 POLICY_FILE = "policy.pt"
@@ -71,7 +71,6 @@ def export_bundle(actor, cfg, out_dir, provenance=None):
         "obs_sizes": {obs: cfg.obs_sizes[obs] for obs in cfg.obs_vector},
         "scaling": _scaling_snapshot(cfg),
         "default_dof_pos": _as_number_or_list(cfg.default_dof_pos),
-        "phase_frequency": cfg.phase_frequency,
         "kp": cfg.kp,
         "kd": cfg.kd,
         "command_limits": dict(cfg.command_limits),
@@ -82,9 +81,6 @@ def export_bundle(actor, cfg, out_dir, provenance=None):
             "exported_at": datetime.now().isoformat(),
             **(provenance or {}),
         },
-        "implementation": phase,
-        "ctrl_freq": cfg.ctrl_freq,
-        "exp_moving_avg": cfg.exp_moving_avg,   
     }
     meta_path = os.path.join(out_dir, META_FILE)
     with open(meta_path, "w") as f:
@@ -92,33 +88,25 @@ def export_bundle(actor, cfg, out_dir, provenance=None):
     return meta_path
 
 
-def config_from_meta(meta):
+def config_from_meta(meta, custom_impl=None):
     """DeployConfig with every policy-coupled field taken from the bundle.
 
     Deploy-only settings (ctrl_freq, EMA, logging) keep their DeployConfig
-    defaults. Missing keys raise KeyError on purpose.
+    defaults. Missing keys raise KeyError on purpose. custom_impl supplies the
+    custom buffers/obs pieces (default: the one for the bundle's task_name).
     """
-    cfg = DeployConfig()
-    if meta.get("implementation", "trot") != phase:
-        raise ValueError("Incorrect controller implementation")
-
-    if meta["task_name"] != cfg.task_name:
-        raise ValueError("Incorrect policy task")
-
-    if meta["obs_vector"] != cfg.obs_vector:
-        raise ValueError("Observation layout mismatch")
-
-    if meta.get("ctrl_freq", cfg.ctrl_freq) != cfg.ctrl_freq:
-        raise ValueError("Control frequency mismatch")
-
-    if meta.get("exp_moving_avg", cfg.exp_moving_avg) != cfg.exp_moving_avg:
-        raise ValueError("Action smoothing mismatch")
-    
+    if custom_impl is None:
+        custom_impl = load_custom_impl(meta["task_name"])
+    elif custom_impl.task_name != meta["task_name"]:
+        raise ValueError(
+            f"bundle is for task '{meta['task_name']}', "
+            f"but custom_impl is for '{custom_impl.task_name}'"
+        )
+    cfg = DeployConfig(custom_impl)
     cfg.task_name = meta["task_name"]
     cfg.obs_vector = list(meta["obs_vector"])
     cfg.obs_sizes = dict(meta["obs_sizes"])
     cfg.default_dof_pos = torch.tensor(meta["default_dof_pos"])
-    cfg.phase_frequency = meta["phase_frequency"]
     cfg.kp = meta["kp"]
     cfg.kd = meta["kd"]
     cfg.command_limits = dict(meta["command_limits"])
@@ -134,7 +122,7 @@ def config_from_meta(meta):
     return cfg
 
 
-def load_bundle(bundle_dir):
+def load_bundle(bundle_dir, custom_impl=None):
     """Returns (policy, cfg). Raises if the bundle is inconsistent."""
     with open(os.path.join(bundle_dir, META_FILE)) as f:
         meta = json.load(f)
@@ -143,7 +131,7 @@ def load_bundle(bundle_dir):
     if _sha256(policy_path) != meta["policy_sha256"]:
         raise ValueError(f"{policy_path} does not match the hash in {META_FILE}")
 
-    cfg = config_from_meta(meta)
+    cfg = config_from_meta(meta, custom_impl)
     if cfg.obs_dim() != meta["num_obs"]:
         raise ValueError(
             f"obs_vector adds up to {cfg.obs_dim()} values, "
