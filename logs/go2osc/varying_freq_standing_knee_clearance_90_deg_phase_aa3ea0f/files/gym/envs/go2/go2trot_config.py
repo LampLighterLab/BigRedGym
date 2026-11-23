@@ -1,0 +1,204 @@
+from gym.envs.go2.go2_config import Go2Cfg, Go2RunnerCfg
+
+
+class Go2TrotCfg(Go2Cfg):
+    class env(Go2Cfg.env):
+        episode_length_s = 5
+
+    class init_state(Go2Cfg.init_state):
+        # Policy targets are offsets from this static nominal posture.
+        default_joint_angles = {
+            "hip_joint": 0.0,
+            "calf_joint": -1.36,
+            "FL_thigh_joint": 0.96,
+            "FR_thigh_joint": 0.96,
+            "RL_thigh_joint": 0.96,
+            "RR_thigh_joint": 0.96,
+        }
+        reset_mode = "reset_to_basic"
+
+        root_pos_range = [
+            [0.0, 0.0],  # x
+            [0.0, 0.0],  # y
+            [0.450, 0.50],  # z
+            [0.0, 0.0],  # roll
+            [0.0, 0.0],  # pitch
+            [0.0, 0.0],  # yaw
+        ]
+        root_vel_range = [
+            [-0.5, 3.0],  # x
+            [-0.1, 0.1],  # y
+            [-0.05, 0.05],  # z
+            [0.0, 0.0],  # roll
+            [0.0, 0.0],  # pitch
+            [0.0, 0.0],  # yaw
+        ]
+
+    class control(Go2Cfg.control):
+        stiffness = {"hip": 20.0, "thigh": 20.0, "calf": 20.0}
+        damping = {"hip": 0.5, "thigh": 0.5, "calf": 0.5}
+        ctrl_frequency = 50
+        desired_sim_frequency = 50
+        gait_freq = [1.0, 3.0]  # oscillator frequency range [Hz]
+        # Cycle offsets define a trot: front-left/rear-right move together,
+        # half a cycle away from front-right/rear-left.
+        gait_phase_offsets = {
+            "FL_foot": 0.0,
+            "FR_foot": 0.5,
+            "RL_foot": 0.5,
+            "RR_foot": 0.0,
+        }
+        # Canonical order is FL, FR, RL, RR; hip, thigh, calf within each leg.
+        # q_ref = offset + amplitude * sin(phase + leg_phase).
+        # Reward-only offsets from default_dof_pos, never added to PD targets.
+        # The thigh/calf amplitudes approximately preserve fore-aft foot
+        # position while alternately extending the stance diagonal and
+        # shortening the swing diagonal.
+        gait_joint_offsets = 4 * [0.0, 0.0, 0.0]
+        gait_joint_amplitudes = 4 * [0.0, -0.15, 0.30]
+
+    class commands(Go2Cfg.commands):
+        # Standard deviation in m/s around the forward-command centers below.
+        var = 0.1
+
+        class ranges(Go2Cfg.commands.ranges):
+            lin_vel_x = [-0.5, 0.0, 0.5, 1.0, 2.0]
+            lin_vel_y = 0.5
+            yaw_vel = 1.5
+
+    class push_robots(Go2Cfg.push_robots):
+        toggle = True
+        interval_s = 5
+
+    class domain_randomization(Go2Cfg.domain_randomization):
+        class startup(Go2Cfg.domain_randomization.startup):
+            link_mass_scale_range = [0.9, 1.2]
+
+        class episode(Go2Cfg.domain_randomization.episode):
+            scale_ranges = {
+                "p_gains": [0.9, 1.1],
+                "d_gains": [0.8, 1.2],
+            }
+
+    class asset(Go2Cfg.asset):
+        file = "{GYM_ROOT_DIR}/resources/robots/" + "go2/urdf/go2.urdf"
+        # Use the SDK's OBJ visuals; keep our URDF's complete physical model.
+        vsim_visual_mesh_dir = "{GYM_ROOT_DIR}/thirdparty/vlearn/assets/go2/assets"
+        foot_name = "foot"
+        penalize_contacts_on = ["calf"]
+        terminate_after_contacts_on = ["base"]
+        end_effector_names = ["foot"]
+        fix_base_link = False
+        disable_gravity = False
+        disable_motors = False
+
+    class reward_settings(Go2Cfg.reward_settings):
+        base_height_target = Go2Cfg.reward_settings.base_height_target
+
+    class scaling(Go2Cfg.scaling):
+        # Canonical RobotLayout order is FL, FR, RL, RR, with
+        # hip, thigh, calf inside each leg. Backends map native order to it.
+        base_height = 0.3
+        dof_pos = 4 * [1.0472, 2.53075, 0.94247]
+        dof_pos_obs = dof_pos
+        # Residual radians per policy unit, independent of observation ranges.
+        dof_pos_target = 4 * [0.2, 0.3, 0.3]
+        tau_ff = 4 * [23.7, 23.7, 45.43]
+
+
+class Go2TrotRunnerCfg(Go2RunnerCfg):
+    class actor:
+        hidden_dims = [256, 256, 128]
+        # * can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
+        activation = "elu"
+        obs = [
+            "base_ang_vel",
+            "projected_gravity",
+            "commands",
+            "dof_pos_obs",
+            "dof_vel",
+            "dof_pos_target",
+            "phase_obs",
+            "phase_frequency",
+        ]
+        normalize_obs = False
+        smooth_exploration = False
+        actions = ["dof_pos_target"]
+        add_noise = False
+        disable_actions = False
+
+        class noise:
+            scale = 1.0
+            dof_pos_obs = 0.01
+            base_ang_vel = 0.01
+            dof_pos = 0.005
+            dof_vel = 0.005
+            lin_vel = 0.05
+            ang_vel = [0.3, 0.15, 0.4]
+            gravity_vec = 0.1
+
+    class critic:
+        hidden_dims = [128, 64]
+        # * can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
+        activation = "elu"
+        obs = [
+            "base_height",
+            "base_lin_vel",
+            "base_ang_vel",
+            "projected_gravity",
+            "commands",
+            "dof_pos_obs",
+            "dof_vel",
+            "dof_pos_target",
+            "phase_obs",
+            "phase_frequency",
+        ]
+        normalize_obs = False
+
+        class reward:
+            class weights:
+                tracking_lin_vel = 4.0
+                tracking_ang_vel = 4.0
+                lin_vel_z = 0.0
+                ang_vel_xy = 0.01
+                orientation = 1.0
+                torques = 5.0e-6
+                dof_vel = 0.0
+                stand_still = 0.0
+                dof_pos_limits = 0.0
+                feet_contact_forces = 0.0
+                dof_near_home = 0.0
+                min_base_height = 0.5
+                action_rate = 0.1
+                action_rate2 = 0.05
+                trot_support = 3.0
+                swing_contact = 3.0
+                reference_traj = 3.0
+
+            class termination_weight:
+                termination = 0.01
+
+    class algorithm:
+        # both
+        gamma = 0.99
+        lam = 0.95
+        # shared
+        batch_size = 2**15
+        max_gradient_steps = 24
+        # new
+        clip_param = 0.2
+        learning_rate = 1.0e-3
+        max_grad_norm = 1.0
+        rollout_size = 2**16
+        # Critic
+        use_clipped_value_loss = True
+        # Actor
+        entropy_coef = 0.001
+        schedule = "adaptive"  # could be adaptive, fixed
+        desired_kl = 0.01
+        lr_range = [2e-5, 1e-2]
+        lr_ratio = 1.5
+
+    class runner(Go2RunnerCfg.runner):
+        experiment_name = "go2trot"
+        max_iterations = 500

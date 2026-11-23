@@ -1,0 +1,262 @@
+from abc import ABC, abstractmethod
+
+import torch
+
+from gym.envs.base.robot_layout import RobotLayout
+
+
+class SimBackend(ABC):
+    """Abstract physics backend interface.
+
+    Separates physics-engine specifics from RL task logic, enabling multiple
+    backends (MuJoCo Warp, plain MuJoCo for Mac/CI, and optional VSim).
+
+    Lifecycle
+    ---------
+    backend = ConcreteBackend(...)
+    backend.setup(cfg, num_envs, device, task=self)   # world building
+    # state tensors are live after this point
+    for _ in training_loop:
+        backend.step(torques)           # advance physics
+        backend.reset_state(mask)       # commit selected environment state
+    backend.close()
+    """
+
+    # ── World building ──────────────────────────────────────────────────────
+
+    @abstractmethod
+    def setup(self, cfg, num_envs: int, device: str, task=None) -> None:
+        """Load asset, create *num_envs* parallel environments, prepare the
+        simulator, and acquire state tensors.
+
+        *task* is the owning FixedRobot/LeggedRobot instance.  Backends that
+        need task-specific joint limits call ``task._process_dof_props`` during
+        setup. Pass ``None`` if no callback is needed (e.g. unit tests).
+        """
+
+    # ── Metadata (valid after setup) ───────────────────────────────────────
+
+    @property
+    @abstractmethod
+    def num_dof(self) -> int: ...
+
+    @property
+    @abstractmethod
+    def num_bodies(self) -> int: ...
+
+    @property
+    @abstractmethod
+    def dof_names(self) -> list: ...
+
+    @property
+    @abstractmethod
+    def body_names(self) -> list: ...
+
+    @property
+    def robot_layout(self) -> RobotLayout:
+        """Canonical task-facing robot layout, valid after setup()."""
+        try:
+            return self._robot_layout
+        except AttributeError as exc:
+            raise RuntimeError(
+                f"{type(self).__name__}.robot_layout accessed before the backend "
+                "configured its canonical robot layout"
+            ) from exc
+
+    @abstractmethod
+    def find_body_index(self, name: str) -> int:
+        """Return the rigid-body index for the body with the given name."""
+
+    # ── Live state tensors ─────────────────────────────────────────────────
+    # Tensors live on *device*, are writable, and are updated in-place by
+    # step().  No explicit refresh is required after step() returns.
+
+    @property
+    @abstractmethod
+    def dof_state(self) -> torch.Tensor:
+        """[num_envs * num_dof, 2] — (pos, vel) pairs."""
+
+    @property
+    @abstractmethod
+    def dof_pos(self) -> torch.Tensor:
+        """[num_envs, num_dof] — view into dof_state[..., 0]."""
+
+    @property
+    @abstractmethod
+    def dof_vel(self) -> torch.Tensor:
+        """[num_envs, num_dof] — view into dof_state[..., 1]."""
+
+    @property
+    @abstractmethod
+    def root_states(self) -> torch.Tensor:
+        """[num_envs, 13] — pos(3) quat(4) lin_vel(3) ang_vel(3).
+
+        Root position and both velocities are in world coordinates; orientation
+        is scalar-last [x, y, z, w]. Reset writes use these same conventions.
+        """
+
+    @property
+    @abstractmethod
+    def contact_forces(self) -> torch.Tensor:
+        """[num_envs, num_bodies, 3]."""
+
+    @property
+    def rigid_body_states(self) -> torch.Tensor:
+        """[num_envs * num_bodies, 13]. Legged robots only.
+
+        Each row is body-origin position, scalar-last orientation, body-origin
+        world linear velocity, and world angular velocity.
+
+        Raises NotImplementedError for backends/configs that don't need it.
+        """
+        raise NotImplementedError("This backend does not expose rigid_body_states")
+
+    @property
+    def penalised_contact_indices(self) -> torch.Tensor:
+        """Body indices whose contact forces contribute to the penalty reward.
+
+        Populated from cfg.asset.penalize_contacts_on during setup().
+        Raises NotImplementedError for backends that have not implemented it.
+        """
+        raise NotImplementedError
+
+    @property
+    def termination_contact_indices(self) -> torch.Tensor:
+        """Body indices whose contact forces trigger episode termination.
+
+        Populated from cfg.asset.terminate_after_contacts_on during setup().
+        Raises NotImplementedError for backends that have not implemented it.
+        """
+        raise NotImplementedError
+
+    # ── Domain parameters ─────────────────────────────────────────────────
+
+    @property
+    def contact_friction(self) -> torch.Tensor:
+        """[num_envs] effective sliding-friction coefficients.
+
+        Backends expose the values most recently applied to their native
+        physics representation. Tasks and evaluation code may cache this
+        tensor, so implementations keep it persistent.
+        """
+        raise NotImplementedError
+
+    def set_contact_friction(
+        self,
+        env_ids: torch.Tensor,
+        coefficients: torch.Tensor,
+    ) -> None:
+        """Apply one effective sliding-friction coefficient per environment."""
+        raise NotImplementedError
+
+    def _prepare_contact_friction_update(
+        self,
+        env_ids: torch.Tensor,
+        coefficients: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Move a friction update to the backend device and match its shape."""
+        ids = torch.as_tensor(env_ids, dtype=torch.long, device=self.device).flatten()
+        values = torch.as_tensor(
+            coefficients, dtype=torch.float, device=self.device
+        ).flatten()
+        if ids.numel() != values.numel():
+            raise ValueError(
+                "one contact-friction coefficient is required per environment: "
+                f"{ids.numel()} ids vs {values.numel()} values"
+            )
+        return ids, values
+
+    @property
+    def link_mass(self) -> torch.Tensor:
+        """[num_envs, num_bodies] applied robot-link masses in kilograms."""
+        raise NotImplementedError
+
+    @property
+    def link_inertia(self) -> torch.Tensor:
+        """[num_envs, num_bodies, 3] applied diagonal link inertias."""
+        raise NotImplementedError
+
+    def set_link_mass_scale(
+        self,
+        env_ids: torch.Tensor,
+        scales: torch.Tensor,
+    ) -> None:
+        """Scale each canonical link's nominal mass and diagonal inertia."""
+        raise NotImplementedError
+
+    def _prepare_link_mass_scale_update(
+        self,
+        env_ids: torch.Tensor,
+        scales: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        ids = torch.as_tensor(env_ids, dtype=torch.long, device=self.device).flatten()
+        values = torch.as_tensor(scales, dtype=torch.float, device=self.device)
+        expected = (ids.numel(), self.num_bodies)
+        if values.shape != expected:
+            raise ValueError(
+                "one link-mass scale is required per environment and canonical "
+                f"body: expected {expected}, got {tuple(values.shape)}"
+            )
+        return ids, values
+
+    # ── Per-step ────────────────────────────────────────────────────────────
+
+    @abstractmethod
+    def step(self, torques: torch.Tensor) -> None:
+        """Apply *torques* and advance physics by one timestep.
+
+        Args:
+            torques: [num_envs, num_dof] generalised forces in full DOF
+                     space (zeros for unactuated joints).
+
+        All state tensors are live and up-to-date when this returns.
+        """
+
+    # ── Reset ───────────────────────────────────────────────────────────────
+
+    @abstractmethod
+    def reset_state(self, reset_mask: torch.Tensor) -> None:
+        """Commit selected rows of the current robot state atomically.
+
+        The caller writes the desired DOF and, for floating-base robots, root
+        state into the public tensor views before calling this method. Scalar
+        joint positions outside an asset limit are clamped to that limit, and
+        the public tensor reflects the applied state. Backends perform one
+        native commit/forward for the complete state transaction.
+        """
+
+    def set_all_root_states(self) -> None:
+        """Commit root_states for all environments.
+
+        Default no-op — fixed-base robots don't need this.
+        """
+
+    # ── Device / rendering ──────────────────────────────────────────────────
+
+    @property
+    @abstractmethod
+    def device(self) -> str:
+        """The PyTorch device string ('cpu', 'cuda:0', …)."""
+
+    def render(self, sync_frame_time: bool = True) -> None:
+        pass
+
+    def set_camera(self, position, lookat) -> None:
+        pass
+
+    def build_contact_indices(self, name_patterns: list, device: str) -> torch.Tensor:
+        """Body indices whose names contain any of ``name_patterns``.
+
+        Shared by every backend: cfg.asset.penalize_contacts_on /
+        terminate_after_contacts_on are substring matches over body_names.
+        """
+        indices = [
+            i
+            for pattern in name_patterns
+            for i, name in enumerate(self.body_names)
+            if pattern in name
+        ]
+        return torch.tensor(indices, dtype=torch.long, device=device)
+
+    def close(self) -> None:
+        pass

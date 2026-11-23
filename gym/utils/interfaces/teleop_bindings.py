@@ -24,7 +24,7 @@ natural U/O pair collides with vsim's step toggle:
      N M             N / M   yaw left / right
                      R       reset envs
                      Esc     quit (or close the window)
-                     Up/Down up / down (command effects: student TODO)
+                     Up/Down go2osc gait frequency (+/- 0.25 Hz)
 
 GLFW (MuJoCo) uses ASCII codes for letter keys, so `ord(letter)` is the
 keycode. Each viewer adapter translates named special keys such as UP/DOWN
@@ -53,7 +53,7 @@ HELP_LINES = (
     "  I/K           forward / back",
     "  J/L           strafe left / strafe right",
     "  N/M           yaw left / yaw right",
-    "  Up/Down       up / down (command effects: student TODO)",
+    "  Up/Down       go2osc gait frequency (+/- 0.25 Hz)",
     "  R             reset envs",
     "  Esc / window  quit",
     "  commands step in 1/5 increments of max",
@@ -68,6 +68,9 @@ class TeleopCommands:
 
     def __init__(self, env):
         self.env = env
+        self.has_gait_frequency = hasattr(env, "phase_frequency") and hasattr(
+            getattr(env.cfg, "osc", None), "frequency_range"
+        )
 
         self.max_vel_forward = 4.0
         self.max_vel_backward = -1.0
@@ -101,6 +104,14 @@ class TeleopCommands:
             c[:, 2] = torch.clamp(c[:, 2] + self.increment_yaw, max=self.max_vel_yaw)
         elif action == "yaw_right":
             c[:, 2] = torch.clamp(c[:, 2] - self.increment_yaw, min=-self.max_vel_yaw)
+        elif action in ("up", "down"):
+            if self.has_gait_frequency:
+                low, high = self.env.cfg.osc.frequency_range
+                step = self.env.cfg.osc.frequency_step
+                direction = 1 if action == "up" else -1
+                self.env.phase_frequency.add_(direction * step).clamp_(low, high)
+                frequency = self.env.phase_frequency[0, 0].item()
+                print(f"Gait frequency: {frequency:.2f} Hz")
         elif action == "reset":
             self.env.timed_out[:] = True
             self.env.reset()
