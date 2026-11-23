@@ -1,4 +1,5 @@
 import math
+import threading
 from types import SimpleNamespace
 
 import pytest
@@ -15,12 +16,13 @@ def test_go2osc_deploy_observation_contract():
 
     assert cfg.task_name == "go2osc"
     assert cfg.obs_vector == list(Go2OscRunnerCfg.actor.obs)
-    assert cfg.obs_dim() == 57
+    assert cfg.obs_dim() == 61
     assert cfg.custom_impl.custom_obs_sizes == {
         "phase_obs": 8,
         "phase_frequency": 4,
+        "measured_grf": 4,
     }
-    assert "measured_grf" not in cfg.obs_vector
+    assert "measured_grf" in cfg.obs_vector
     assert "measured_grf" in Go2OscRunnerCfg.critic.obs
     assert cfg.default_dof_pos.tolist() == pytest.approx([0.0, 0.66, -1.36] * 4)
 
@@ -32,7 +34,17 @@ def test_go2osc_deploy_observation_contract():
 
 def test_go2osc_buffers_advance_and_expose_observations():
     custom = load_custom_impl("go2osc")
-    controller = SimpleNamespace(**custom.get_custom_buffers_dict())
+    custom.force_calibration = {
+        "offsets": [10.0, 20.0, 30.0, 40.0],
+        "gains": [1.0, 1.0, 1.0, 1.0],
+        "order": [1, 0, 3, 2],
+        "mass_kg": 10.0,
+    }
+    controller = SimpleNamespace(
+        **custom.get_custom_buffers_dict(),
+        last_lowstate_msg_lock=threading.Lock(),
+        last_lowstate_msg=SimpleNamespace(foot_force=[20, 40, 60, 80]),
+    )
     initial_phase = controller.phase.clone()
     offsets = 2 * math.pi * torch.tensor([0.0, 0.25, 0.5, 0.75])
     assert torch.allclose(
@@ -45,6 +57,9 @@ def test_go2osc_buffers_advance_and_expose_observations():
     custom.update_custom_buffers(controller, 10.02)
     expected_phase = torch.remainder(initial_phase + 2 * math.pi * 2.0 * 0.02, 2 * math.pi)
     assert torch.allclose(controller.phase, expected_phase, atol=1e-5)
+    assert torch.allclose(
+        controller.measured_grf, torch.tensor([20.0, 10.0, 40.0, 30.0]) / 98.1
+    )
 
     pieces = custom.get_custom_obs_pieces()
     for name, getter in pieces.items():
@@ -59,3 +74,20 @@ def test_go2osc_buffers_advance_and_expose_observations():
     controller.phase_frequency.zero_()
     custom.update_custom_buffers(controller, 10.04)
     assert torch.allclose(controller.phase, expected_phase, atol=1e-5)
+
+
+def test_go2osc_requires_foot_force_calibration():
+    custom = load_custom_impl("go2osc")
+    custom.force_calibration = None
+    controller = SimpleNamespace(**custom.get_custom_buffers_dict())
+    with pytest.raises(RuntimeError, match="calibration"):
+        custom.update_custom_buffers(controller, 10.0)
+
+
+def test_go2osc_default_force_baseline():
+    custom = load_custom_impl("go2osc")
+    assert custom.force_calibration["mass_kg"] == 15.0
+    normalized = custom.normalize_foot_forces(
+        [15.0 * 9.81 / 4] * 4, custom.force_calibration
+    )
+    assert torch.allclose(normalized, torch.full((4,), 0.25))
