@@ -38,12 +38,32 @@ def main():
     parser.add_argument("--out_root", default=DEFAULT_OUT_ROOT)
     parser.add_argument("--experiment_name")
     parser.add_argument("--checkpoint", type=int, default=-1)
+    parser.add_argument(
+        "--current_cfg", action="store_true",
+        help="Use the checked-out training config when the saved run config is absent",
+    )
     args = parser.parse_args()
+    if args.current_cfg and (
+        not args.experiment_name or not args.run_name or args.checkpoint < 0
+    ):
+        parser.error("--current_cfg requires an explicit experiment, run and checkpoint")
 
     cfg = DeployConfig()
-    actor = setup_actor(run_name=args.run_name,deploy_cfg=cfg,experiment_name=args.experiment_name,checkpoint=args.checkpoint,)
+    actor = setup_actor(
+        run_name=args.run_name,
+        deploy_cfg=cfg,
+        experiment_name=args.experiment_name,
+        checkpoint=args.checkpoint,
+        original_cfg=not args.current_cfg,
+    )
     out_dir = os.path.join(args.out_root, args.name)
-    provenance = {"run_name": args.run_name or "latest", "git_commit": git_commit()}
+    provenance = {
+        "run_name": args.run_name or "latest",
+        "experiment_name": args.experiment_name,
+        "checkpoint": args.checkpoint,
+        "config_source": "working_tree" if args.current_cfg else "saved_run",
+        "git_commit": git_commit(),
+    }
     meta_path = export_bundle(actor, cfg, out_dir, provenance)
     print(f"Wrote {meta_path}")
 

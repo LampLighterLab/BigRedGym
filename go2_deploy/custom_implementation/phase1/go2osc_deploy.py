@@ -1,7 +1,7 @@
 import math
 import torch
 from gym.envs.go2.go2osc_config import Go2OscCfg, Go2OscRunnerCfg
-from gym.envs.go2.go2_oscillators import phase_rate, step, desired_force
+from gym.envs.go2.go2_config import GO2_FOOT_NAMES
 
 class CustomDeployConfig:
 
@@ -25,7 +25,6 @@ class CustomDeployConfig:
         "phase_obs": 8,
         "phase_frequency": 4,
         "measured_grf": 4,
-        "target_grf": 4,
     }
 
     hardware_approved = False
@@ -39,51 +38,39 @@ class CustomDeployConfig:
 
 # Initialize any custom buffers your implementation uses (for 1 environment)
 def get_custom_buffers_dict():
-    phase = 2 * math.pi * torch.rand(4)
+    # Random common cycle origin, fixed 90-degree offsets as in training.
+    offsets = 2 * math.pi * torch.tensor(
+        [Go2OscCfg.osc.phase_offsets[name] for name in GO2_FOOT_NAMES]
+    )
+    phase = torch.remainder(2 * math.pi * torch.rand(1) + offsets, 2 * math.pi)
 
     return {
         "phase": phase,
         "phase_obs": torch.cat(
             (torch.sin(phase), torch.cos(phase))
         ),
-        "phase_frequency": torch.full((4,), Go2OscCfg.osc.omega),
+        "phase_frequency": torch.full((4,), Go2OscCfg.osc.frequency),
         "measured_grf": torch.zeros(4),
-        "target_grf": desired_force(phase, Go2OscCfg.osc.amplitude),
         "last_osc_update_t": None,
     }
 
 # Define how your custom buffers should be updated at the control frequency
 def advance_oscillators(controller, normalized_grf, dt):
-    osc = Go2OscCfg.osc
-
+    """Match Go2Osc._post_physics_step: prescribed frequency, not force feedback."""
+    if not math.isfinite(dt) or dt < 0 or dt > 0.1:
+        raise ValueError("Invalid oscillator update interval")
+    if normalized_grf.shape != (4,) or not torch.isfinite(normalized_grf).all():
+        raise ValueError("Invalid normalized foot forces")
     controller.measured_grf = normalized_grf.clamp_min(0.0)
-    grf = controller.measured_grf.clamp(max=1.0)
-
-    controller.phase = step(
-        controller.phase,
-        grf,
-        osc.omega,
-        osc.sigma,
-        osc.xi,
-        dt,
-    )
-
-    controller.target_grf = desired_force(
-        controller.phase, osc.amplitude
+    controller.phase = torch.remainder(
+        controller.phase + 2 * math.pi * controller.phase_frequency * dt,
+        2 * math.pi,
     )
 
     controller.phase_obs = torch.cat(
         (torch.sin(controller.phase),
          torch.cos(controller.phase))
     )
-
-    controller.phase_frequency = phase_rate(
-        controller.phase,
-        grf,
-        osc.omega,
-        osc.sigma,
-        osc.xi,
-    ) / (2 * math.pi)
 
 def update_custom_buffers(controller, t):
     cal = CustomDeployConfig.force_calibration
@@ -111,12 +98,9 @@ def update_custom_buffers(controller, t):
 
     controller.last_osc_update_t = t
 
-    # Reproduce the simulation's 200 Hz integration.
-    sim_dt = 1.0 / Go2OscCfg.control.desired_sim_frequency
-    substeps = max(1, math.ceil(dt / sim_dt))
-
-    for _ in range(substeps):
-        advance_oscillators(controller, grf, dt / substeps)
+    # Constant angular rate: one elapsed-time step equals the simulation's
+    # substeps modulo 2*pi. GRF is observed, but does not change phase.
+    advance_oscillators(controller, grf, dt)
 
 # Return a dict mapping observation names to functions that generate the observation pieces
 def get_custom_obs_pieces():
@@ -124,7 +108,6 @@ def get_custom_obs_pieces():
         "phase_obs": _get_obs_phase_obs,
         "phase_frequency": _get_obs_phase_frequency,
         "measured_grf": _get_obs_measured_grf,
-        "target_grf": _get_obs_target_grf,
     }
 
 
@@ -139,9 +122,6 @@ def _get_obs_phase_frequency(controller, lowstate_msg):
 def _get_obs_measured_grf(controller, lowstate_msg):
     return controller.measured_grf
 
-
-def _get_obs_target_grf(controller, lowstate_msg):
-    return controller.target_grf
 
 def normalize_foot_forces(raw, offsets, gains, order, mass_kg):
     raw = torch.as_tensor(raw, dtype=torch.float32)
@@ -175,6 +155,9 @@ def validate_hardware(cfg):
 
     if not custom.hardware_approved:
         raise RuntimeError("Hardware configuration not approved")
+
+    if cfg.phase_frequency != Go2OscCfg.osc.frequency:
+        raise RuntimeError("Bundle frequency differs from Phase 1 playback")
 
     if cal is None:
         raise RuntimeError("Foot force calibration required")
@@ -215,8 +198,12 @@ def validate_action(controller, action):
     if ((target < lower) | (target > upper)).any():
         raise RuntimeError("Joint target outside approved limits")
 
-    vx = controller.last_command[0].item()
-
-    if not 0.3 - 1e-6 <= vx <= 0.7 + 1e-6:
+    vx, vy, yaw = controller.last_command.tolist()
+    low, high = Go2OscCfg.commands.ranges.lin_vel_x
+    if not (
+        low - 1e-6 <= vx <= high + 1e-6
+        and abs(vy) <= 1e-6
+        and abs(yaw) <= 1e-6
+    ):
         raise RuntimeError("Command outside training range")
     

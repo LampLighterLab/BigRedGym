@@ -9,15 +9,18 @@ import torch
 
 # Returns Actor constructed from logs/go2/run_name (default: most recent).
 # Builds the training env, so only use this on the PC; the robot loads bundles.
-def setup_actor(run_name=None,deploy_cfg=None,experiment_name=None,checkpoint=-1,):
+def setup_actor(
+    run_name=None, deploy_cfg=None, experiment_name=None, checkpoint=-1,
+    *, original_cfg=True,
+):
     if deploy_cfg is None:
         deploy_cfg = DeployConfig()
     env_cfg, train_cfg = task_registry.get_cfgs(
-    name=deploy_cfg.task_name,
-    original_cfg=True,
-    experiment_name=experiment_name,
-    load_run=run_name,
-)
+        name=deploy_cfg.task_name,
+        original_cfg=original_cfg,
+        experiment_name=experiment_name,
+        load_run=run_name,
+    )
 
     env_cfg.env.num_envs = 1
     env_cfg.env.episode_length_s = 99999
@@ -35,6 +38,8 @@ def setup_actor(run_name=None,deploy_cfg=None,experiment_name=None,checkpoint=-1
     train_cfg.runner.resume = True
     if experiment_name is not None:
         train_cfg.runner.experiment_name = experiment_name
+    if run_name is not None:
+        train_cfg.runner.load_run = run_name
 
     train_cfg.runner.checkpoint = checkpoint
     train_cfg.logging.enable_local_saving = False
