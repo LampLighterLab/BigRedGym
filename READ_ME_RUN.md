@@ -5,8 +5,8 @@
 From the repository root:
 
 ```bash
-git switch dev-sid
-git pull --ff-only origin dev-sid
+git switch dev-phase1
+git pull --ff-only origin dev-phase1
 uv sync --frozen
 ```
 
@@ -40,14 +40,14 @@ Expected output: `go2osc 61 50`
 ```bash
 GO2_PHASE=phase1 uv run --frozen python \
   scripts/export_go2_policy.py \
-  --name phase1_sid \
+  --name dev_phase1 \
   --experiment_name go2osc \
   --run_name varying_freq_standing_knee_clearance_90_deg_phase_aa3ea0f \
   --checkpoint 1000 \
   --current_cfg
 ```
 
-The exported policy is saved in `logs/policies/phase1_sid/`.
+The exported policy is saved in `logs/policies/dev_phase1/`.
 
 ## 5. Deploy on the real robot
 
@@ -62,7 +62,7 @@ Once approved, run:
 ```bash
 GO2_PHASE=phase1 uv run --frozen --extra unitree_sdk \
   python -m go2_deploy.deploy eth0 \
-  --bundle logs/policies/phase1_sid
+  --bundle logs/policies/dev_phase1
 ```
 
 Replace `eth0` with the appropriate network interface.
@@ -75,7 +75,7 @@ Replace `eth0` with the appropriate network interface.
 - Initial gait frequency: 2 Hz
 - Phase offsets: 0°, 90°, 180°, 270°
 - Checkpoint: 1000
-- Branch: dev-sid
+- Branch: dev-phase1
 
 Physical deployment remains subject to hardware calibration
 and supervised testing.
