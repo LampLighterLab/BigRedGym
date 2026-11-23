@@ -20,6 +20,9 @@ class_dict = {
     "Pendulum": ".pendulum.pendulum",
     "Go2": ".go2.go2",
     "Go2Trot": ".go2.go2trot",
+    "Go2OscPushGlide": ".go2.go2osc",
+    "Go2OscPushGlideEst": ".go2.go2osc_est",
+    "Go2OscPushGlideDeploy": ".go2.go2osc_deploy",
 }
 
 config_dict = {
@@ -36,6 +39,13 @@ config_dict = {
     "PendulumPSDCfg": ".pendulum.pendulum_PSD_config",
     "Go2Cfg": ".go2.go2_config",
     "Go2TrotCfg": ".go2.go2trot_config",
+    "Go2OscPushGlideCfg": ".go2.go2osc_config",
+    "Go2OscPushGlideF075Cfg": ".go2.go2osc_config",
+    "Go2OscPushGlideF050Cfg": ".go2.go2osc_config",
+    "Go2OscPushGlideRobustCfg": ".go2.go2osc_config",
+    "Go2OscPushGlideEstCfg": ".go2.go2osc_est_config",
+    "Go2OscPushGlideDeployCfg": ".go2.go2osc_deploy_config",
+    "Go2OscPushGlidePostureCfg": ".go2.go2osc_posture_config",
 }
 
 runner_config_dict = {
@@ -52,6 +62,15 @@ runner_config_dict = {
     "PendulumPSDRunnerCfg": ".pendulum.pendulum_PSD_config",
     "Go2RunnerCfg": ".go2.go2_config",
     "Go2TrotRunnerCfg": ".go2.go2trot_config",
+    "Go2OscPushGlideRunnerCfg": ".go2.go2osc_config",
+    "Go2OscPushGlideF075RunnerCfg": ".go2.go2osc_config",
+    "Go2OscPushGlideF050RunnerCfg": ".go2.go2osc_config",
+    "Go2OscPushGlideRobustRunnerCfg": ".go2.go2osc_config",
+    "Go2OscPushGlideEstRunnerCfg": ".go2.go2osc_est_config",
+    "Go2OscPushGlideDeployRunnerCfg": ".go2.go2osc_deploy_config",
+    "Go2OscPushGlideBlindRunnerCfg": ".go2.go2osc_est_config",
+    "Go2OscPushGlideOracleRunnerCfg": ".go2.go2osc_est_config",
+    "Go2OscPushGlidePostureRunnerCfg": ".go2.go2osc_posture_config",
 }
 
 task_dict = {
@@ -88,6 +107,51 @@ task_dict = {
     "psd_pendulum": ["Pendulum", "PendulumPSDCfg", "PendulumPSDRunnerCfg"],
     "go2": ["Go2", "Go2Cfg", "Go2RunnerCfg"],
     "go2trot": ["Go2Trot", "Go2TrotCfg", "Go2TrotRunnerCfg"],
+    "go2osc_push_glide": [
+        "Go2OscPushGlide",
+        "Go2OscPushGlideCfg",
+        "Go2OscPushGlideRunnerCfg",
+    ],
+    "go2osc_push_glide_f075": [
+        "Go2OscPushGlide",
+        "Go2OscPushGlideF075Cfg",
+        "Go2OscPushGlideF075RunnerCfg",
+    ],
+    "go2osc_push_glide_f050": [
+        "Go2OscPushGlide",
+        "Go2OscPushGlideF050Cfg",
+        "Go2OscPushGlideF050RunnerCfg",
+    ],
+    "go2osc_push_glide_robust": [
+        "Go2OscPushGlide",
+        "Go2OscPushGlideRobustCfg",
+        "Go2OscPushGlideRobustRunnerCfg",
+    ],
+    "go2osc_push_glide_est": [
+        "Go2OscPushGlideEst",
+        "Go2OscPushGlideEstCfg",
+        "Go2OscPushGlideEstRunnerCfg",
+    ],
+    "go2osc_push_glide_deploy": [
+        "Go2OscPushGlideDeploy",
+        "Go2OscPushGlideDeployCfg",
+        "Go2OscPushGlideDeployRunnerCfg",
+    ],
+    "go2osc_push_glide_blind": [
+        "Go2OscPushGlideEst",
+        "Go2OscPushGlideEstCfg",
+        "Go2OscPushGlideBlindRunnerCfg",
+    ],
+    "go2osc_push_glide_oracle": [
+        "Go2OscPushGlideEst",
+        "Go2OscPushGlideEstCfg",
+        "Go2OscPushGlideOracleRunnerCfg",
+    ],
+    "go2osc_push_glide_posture": [
+        "Go2OscPushGlide",
+        "Go2OscPushGlidePostureCfg",
+        "Go2OscPushGlidePostureRunnerCfg",
+    ],
 }
 
 

@@ -18,6 +18,10 @@ gym/wandb
 *.npz
 user/wandb_config.json
 *trajectories/
+go2_deploy/custom_implementation/*
+!go2_deploy/custom_implementation/custom_config.py
+!go2_deploy/custom_implementation/go2trot_base.py
+!go2_deploy/custom_implementation/go2osc_push_glide.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -100,3 +104,9 @@ thirdparty/unitree_sdk2_python/
 MUJOCO_LOG.TXT
 pendulum_rollout.png
 notebooks/__marimo__/
+
+# Published Go2 oscillator policy
+!policies/go2osc_push_glide/model_500.pt
+
+# Go2 visual meshes, downloaded by scripts/fetch_go2_meshes.py
+resources/robots/go2/mjcf/

@@ -1,4 +1,8 @@
+import re
+import shutil
 import sys
+import warnings
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -9,6 +13,7 @@ from gym.utils.original_cfg import (
     OriginalCfgError,
     load_original_cfgs_from_run,
     original_cfg_source_dir,
+    original_task_from_run,
 )
 from gym.utils.logging_and_saving.local_code_save_helper import (
     save_original_cfg_to_logs,
@@ -25,6 +30,7 @@ def _write_saved_config_snapshot(run_dir):
 
     (saved_envs / "__init__.py").write_text(
         """
+class_dict = {"CurrentTask": ".demo.saved_task"}
 config_dict = {"SavedEnvCfg": ".demo.saved_config"}
 runner_config_dict = {"SavedRunnerCfg": ".demo.saved_config"}
 task_dict = {"demo": ["CurrentTask", "SavedEnvCfg", "SavedRunnerCfg"]}
@@ -37,6 +43,9 @@ raise RuntimeError("the saved registry module must not be executed")
 class SavedParentCfg:
     inherited_value = "from saved parent"
 """
+    )
+    (config_dir / "saved_task.py").write_text(
+        'class CurrentTask:\n    source = "saved task class"\n'
     )
     (config_dir / "saved_config.py").write_text(
         """
@@ -72,6 +81,29 @@ def test_saved_configs_load_complete_inheritance_without_leaking_modules(tmp_pat
     assert sys.modules["gym.envs"] is current_envs
     assert "gym.envs.demo.saved_config" not in sys.modules
     assert "gym.envs.demo.parent_config" not in sys.modules
+
+
+def test_saved_task_context_uses_snapshot_class_and_restores_imports(tmp_path):
+    run_dir = tmp_path / "run_a"
+    _write_saved_config_snapshot(run_dir)
+    before = sys.modules["gym.envs"]
+    with original_task_from_run("demo", run_dir) as (task, env_cfg, train_cfg):
+        assert task.source == "saved task class"
+        assert env_cfg.inherited_value == "from saved parent"
+        assert train_cfg.runner.experiment_name == "value inside snapshot"
+        assert sys.modules["gym.envs"] is not before
+        assert "gym.envs.demo.saved_task" in sys.modules
+    assert sys.modules["gym.envs"] is before
+    assert "gym.envs.demo.saved_task" not in sys.modules
+
+
+def test_saved_task_context_reports_missing_class_source(tmp_path):
+    run_dir = tmp_path / "run_a"
+    _write_saved_config_snapshot(run_dir)
+    (run_dir / "files/gym/envs/demo/saved_task.py").unlink()
+    with pytest.raises(OriginalCfgError, match="saved_task"):
+        with original_task_from_run("demo", run_dir):
+            pytest.fail("missing task class source must not load")
 
 
 def test_registry_resolves_and_pins_the_original_config_run(tmp_path, monkeypatch):
@@ -140,3 +172,43 @@ def test_train_and_play_accept_original_cfg_flag():
 
     assert train_args.original_cfg is True
     assert play_args.original_cfg is True
+
+
+def test_run_saved_before_friction_bins_loads_and_constructs(tmp_path):
+    """A pre-bins snapshot (--original_cfg) builds and steps the current task."""
+    current = Path(current_envs.__file__).parent
+    saved_envs = tmp_path / "run_a" / "files" / "gym" / "envs"
+    shutil.copytree(current, saved_envs, ignore=shutil.ignore_patterns("__pycache__"))
+    old_dr = saved_envs / "base" / "domain_randomization.py"
+    text = re.sub(
+        r"\n\s*(contact_friction_bins|contact_friction_bin_weights"
+        r"|resample_contact_friction) = (None|False)",
+        "",
+        old_dr.read_text(),
+    )
+    old_dr.write_text(text)
+
+    env_cfg, train_cfg = load_original_cfgs_from_run(
+        "go2osc_push_glide", tmp_path / "run_a"
+    )
+    startup = env_cfg.domain_randomization.startup
+    assert not hasattr(startup, "contact_friction_bins")
+    assert not hasattr(
+        env_cfg.domain_randomization.episode, "resample_contact_friction"
+    )
+
+    env_cfg.env.num_envs = 2
+    env_cfg.seed = train_cfg.seed = 0
+    train_cfg.runner.device = "cpu"
+    from gym.utils.task_registry import task_registry
+
+    task_registry.convert_frequencies_to_params(env_cfg, train_cfg)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        env = task_registry.make_env(
+            "go2osc_push_glide", env_cfg, device="cpu", headless=True
+        )
+    try:
+        env.step()
+    finally:
+        env._backend.close()

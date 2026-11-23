@@ -96,6 +96,12 @@ material colors are imported; physics still comes from our URDF. Collision
 shapes are hidden in viewer geometry group 3 when detailed meshes are enabled.
 Headless MuJoCo CPU and Warp do not load these optional visuals.
 
+For the included oscillator policy, `scripts/record_go2osc_stop.py` records
+acceleration followed by a zero velocity command on fixed-friction ground.
+See [recording instructions](../README.md#record-acceleration-and-a-zero-command-stop).
+It uses MuJoCo CPU, the saved policy configuration, and `ffmpeg`; generated
+video and motion data stay under ignored `artifacts/`.
+
 When using an older saved config with `--original_cfg`, set its
 `asset.mujoco_visual_model` to `None` to render collision shapes without the
 external assets.
@@ -183,6 +189,11 @@ commands as well; a default sync removes optional packages. `--frozen` also
 allows deployment-only machines to install without the local VSim wheel.
 
 ### Train
+
+`go2osc_push_glide_robust` trains Go2 with changing per-foot friction, sensing
+errors, delayed actuation, and curved stop targets. See the
+[robust training and playback guide](../README.md#robust-locomotion-and-curved-stop-targets)
+for GPU training and CPU playback commands.
 
 ```bash
 # Pendulum (fixed-base, 1 DOF) — with GUI viewer

@@ -2,9 +2,10 @@
 
 Clone the repo:
 
-```git clone https://github.com/LampLighterLab/BigRedGym.git```
-
-Then, enter the BigRedGym folder.
+```sh
+git clone https://github.com/Echo-Lee/MAE5110-LeggedRobot-Project.git
+cd MAE5110-LeggedRobot-Project
+```
 
 Create the venv using uv:
 
@@ -119,3 +120,169 @@ for what the retained tests cover.
 
 # Note on AI-generated files
 Some of the code has been worked on by an AI agent, in the case where code segments have been heavily edited by AI, the AI-generated files in [genAI_skills](genAI_skills/) may be of some value in understanding the code, especially [README_MUJOCO.md](genAI_skills/README_MUJOCO.md).
+
+# Go2 push/glide policy
+
+`go2osc_push_glide` trains a Go2 policy with decentralized push/glide phase
+oscillators in MuJoCo. The actor has 61 inputs, including eight signed
+tangential-to-normal foot-force ratios. The critic has 70 inputs, including
+the applied friction coefficient as privileged information.
+
+Training uses flat ground with friction sampled uniformly from `[0.1, 1.0]`
+per environment at startup. Moving forward commands are sampled uniformly
+from `[0.0, 1.5]` m/s, with standing and turning samples. Lateral and yaw
+commands are bounded by 0.3 m/s and 0.5 rad/s; commands resample every three
+seconds.
+
+The moving oscillator schedule is active above a forward command of 0.2 m/s,
+a lateral command of 0.1 m/s, or a yaw command of 0.1 rad/s, using absolute
+values. A pure turn uses ungated normal load; translation gates load along
+the requested travel direction. Training also penalizes squared roll and
+pitch rates with weight 1.0, capped at 4.0 rad²/s².
+
+## Train from scratch
+
+Run from the repository root with Python 3.11. GPU training requires a
+compatible NVIDIA driver and CUDA-capable GPU. The repository includes
+the Go2 physics asset.
+
+```sh
+uv sync --frozen --extra gpu
+uv run --frozen --extra gpu python scripts/train.py \
+    --task go2osc_push_glide --backend mujoco --device cuda:0 \
+    --num_envs 4096 --max_iterations 500 --seed 0 \
+    --headless --disable_wandb
+```
+
+Checkpoints are saved under `logs/go2osc_push_glide/`. For a small CPU run,
+use `--device cpu --num_envs 16`; full training is intended for a GPU.
+
+## Play a trained policy
+
+Checkpoints and generated artifacts are not bundled. After training, install
+standard dependencies with `uv sync --frozen`, then select a checkpoint from
+`logs/go2osc_push_glide/`. Use `--load_run <run-directory>` to select a specific
+run; omitting it selects the latest run in the experiment.
+
+macOS requires `mjpython` for the viewer:
+
+```sh
+PYTHONPATH=. uv run --frozen mjpython scripts/play.py \
+    --task go2osc_push_glide --backend mujoco --device cpu --num_envs 1 \
+    --experiment_name go2osc_push_glide --checkpoint 500 --original_cfg \
+    --basic-visuals --seed 123 --keyboard
+```
+
+On Linux, replace `mjpython` with `python`. `--basic-visuals` uses the included
+collision geometry without optional mesh assets. Add `--friction 0.05` to test
+on fixed-friction ground.
+
+Playback starts at 1 m/s forward. Press **I/K** to adjust forward velocity,
+**J/L** for lateral velocity, **N/M** for yaw, **R** to reset, and **Esc** to
+quit. Releasing a key keeps the selected command.
+
+## Robust locomotion and curved stop targets
+
+`go2osc_push_glide_robust` adds changing ground friction, sensor errors,
+actuation delay, varied mass and motor gains, and fast sliding-stop starts.
+The actor has 66 inputs; the critic has 75, including true per-foot friction.
+The actor receives a noisy, lagged simulated friction estimate and a forward
+speed target used by the oscillator schedule. A hardware friction estimator
+is not included.
+
+Ground friction spans `[0.05, 1.0]`, and forward commands span `[-1.0, 2.0]` m/s,
+with standing and turning samples. The six-second episodes include zero-speed
+commands with a requested yaw rate. During those stops, the velocity reference
+shares a `0.9 * friction * gravity` acceleration budget, capped at 5 m/s²,
+between turning and braking, retaining at least half for braking. The yaw
+target is capped by this budget. These are training targets; foot sliding is
+not directly rewarded.
+
+Train on Linux with a working NVIDIA GPU:
+
+```sh
+uv sync --frozen --extra gpu
+PYTHONPATH=. uv run --frozen --extra gpu python scripts/train.py \
+    --task go2osc_push_glide_robust --backend mujoco --device cuda:0 \
+    --num_envs 4096 --max_iterations 4000 --save_interval 50 --seed 0 \
+    --experiment_name go2osc_push_glide_robust --headless --disable_wandb
+```
+
+For a small CPU smoke run, use `--device cpu --num_envs 16 --max_iterations 1`.
+Checkpoints and saved configurations are written below
+`logs/go2osc_push_glide_robust/`.
+
+After training, play checkpoint 4000 on macOS:
+
+```sh
+PYTHONPATH=. uv run --frozen mjpython scripts/play.py \
+    --task go2osc_push_glide_robust --backend mujoco --device cpu --num_envs 1 \
+    --experiment_name go2osc_push_glide_robust --checkpoint 4000 --original_cfg \
+    --basic-visuals --seed 123 --keyboard
+```
+
+On Linux, replace `mjpython` with `python`. Add `--load_run <run-directory>` to
+select a particular run, or `--friction 0.05` for a fixed low-friction surface.
+The keyboard controls above also apply to this task.
+
+## Hardware: `go2osc_push_glide_deploy`
+
+The robust task's actor reads signals a Go2 cannot measure.
+`go2osc_push_glide_deploy` replaces them with a state estimator trained in
+the same run, drives the clocks from joint torques, and keeps joint targets
+inside the joint limits. Training, the joint-limit check, the policy bundle
+and the deploy runner are described in [GO2OSC_DEPLOY.md](GO2OSC_DEPLOY.md).
+
+## Go2 visuals and video recording
+
+The Go2 renders with its real meshes once they are downloaded (MuJoCo
+Menagerie's `unitree_go2`, pinned and checksum-verified, about 28 MB, into the
+git-ignored `resources/robots/go2/mjcf/`). Without them it renders as its
+collision shapes. The meshes are display-only; physics still comes from the URDF.
+
+```sh
+uv run --frozen python scripts/fetch_go2_meshes.py
+```
+
+`scripts/play.py --video PATH` records environment 0 to an MP4 instead of
+opening a viewer: the camera follows the robot, and an overlay shows time,
+friction, commanded vs measured velocity, and loaded feet (`--no-overlay`
+to hide it). Combine with `--friction MU` and `--command VX VY YAW`.
+Recording only adds visuals; physics, including the task's link-mass
+randomization, matches ordinary playback for the same `--seed`. On a
+Linux machine without a display it renders with EGL automatically; set
+`MUJOCO_GL` yourself to override that. macOS and Windows use MuJoCo's
+default renderer.
+
+```sh
+uv run --frozen python scripts/play.py --task go2osc_push_glide \
+    --load_run RUN --friction 0.1 --command 1.0 0 0 \
+    --video logs/videos/ice.mp4 --video_seconds 10
+```
+
+## Record acceleration and a zero-command stop
+
+The retained recorder accepts an existing compatible policy bundle through
+`--policy-dir`. The directory must contain `policy.json` and its referenced
+checkpoint and JSON configuration. Policy bundles are not included in this
+repository.
+
+Install `ffmpeg` (`brew install ffmpeg` on macOS or `sudo apt install ffmpeg`
+on Ubuntu), then record a bundle from rest on fixed-friction ground:
+
+```sh
+uv run --frozen mjpython scripts/record_go2osc_stop.py \
+    --policy-dir path/to/policy_bundle \
+    --friction 0.05 --speed 2.5 --switch-time 14 --duration 26
+```
+
+On Linux, replace `mjpython` with `python`. On a Linux machine without a
+display, set `MUJOCO_GL=egl` before the command. The video and its JSON and
+NumPy motion records are saved under `artifacts/go2osc/command_stop.*`.
+Use `--output artifacts/go2osc/my_stop.mp4` to choose another filename, or
+`--no-video` to save motion data without rendering or requiring `ffmpeg`.
+
+`--speed` specifies commanded forward velocity; the overlay also shows measured
+speed. Choose friction and commands appropriate to the bundle's training range.
+For a gradual command increase, add
+`--ramp-start-speed 1.5 --ramp-start-time 6 --ramp-end-time 12`.
