@@ -1,6 +1,6 @@
 import time
 import threading
-import math
+import json
 
 from go2_deploy.state import State
 from go2_deploy.unitree_remote_controller import UnitreeRemoteController, RCHandler
@@ -23,6 +23,7 @@ from unitree_sdk2py.comm.motion_switcher.motion_switcher_client import (
     MotionSwitcherClient,
 )
 from unitree_sdk2py.utils.crc import CRC
+
 
 class MainController:
     # cfg and rl_controller must come from the same source (one bundle, or the
@@ -77,6 +78,8 @@ class MainController:
 
         # LowState_: last recieved lowstate msg
         self.last_lowstate_msg = None
+        self.last_lowstate_received_time = None
+        self.lowstate_clock = time.monotonic
         self.last_lowstate_msg_lock = threading.Lock()
 
         # torch tensor: obs vector computed from last_lowstate_msg
@@ -103,6 +106,9 @@ class MainController:
         custom_buffers_dict = self.cfg.custom_impl.get_custom_buffers_dict()
         for key, value in custom_buffers_dict.items():
             setattr(self, key, value)
+        initialize = getattr(self.cfg.custom_impl, "initialize_controller", None)
+        if initialize is not None:
+            initialize(self)
 
     # Unitree SDK pub/sub clients
     def _init_unitree_clients(self):
@@ -139,7 +145,12 @@ class MainController:
         t = time.monotonic()
         with self.last_lowstate_msg_lock:
             self.last_lowstate_msg = msg
+            self.last_lowstate_received_time = t
             self.remote_controller.parse(msg.wireless_remote)
+            # Optional lossless sensor bridge; no extra subscriber or SDK client.
+            callback = getattr(self.cfg.custom_impl, "on_lowstate_msg", None)
+            if callback is not None:
+                callback(self, msg, t)
         self.rc_handler._process_input()
 
         self.csv_logger.log_lowstate(t, msg, self.remote_controller)
@@ -157,17 +168,24 @@ class MainController:
 
     # Process student-provided custom buffers in control loop
     def _process_custom_buffers(self, t):
-        self.cfg.custom_impl.update_custom_buffers(self, t)
-
+        return self.cfg.custom_impl.update_custom_buffers(self, t)
 
     # Read last lowstate msg, publish LowCmd_
     # KNOWN RISK: if this process dies outright (OOM, kill) while in
     # CUSTOM_CTRL, LowCmd_ stops and the RC's X can no longer reach us.
     # See "Known risks" in README_DEPLOY.md.
     def _control_loop(self):
+        try:
+            self._policy_control_cycle()
+        except (ValueError, RuntimeError) as exc:
+            print(f"Control cycle rejected: {exc}")
+            self.request_emergency_stop()
+
+    def _policy_control_cycle(self):
         t = time.monotonic()
 
-        self._process_custom_buffers(t)
+        if self._process_custom_buffers(t) is False:
+            return
 
         with self.last_command_lock:
             self.last_command = torch.tensor(
@@ -200,7 +218,10 @@ class MainController:
             smoothed_action = self.last_action[0].clone().detach()
 
         lowcmd.crc = self.crc.Crc(lowcmd)
-        self.lowcmd_publisher.Write(lowcmd)
+        accepted = self.lowcmd_publisher.Write(lowcmd)
+        sent_hook = getattr(self.cfg.custom_impl, "on_command_sent", None)
+        if sent_hook is not None:
+            sent_hook(self, lowcmd, accepted, t)
 
         self.csv_logger.log_control(t, self.last_obs, action, smoothed_action, lowcmd)
         self.action_count += 1
@@ -341,8 +362,9 @@ class MainController:
         print("Switching to intermediate")
 
         self.intermediate_pos = (
-            torch.tensor(
+            (
                 deploy_utility._get_obs_dof_pos_obs(self, self.last_lowstate_msg)
+                + self.cfg.default_dof_pos
             )
             .detach()
             .clone()
@@ -412,13 +434,16 @@ class MainController:
             + f"{self.action_count / (current_time - self.last_terminal_output_time):.5} Hz"  # noqa: E501
         )
         print("Current mode: " + self._state.name)
-        print("Keyboard command [RC command]: meaning")
-        print(
-            "<enter> [X]: emergency stop | c [A]: custom controller"  # noqa: E501
-        )
-        print(
-            "i [Up]: increase kp (by 10%) | k [Down]: decrease kp | l [Right]: increase kd | j [Left]: decrease kd\n"  # noqa: E501
-        )
+        status = getattr(self.cfg.custom_impl, "runtime_status", None)
+        if status is not None:
+            try:
+                print("Policy status: " + json.dumps(status(self)))
+            except (ValueError, AttributeError) as exc:
+                print(f"Policy status unavailable: {exc}")
+        print("Remote B: intermediate hold | A: activate | X: cancel/recover")
+        print("Remote Y: shutdown using the runner recovery path")
+        if not getattr(self.cfg.custom_impl, "fixed_gains", False):
+            print("Remote Up/Down: kp | Right/Left: kd")
 
         self.action_count = 0
         self.lowstate_obs_count = 0

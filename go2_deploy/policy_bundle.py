@@ -117,6 +117,9 @@ def config_from_meta(meta, custom_impl=None):
             raise KeyError(f"bundle has no scaling for '{key}'")
     cfg.DeployScaling = type("DeployScaling", (), dict(scaling))
 
+    # Optional per-bundle timing. Old bundles keep their current defaults.
+    cfg.ctrl_freq = meta.get("ctrl_freq", cfg.ctrl_freq)
+    cfg.exp_moving_avg = meta.get("exp_moving_avg", cfg.exp_moving_avg)
     cfg.bundle_meta = meta
     cfg.validate()
     return cfg
@@ -132,6 +135,7 @@ def load_bundle(bundle_dir, custom_impl=None):
         raise ValueError(f"{policy_path} does not match the hash in {META_FILE}")
 
     cfg = config_from_meta(meta, custom_impl)
+    cfg.bundle_dir = os.path.abspath(bundle_dir)
     if cfg.obs_dim() != meta["num_obs"]:
         raise ValueError(
             f"obs_vector adds up to {cfg.obs_dim()} values, "
@@ -144,4 +148,8 @@ def load_bundle(bundle_dir, custom_impl=None):
     if action.shape != (NUM_ACTIONS,):
         raise ValueError(f"policy output shape {tuple(action.shape)} != (12,)")
 
+    cfg.loaded_policy = policy
+    prepare = getattr(cfg.custom_impl, "prepare_runtime", None)
+    if prepare is not None:
+        cfg.custom_runtime = prepare(cfg)
     return policy, cfg
