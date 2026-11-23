@@ -419,6 +419,8 @@ class MainController:
         print(
             "i [Up]: increase kp (by 10%) | k [Down]: decrease kp | l [Right]: increase kd | j [Left]: decrease kd\n"  # noqa: E501
         )
+        if hasattr(self.cfg.custom_impl, "adjust_frequency"):
+            print("u / d: increase / decrease gait frequency by 0.25 Hz (0–5 Hz)")
 
         self.action_count = 0
         self.lowstate_obs_count = 0

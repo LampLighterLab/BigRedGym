@@ -60,8 +60,8 @@ unloaded offsets, and conversion to newtons on this robot before deployment.
 The policy expects each foot's upward force divided by body weight.
 Also keep movement commands within the training range (forward 0.3–0.7 m/s,
 lateral 0, yaw 0) and verify joint limits and the emergency-stop procedure
-with course staff. The current deployment controller does not provide a
-frequency keybind, so its oscillator remains at 2 Hz unless a control is added.
+with course staff. In the attached deployment terminal, type `u` or `d` and
+press Enter to change the shared oscillator frequency by 0.25 Hz within 0–5 Hz.
 
 Once approved, run:
 

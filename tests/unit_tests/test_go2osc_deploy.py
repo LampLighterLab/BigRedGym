@@ -8,6 +8,7 @@ import torch
 from gym.envs.go2.go2osc_config import Go2OscCfg, Go2OscRunnerCfg
 
 from go2_deploy.deploy_config import DeployConfig
+from go2_deploy.keyboard_handler import KeyboardHandler
 from go2_deploy.utility.import_custom_impl import load_custom_impl
 
 
@@ -75,6 +76,13 @@ def test_go2osc_buffers_advance_and_expose_observations():
     custom.update_custom_buffers(controller, 10.04)
     assert torch.allclose(controller.phase, expected_phase, atol=1e-5)
 
+    assert custom.adjust_frequency(controller, 1) == 0.25
+    custom.update_custom_buffers(controller, 10.06)
+    expected_phase = torch.remainder(
+        expected_phase + 2 * math.pi * 0.25 * 0.02, 2 * math.pi
+    )
+    assert torch.allclose(controller.phase, expected_phase, atol=1e-5)
+
 
 def test_go2osc_requires_foot_force_calibration():
     custom = load_custom_impl("go2osc")
@@ -91,3 +99,32 @@ def test_go2osc_default_force_baseline():
         [15.0 * 9.81 / 4] * 4, custom.force_calibration
     )
     assert torch.allclose(normalized, torch.full((4,), 0.25))
+
+
+def test_deployment_keyboard_changes_all_leg_frequencies(monkeypatch):
+    custom = load_custom_impl("go2osc")
+    controller = SimpleNamespace(
+        **custom.get_custom_buffers_dict(),
+        cfg=SimpleNamespace(custom_impl=custom),
+    )
+    handler = object.__new__(KeyboardHandler)
+    handler.controller = controller
+    initial_phase = controller.phase.clone()
+
+    for key, expected in (("u", 2.25), ("d", 2.0)):
+        monkeypatch.setattr("builtins.input", lambda: key)
+        handler._process_input()
+        assert torch.equal(
+            controller.phase_frequency, torch.full((4,), expected)
+        )
+
+    controller.phase_frequency.fill_(5.0)
+    monkeypatch.setattr("builtins.input", lambda: "u")
+    handler._process_input()
+    assert torch.equal(controller.phase_frequency, torch.full((4,), 5.0))
+
+    controller.phase_frequency.zero_()
+    monkeypatch.setattr("builtins.input", lambda: "d")
+    handler._process_input()
+    assert torch.equal(controller.phase_frequency, torch.zeros(4))
+    assert torch.equal(controller.phase, initial_phase)

@@ -180,7 +180,6 @@ below. Detach with `Ctrl+b d`; the run keeps going. Debug the launcher with
 
 - Switch modes
     - Enter `EMERGENCY_STOP`: `X`
-    - Enter `INTERMEDIATE`: `B`
     - Enter `CUSTOM_CTRL`: `A`
 - Start the script (hold 1 s): `L1 + R1` (needs `--install`)
 - Stop the script: e-stop, stand back up, exit (hold 1 s): `L2 + R2` (needs `--install`)
@@ -195,12 +194,12 @@ Type the following letters in the terminal:
 
 - Switch modes
     - Enter `EMERGENCY_STOP`: `<enter key>`
-    - Enter `INTERMEDIATE`: `q`
     - Enter `CUSTOM_CTRL`: `c`
 - Increase kp by 10%: `i`
 - Decrease kp by 10%: `k`
 - Increase kd by 10%: `l`
 - Decrease kd by 10%: `j`
+- For go2osc, raise/lower gait frequency by 0.25 Hz: `u` / `d`
 
 ## Something went wrong
 

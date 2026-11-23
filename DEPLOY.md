@@ -164,9 +164,9 @@ ssh -t unitree@192.168.123.18 journalctl -u go2_launcher -f   # the launcher ser
 | | Remote | Keyboard (wired, in tmux) |
 |---|---|---|
 | Run the policy (`CUSTOM_CTRL`) | `A` | `c` |
-| Hold current pose (`INTERMEDIATE`) | `B` | `q` |
 | **E-stop** (damp, lie down, stand up) | **`X`** | **Enter** |
 | kp ±10% / kd ±10% | `Up`/`Down` / `Right`/`Left` | `i`/`k` / `l`/`j` |
+| go2osc frequency ±0.25 Hz | | `u` / `d` |
 | Toggle ABXY (to use Unitree's own combos) | `F1` | |
 | Start / stop the script (hold 1 s, after `--install`) | `L1 + R1` / `L2 + R2` | |
 

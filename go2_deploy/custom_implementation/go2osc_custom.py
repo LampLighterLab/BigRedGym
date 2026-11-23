@@ -1,6 +1,7 @@
 """Go2 oscillator observations and buffers for the saved go2osc policy."""
 
 import math
+import threading
 
 import torch
 
@@ -9,6 +10,8 @@ from go2_deploy.custom_implementation.custom_config import CustomConfig
 
 class Go2OscCustom(CustomConfig):
     task_name = "go2osc"
+    frequency_step = 0.25
+    frequency_range = (0.0, 5.0)
 
     # Uncalibrated Go2 EDU baseline. Only the approximate 15 kg mass comes
     # from the model specification. The SDK's foot_force values are integers,
@@ -62,9 +65,19 @@ class Go2OscCustom(CustomConfig):
             "phase": phase,
             "phase_obs": torch.cat((phase.sin(), phase.cos())),
             "phase_frequency": torch.full((4,), 2.0),
+            "phase_frequency_lock": threading.Lock(),
             "measured_grf": torch.zeros(4),
             "last_osc_update_t": None,
         }
+
+    def adjust_frequency(self, main_controller, direction):
+        """Change all four oscillator rates together, keeping phase continuous."""
+        with main_controller.phase_frequency_lock:
+            current = main_controller.phase_frequency[0].item()
+            low, high = self.frequency_range
+            frequency = min(max(current + direction * self.frequency_step, low), high)
+            main_controller.phase_frequency.fill_(frequency)
+        return frequency
 
     def update_custom_buffers(self, main_controller, t):
         if self.force_calibration is None:
@@ -84,7 +97,8 @@ class Go2OscCustom(CustomConfig):
         if not 0.0 <= dt <= 0.1:
             raise ValueError("Invalid oscillator update interval")
 
-        frequency = main_controller.phase_frequency
+        with main_controller.phase_frequency_lock:
+            frequency = main_controller.phase_frequency.clone()
         if (
             frequency.shape != (4,)
             or not torch.isfinite(frequency).all()
@@ -116,7 +130,8 @@ class Go2OscCustom(CustomConfig):
 
     @staticmethod
     def _get_phase_frequency(main_controller, lowstate_msg):
-        return main_controller.phase_frequency
+        with main_controller.phase_frequency_lock:
+            return main_controller.phase_frequency.clone()
 
     @staticmethod
     def _get_measured_grf(main_controller, lowstate_msg):
