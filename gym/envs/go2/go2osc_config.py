@@ -52,7 +52,6 @@ class Go2OscRunnerCfg(Go2RunnerCfg):
         obs = Go2RunnerCfg.actor.obs + [
             "phase_obs",
             "phase_frequency",
-            "measured_grf",
         ]
 
     class critic(Go2RunnerCfg.critic):
