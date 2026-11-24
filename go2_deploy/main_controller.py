@@ -1,6 +1,5 @@
 import time
 import threading
-import math
 
 from go2_deploy.state import State
 from go2_deploy.unitree_remote_controller import UnitreeRemoteController, RCHandler
@@ -158,7 +157,6 @@ class MainController:
     # Process student-provided custom buffers in control loop
     def _process_custom_buffers(self, t):
         self.cfg.custom_impl.update_custom_buffers(self, t)
-
 
     # Read last lowstate msg, publish LowCmd_
     # KNOWN RISK: if this process dies outright (OOM, kill) while in
