@@ -136,6 +136,7 @@ smoothness and symmetric yaw-error rewards against hand-calculated values.
 | [test_teleop_keyboard.py](unit_tests/test_teleop_keyboard.py) | Key bindings, held-key edges, reset/exit behavior, command axes/limits, and viewer callback/UI wiring. Event fakes and explicit command changes. | **Consolidate later** repeated declaration/default cases. Keep key-edge and axis behavior. Replace mandatory-MuJoCo import skips separately. |
 | [test_vsim_command_visualizer.py](unit_tests/test_vsim_command_visualizer.py) | Yaw/arrow/arc geometry, robot-heading transforms, visibility, and drawing-hook wiring. Analytic geometry and lightweight fake viewer. | **Consolidate later** equivalent geometric examples, not all viewer tests. Names are VSim-specific but pure geometry requires no license. |
 | [test_math.py](../gym/utils/math/test_math.py) | Angle wrapping, bounded random sampling, and exponential-average update. Hand-calculated and range invariants. | **Keep.** Random-output dimensions alone are weak; bounds and numerical behavior are the useful assertions. |
+| [test_torch_quat.py](../gym/utils/test_torch_quat.py) | Scalar-last quaternion/matrix conversion round-trips, including half turns where w is zero, and matrices rotate like `quat_apply`. Round-trip and cross-function invariants. | **Keep.** Mass-property folding depends on these conventions. |
 
 ## Tooling cleanup
 
