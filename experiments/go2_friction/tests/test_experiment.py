@@ -1,13 +1,24 @@
-"""Pure-Python smoke tests; do not need MuJoCo or a Go2."""
+"""Check sweep commands, actor noise, and evaluation metrics on CPU tensors."""
+from contextlib import redirect_stdout
+from io import StringIO
+import shlex
 import sys
-import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
+import torch
+
+from gym.envs.base.task_skeleton import TaskSkeleton
+from gym.envs.go2.go2trot_config import Go2TrotCfg, Go2TrotRunnerCfg
+from gym.utils.helpers import class_to_dict
+from learning.runners.BaseRunner import BaseRunner
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sweep_friction import LOWER_BOUNDS, SEEDS, experiment_name, command_for
+from sweep_noise import NOISE_SCALES, main as sweep_noise
+from train_friction import configure_observation_noise
 from evaluate_friction import aggregate, critical_friction, MANEUVERS, parse_numbers
 from analyze_friction import compute_critical
 
@@ -27,7 +38,61 @@ class FrictionProjectTests(unittest.TestCase):
         self.assertEqual(cmd[cmd.index('--min-friction')+1], '0.6')
         self.assertEqual(cmd[cmd.index('--seed')+1], '42')
         self.assertEqual(cmd[cmd.index('--max_iterations')+1], '200')
+        self.assertEqual(float(cmd[cmd.index('--noise-scale') + 1]), 0.0)
         self.assertIn('--disable_wandb', cmd)
+
+    def test_noise_sweep_has_fixed_friction_and_distinct_names(self):
+        output = StringIO()
+        with redirect_stdout(output):
+            sweep_noise(["--dry-run", "--seeds", "42"])
+        commands = [
+            shlex.split(line[2:]) for line in output.getvalue().splitlines()
+            if line.startswith("$ ")
+        ]
+        self.assertEqual(len(commands), 5)
+        names = set()
+        for cmd, scale in zip(commands, NOISE_SCALES, strict=True):
+            self.assertEqual(float(cmd[cmd.index("--min-friction") + 1]), 1.25)
+            self.assertEqual(float(cmd[cmd.index("--max-friction") + 1]), 1.25)
+            self.assertEqual(float(cmd[cmd.index("--noise-scale") + 1]), scale)
+            names.add(cmd[cmd.index("--experiment_name") + 1])
+        self.assertEqual(len(names), 5)
+        self.assertNotIn(experiment_name(1.25, 42), names)
+
+    def test_observation_noise_scales_only_imu_and_joint_inputs(self):
+        env = TaskSkeleton(num_envs=16)
+        env.scales = class_to_dict(Go2TrotCfg().scaling, "cpu")
+        obs = Go2TrotRunnerCfg().actor.obs
+        sizes = (3, 3, 3, 12, 12, 12, 2, 1)
+        for name, size in zip(obs, sizes, strict=True):
+            setattr(env, name, torch.zeros(env.num_envs, size))
+        runner = BaseRunner.__new__(BaseRunner)
+        runner.env = env
+        runner.device = "cpu"
+        clean = runner.get_obs(obs)
+        samples = []
+        with torch.random.fork_rng(devices=[]):
+            for scale in (0.0, 1.0, 2.0):
+                train_cfg = Go2TrotRunnerCfg()
+                default_std = configure_observation_noise(train_cfg, scale)
+                torch.manual_seed(42)
+                samples.append(runner.get_noisy_obs(obs, train_cfg.actor.noise))
+        self.assertEqual(default_std, {
+            "base_ang_vel": 0.01,
+            "projected_gravity": 0.1,
+            "dof_pos_obs": 0.01,
+            "dof_vel": 0.005,
+        })
+        zero, one, two = samples
+        torch.testing.assert_close(zero, clean, rtol=0, atol=0)
+        torch.testing.assert_close(two - clean, 2 * (one - clean))
+        deltas = (one - clean).split(sizes, dim=1)
+        changed = {
+            name for name, delta in zip(obs, deltas, strict=True)
+            if torch.count_nonzero(delta).item()
+        }
+        self.assertEqual(changed, set(default_std))
+        torch.testing.assert_close(runner.get_obs(obs), clean, rtol=0, atol=0)
 
     def test_maneuvers(self):
         self.assertEqual(len(MANEUVERS), 7)
