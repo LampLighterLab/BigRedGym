@@ -12,6 +12,7 @@ Usage:
 """
 
 import argparse
+import random
 import sys
 
 import torch
@@ -30,7 +31,11 @@ def run(args, mu):
     sc = env.scales["base_lin_vel"]
     sc = sc[0] if torch.is_tensor(sc) and sc.ndim else sc
     dt = env.dt
-    jump_steps = {round(t / dt) for t in args.jump_times}
+    # * the eval is deterministic, so the seed only acts through the jump
+    # * times: a 0-0.5 s offset per jump lands it at a different gait phase
+    rng = random.Random(args.seed)
+    jump_times = [t + rng.uniform(0.0, args.jitter) for t in args.jump_times]
+    jump_steps = {round(t / dt) for t in jump_times}
     log = []  # per step: t, z, vx, vx_est, n_contact, slip, fell
     fell_at = None
     for i in range(int(args.seconds / dt)):
@@ -61,7 +66,7 @@ def run(args, mu):
         runner.reset_envs()
 
     results = []
-    for t0 in args.jump_times:
+    for t0 in jump_times:
         s0 = round(t0 / dt)
         if s0 >= len(log):
             results.append(dict(t0=t0, success=False))
@@ -113,6 +118,9 @@ def main():
     p.add_argument("--jump_times", type=float, nargs="+", default=[2.0, 5.0, 8.0])
     p.add_argument("--seconds", type=float, default=11.0)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument(
+        "--jitter", type=float, default=0.5, help="max random delay added to each jump time"
+    )
     p.add_argument(
         "--oracle_input",
         action="store_true",
