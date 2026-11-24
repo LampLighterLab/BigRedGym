@@ -1,11 +1,8 @@
 import time
 import threading
-import math
 
 from go2_deploy.state import State
-from go2_deploy.rl_controller import RLController
 from go2_deploy.unitree_remote_controller import UnitreeRemoteController, RCHandler
-from go2_deploy.deploy_config import DeployConfig
 from go2_deploy.utility import deploy_utility
 from go2_deploy.utility.csv_logger import CSVLogger
 from go2_deploy.utility.thread import RecurrentThread
@@ -28,32 +25,33 @@ from unitree_sdk2py.utils.crc import CRC
 
 
 class MainController:
-    def __init__(self):
+    # cfg and rl_controller must come from the same source (one bundle, or the
+    # default DeployConfig); every component below shares this one cfg.
+    def __init__(self, cfg, rl_controller, run_dir=None):
         # Flags are monitored by watchdog_thread to switch between states
         self._state = State.EMERGENCY_STOP
         self._estop_flag = False
         self._recovery_flag = False
         self._intermediate_flag = False
         self._custom_ctrl_flag = False
+        self._shutdown_flag = False
+        self.shut_down = False  # set once a requested shutdown has finished
 
-        self.rl_controller = RLController()
-        self.remote_controller = UnitreeRemoteController()
+        self.cfg = cfg
+        self.rl_controller = rl_controller
+        self.remote_controller = UnitreeRemoteController(cfg)
         self.rc_handler = RCHandler(self)
-        self.cfg = DeployConfig()
-        self.csv_logger = CSVLogger(self)
+        self.csv_logger = CSVLogger(self, run_dir=run_dir)
 
-        self.obs_vec_size = 0
-        for obs in self.cfg.obs_vector:
-            self.obs_vec_size += self.cfg.obs_sizes[obs]
+        self.obs_vec_size = cfg.obs_dim()
 
         self._init_buffers()
-        if "phase_obs" in self.cfg.obs_vector:
-            self._init_go2trot_buffers()
+        self._init_custom_buffers()
 
         self._init_unitree_clients()
 
-        self.default_lowcmd = deploy_utility.default_lowcmd()
-        self.emergency_lowcmd = deploy_utility.emergency_lowcmd()
+        self.default_lowcmd = deploy_utility.default_lowcmd(cfg)
+        self.emergency_lowcmd = deploy_utility.emergency_lowcmd(cfg)
 
         # Change kp, kd using keyboard/RC input
         self.kp_mult = 1.0
@@ -100,9 +98,11 @@ class MainController:
         self.sportmodestate_obs_count = 0
         self.action_count = 0
 
-    def _init_go2trot_buffers(self):
-        self.phase_frequency = self.cfg.phase_frequency
-        self.phase = 0.0
+    # initialize student-provided custom buffers
+    def _init_custom_buffers(self):
+        custom_buffers_dict = self.cfg.custom_impl.get_custom_buffers_dict()
+        for key, value in custom_buffers_dict.items():
+            setattr(self, key, value)
 
     # Unitree SDK pub/sub clients
     def _init_unitree_clients(self):
@@ -155,15 +155,17 @@ class MainController:
 
     # Main control loop ------------------------------------------
 
-    # Update the phase observation; the gait reference is a training reward only.
-    def _process_go2trot_buffers(self, t):
-        self.phase = 2 * math.pi * self.phase_frequency * t % (2 * math.pi)
+    # Process student-provided custom buffers in control loop
+    def _process_custom_buffers(self, t):
+        self.cfg.custom_impl.update_custom_buffers(self, t)
 
     # Read last lowstate msg, publish LowCmd_
+    # KNOWN RISK: if this process dies outright (OOM, kill) while in
+    # CUSTOM_CTRL, LowCmd_ stops and the RC's X can no longer reach us.
+    # See "Known risks" in README_DEPLOY.md.
     def _control_loop(self):
         t = time.monotonic()
-        if "phase_obs" in self.cfg.obs_vector:
-            self._process_go2trot_buffers(t)
+        self._process_custom_buffers(t)
 
         with self.last_command_lock:
             self.last_command = torch.tensor(
@@ -206,12 +208,14 @@ class MainController:
         if self._state == State.CUSTOM_CTRL:
             return self.rl_controller.act(last_obs)
         elif self._state == State.INTERMEDIATE:
-            target = deploy_utility.ramp_target(
-                self.intermediate_start_pos,
-                self.cfg.default_dof_pos,
-                time.monotonic() - self.intermediate_start_time,
-                self.cfg.intermediate_ramp_time,
-            )
+            target = self.intermediate_start_pos
+            if self.cfg.intermediate_ramp_time is not None:
+                target = deploy_utility.ramp_target(
+                    target,
+                    self.cfg.default_dof_pos,
+                    time.monotonic() - self.intermediate_start_time,
+                    self.cfg.intermediate_ramp_time,
+                )
             return deploy_utility.target_pos_to_action(self, target)
         else:
             return self.last_action[0]
@@ -248,7 +252,16 @@ class MainController:
     # This should be the only thread that calls the functions to
     # change states
     def _watchdog_loop(self):
-        if self._estop_flag:
+        if self.shut_down:
+            return
+        if self._shutdown_flag:
+            # Same lie-down-and-stand-up as X; deploy.py exits once it's done.
+            # In RECOVERY the robot is already standing under Unitree's control.
+            if self._state != State.RECOVERY:
+                self.emergency_stop()
+            self.csv_logger.close()
+            self.shut_down = True
+        elif self._estop_flag:
             self.emergency_stop()
         elif self._recovery_flag:
             self.switch_to_recovery()
@@ -278,6 +291,10 @@ class MainController:
     def request_intermediate(self):
         print("intermediate requested")
         self._intermediate_flag = True
+
+    def request_shutdown(self):
+        print("Shutdown requested: e-stop, stand back up, then exit")
+        self._shutdown_flag = True
 
     def request_custom_ctrl(self):
         print("custom ctrl requested")
@@ -326,6 +343,10 @@ class MainController:
             print("Must be in recovery state to switch to intermediate")
             return
 
+        with self.last_lowstate_msg_lock:
+            if self.last_lowstate_msg is None:
+                print("Waiting for joint measurements before entering intermediate")
+                return
         print("Switching to intermediate")
 
         self.motion_switcher_client.ReleaseMode()
@@ -345,21 +366,28 @@ class MainController:
         self.intermediate_start_time = time.monotonic()
         self._state = State.INTERMEDIATE
         self.lowcmd_thread.Start()
-        print(
-            f"Ramping to the nominal pose over {self.cfg.intermediate_ramp_time}s"
-        )
+        if self.cfg.intermediate_ramp_time is not None:
+            print(
+                f"Ramping to the nominal pose over {self.cfg.intermediate_ramp_time}s"
+            )
 
     def switch_to_custom_controller(self):
         self._custom_ctrl_flag = False
 
-        # The policy only starts from the nominal pose, as in training.
-        if self._state != State.INTERMEDIATE:
-            print("Must be in intermediate state to switch to custom controller!")
+        if self._state not in (State.INTERMEDIATE, State.RECOVERY):
+            print(
+                "Must be in recovery or intermediate state "
+                + "to switch to custom controller!"
+            )
             return
-        elapsed = time.monotonic() - self.intermediate_start_time
-        if elapsed < self.cfg.intermediate_ramp_time:
-            print("Wait for the intermediate ramp to finish before custom control")
-            return
+        ramp_time = self.cfg.intermediate_ramp_time
+        if ramp_time is not None:
+            if self._state != State.INTERMEDIATE:
+                print("Enter intermediate mode first (B on the remote or q)")
+                return
+            if time.monotonic() - self.intermediate_start_time < ramp_time:
+                print("Wait for the intermediate ramp to finish before custom control")
+                return
 
         self._state = State.CUSTOM_CTRL
         print("Switching to custom controller")
@@ -406,8 +434,10 @@ class MainController:
         )
         print("Current mode: " + self._state.name)
         print("Keyboard command [RC command]: meaning")
+        if self.cfg.intermediate_ramp_time is not None:
+            print("q [B]: ramp to the nominal pose")
         print(
-            "<enter> [X]: emergency stop | q [B]: intermediate | c [A]: custom controller"  # noqa: E501
+            "<enter> [X]: emergency stop | c [A]: custom controller"  # noqa: E501
         )
         print(
             "i [Up]: increase kp (by 10%) | k [Down]: decrease kp | l [Right]: increase kd | j [Left]: decrease kd\n"  # noqa: E501

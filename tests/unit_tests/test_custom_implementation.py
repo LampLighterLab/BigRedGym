@@ -4,34 +4,26 @@ The file is self-contained (it is run inside the course deploy tree, whose
 Go2TrotCfg differs), so these tests pin every value to the training config.
 """
 
-import importlib.util
 import math
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 import torch
 
+from go2_deploy.deploy_config import DeployConfig
+from go2_deploy.policy_bundle import export_bundle, load_bundle
+from go2_deploy.utility.import_custom_impl import load_custom_impl
 from gym.envs.go2.go2payload_config import Go2PayloadCfg, Go2PayloadRunnerCfg
-
-IMPL_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "go2_deploy"
-    / "custom_implementation"
-    / "heavy_weights.py"
-)
+from learning.modules.actor import Actor
 
 
 @pytest.fixture(scope="module")
 def impl():
-    spec = importlib.util.spec_from_file_location(IMPL_PATH.stem, IMPL_PATH)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_custom_impl("go2payload")
 
 
 def test_observation_layout_matches_trained_actor(impl):
-    cfg = impl.CustomDeployConfig
+    cfg = impl
     assert cfg.obs_vector == Go2PayloadRunnerCfg.actor.obs
     standard = {
         "base_ang_vel": 3,
@@ -46,24 +38,30 @@ def test_observation_layout_matches_trained_actor(impl):
 
 
 def test_scaling_matches_training_for_every_observation_and_the_action(impl):
-    scaling = impl.CustomDeployConfig.DeployScaling
-    for name in impl.CustomDeployConfig.obs_vector + ["dof_pos_target"]:
+    scaling = impl.DeployScaling
+    for name in impl.obs_vector + ["dof_pos_target"]:
         trained = getattr(Go2PayloadCfg.scaling, name, 1.0)
         assert getattr(scaling, name) == trained, name
 
 
 def test_listed_training_settings_match_the_task(impl):
-    cfg = impl.CustomDeployConfig
+    cfg = DeployConfig(impl)
     control = Go2PayloadCfg.control
-    assert cfg.trained_ctrl_freq == control.ctrl_frequency
-    assert set(control.stiffness.values()) == {cfg.trained_kp}
-    assert set(control.damping.values()) == {cfg.trained_kd}
+    assert cfg.ctrl_freq == control.ctrl_frequency
+    assert set(control.stiffness.values()) == {cfg.kp}
+    assert set(control.damping.values()) == {cfg.kd}
+    assert not cfg.exp_moving_avg
     angles = Go2PayloadCfg.init_state.default_joint_angles
-    assert cfg.trained_default_joint_angles == {
-        "hip": angles["hip_joint"],
-        "thigh": angles["FL_thigh_joint"],
-        "calf": angles["calf_joint"],
-    }
+    expected = [
+        angle
+        for leg in ("FL", "FR", "RL", "RR")
+        for angle in (
+            angles["hip_joint"],
+            angles[f"{leg}_thigh_joint"],
+            angles["calf_joint"],
+        )
+    ]
+    torch.testing.assert_close(cfg.default_dof_pos, torch.tensor(expected))
     ranges = Go2PayloadCfg.commands.ranges
     limits = cfg.command_limits
     assert limits["lin_vel_x"] <= min(-min(ranges.lin_vel_x), max(ranges.lin_vel_x))
@@ -76,7 +74,7 @@ def test_listed_training_settings_match_the_task(impl):
 def test_phase_buffers_and_observation_pieces(impl):
     controller = SimpleNamespace(**impl.get_custom_buffers_dict())
     pieces = impl.get_custom_obs_pieces()
-    assert set(pieces) == set(impl.CustomDeployConfig.custom_obs_sizes)
+    assert set(pieces) == set(impl.custom_obs_sizes)
 
     # A quarter of a 2 Hz cycle is 0.125 s.
     impl.update_custom_buffers(controller, 10.125)
@@ -91,6 +89,21 @@ def test_phase_buffers_and_observation_pieces(impl):
         pieces["phase_frequency"](controller, None), torch.tensor([2.0])
     )
     for name, piece in pieces.items():
-        assert piece(controller, None).shape == (
-            impl.CustomDeployConfig.custom_obs_sizes[name],
-        )
+        assert piece(controller, None).shape == (impl.custom_obs_sizes[name],)
+
+
+def test_export_and_reload_preserve_payload_controller(tmp_path, impl):
+    cfg = DeployConfig(impl)
+    actor = Actor(48, 12, [16], normalize_obs=False).eval()
+    export_bundle(actor, cfg, tmp_path)
+    policy, reloaded = load_bundle(tmp_path)
+
+    assert reloaded.bundle_meta["ctrl_freq"] == reloaded.ctrl_freq == 50
+    assert not reloaded.bundle_meta["exp_moving_avg"]
+    assert not reloaded.exp_moving_avg
+    assert (reloaded.kp, reloaded.kd) == (20.0, 0.5)
+    assert reloaded.command_limits == cfg.command_limits
+    assert reloaded.DeployScaling.dof_pos_target == pytest.approx(4 * [0.2, 0.5, 0.5])
+    torch.testing.assert_close(reloaded.default_dof_pos, cfg.default_dof_pos)
+    obs = torch.linspace(-1, 1, 48)
+    torch.testing.assert_close(policy(obs), actor(obs))

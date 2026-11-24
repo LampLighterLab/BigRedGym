@@ -1,126 +1,128 @@
-import gym.envs  # noqa: F401
-from gym import GYM_ROOT_DIR
-from gym.envs.base.urdf_limits import parse_urdf_position_limits
-from gym.utils.task_registry import task_registry
+import math
+
 import torch
-
-# Scaling, nominal posture and actor inputs all come from this task's config.
-TASK_NAME = "go2payload"
-# Registered configs are instances; DeployScaling subclasses the class itself.
-_ENV_CFG = type(task_registry.env_cfgs[TASK_NAME])
-_TRAIN_CFG = type(task_registry.train_cfgs[TASK_NAME])
-_URDF_POS_LIMITS = parse_urdf_position_limits(
-    _ENV_CFG.asset.file.format(GYM_ROOT_DIR=GYM_ROOT_DIR)
-)
-
-
-def _single_gain(gains):
-    """Unitree takes one kp/kd here, so training must use one value per gain."""
-    values = set(gains.values())
-    if len(values) != 1:
-        raise ValueError(f"deploy expects one gain for every joint, got {gains}")
-    return values.pop()
+import numpy as np
+from go2_deploy.custom_implementation.custom_config import CustomConfig
 
 
 class DeployConfig:
-    task_name = TASK_NAME
-
-    # Control rate and PD gains must match training, so take them from the task.
-    ctrl_freq = _ENV_CFG.control.ctrl_frequency  # Hz
-    kp = _single_gain(_ENV_CFG.control.stiffness)  # Stiffness constant
-    kd = _single_gain(_ENV_CFG.control.damping)  # Damping constant
-
-    phase_frequency = 2.0  # Go2Trot gait frequency in Hz (cycles/s)
-
-    # Apply exponential moving average to actions. Training applies none, and
-    # the actor observes the smoothed action, so leave this off.
-    exp_moving_avg = False
-    ema_smoothing_factor = 0.1
-
-    # Must match the trained actor exactly, so take it from the task config.
-    obs_vector = list(_TRAIN_CFG.actor.obs)
-
-    # Scale observations
-    class DeployScaling(_ENV_CFG.scaling):
-        pass
-
-    # Full joystick deflection commands +/- these values. __init__ rejects any
-    # limit outside the training command ranges.
-    command_limits = {
-        "lin_vel_x": 1.0,  # m/s; training covers -1.0 to 2.5
-        "lin_vel_y": 0.5,  # m/s
-        "yaw_vel": 1.5,  # rad/s
-    }
-
-    # Specify size of observation vector. should not have to modify this
-    obs_sizes = {
-        "base_ang_vel": 3,
-        "projected_gravity": 3,
-        "commands": 3,
-        "dof_pos_obs": 12,
-        "dof_vel": 12,
-        "dof_accel": 12,
-        "dof_pos_target": 12,
-        "phase_obs": 2,
-        "phase_frequency": 1,
-    }
-
-    # Canonical FL, FR, RL, RR order; hip, thigh, calf within each leg.
-    default_dof_pos = torch.tensor(
-        [
-            angle
-            for leg in ("FL", "FR", "RL", "RR")
-            for angle in (
-                _ENV_CFG.init_state.default_joint_angles["hip_joint"],
-                _ENV_CFG.init_state.default_joint_angles[f"{leg}_thigh_joint"],
-                _ENV_CFG.init_state.default_joint_angles["calf_joint"],
+    # custom_impl: CustomConfig instance, from load_custom_impl(task_name)
+    def __init__(self, custom_impl):
+        if not isinstance(custom_impl, CustomConfig):
+            raise TypeError(
+                f"custom_impl must be a CustomConfig instance, got {custom_impl!r}"
             )
-        ]
-    )
+        self.custom_impl = custom_impl
 
-    # URDF [lower, upper] joint limits (rad), same order. Position targets are
-    # clamped to these so the motors never drive into the hard stops.
-    dof_pos_limits = torch.tensor(
-        [_URDF_POS_LIMITS[name] for name in _ENV_CFG.asset.robot_layout.dof_names]
-    )
+        self.task_name = custom_impl.task_name
 
-    # s: INTERMEDIATE ramps linearly from the measured pose to default_dof_pos
-    # over this time; CUSTOM_CTRL can only start once the ramp has finished.
-    intermediate_ramp_time = 2.0
+        self.ctrl_freq = getattr(custom_impl, "trained_ctrl_freq", 100)
+        self.kp = getattr(custom_impl, "trained_kp", 30.0)
+        self.kd = getattr(custom_impl, "trained_kd", 2.0)
 
-    # s: how often terminal should print ctrl freq, instructions
-    terminal_log_period = 2.0
+        # Apply exponential moving average to actions
+        self.exp_moving_avg = getattr(custom_impl, "trained_exp_moving_avg", True)
+        self.ema_time_const = 0.095  # seconds
+
+        self.obs_vector = list(self.custom_impl.obs_vector)
+
+        # Scale observations
+        class DeployScaling(self.custom_impl.DeployScaling):
+            pass
+
+        self.DeployScaling = DeployScaling
+
+        # Set ranges of joystick commands
+        course_limits = {
+            "lin_vel_x": 2.0,  # m/s
+            "lin_vel_y": 1.0,  # m/s
+            "yaw_vel": 3.0,  # rad/s
+        }
+        self.command_limits = dict(
+            getattr(custom_impl, "command_limits", course_limits)
+        )
+        self.intermediate_ramp_time = getattr(
+            custom_impl, "intermediate_ramp_time", None
+        )
+        limits = getattr(custom_impl, "dof_pos_limits", None)
+        self.dof_pos_limits = torch.tensor(limits) if limits is not None else None
+
+        # Specify size of observation vector pieces
+        self.obs_sizes = {
+            "base_ang_vel": 3,
+            "projected_gravity": 3,
+            "commands": 3,
+            "dof_pos_obs": 12,
+            "dof_vel": 12,
+            "dof_accel": 12,
+            "dof_pos_target": 12,
+        }
+
+        self.obs_sizes.update(self.custom_impl.custom_obs_sizes)
+
+        # Static default posture the actions are offsets from (canonical
+        # FL, FR, RL, RR order; hip, thigh, calf within each leg)
+        self.default_dof_pos = torch.tensor(
+            self.custom_impl.default_dof_pos, dtype=torch.float
+        )
+        # Training run the policy came from; set by setup_actor()
+        self.run_dir = None
+
+        # s: how often terminal should print ctrl freq, instructions
+        self.terminal_log_period = 2.0
+
+        # Set by policy_bundle.load_bundle(): the bundle's deploy_meta.json
+        self.bundle_meta = None
+
+        self.validate()
+
+    def obs_dim(self):
+        return sum(self.obs_sizes[obs] for obs in self.obs_vector)
+
+    @property
+    def ema_smoothing_factor(self):
+        return -np.expm1(-1 / (self.ctrl_freq * self.ema_time_const))
 
     # Check for unsafe config
-    def __init__(self):
-        if self.ctrl_freq < 20:
-            raise ValueError("ctrl_freq should be > 20")
-        if self.kp <= 0:
-            raise ValueError("kp should be > 0")
-        if self.kd <= 0:
-            raise ValueError("kd should be > 0")
-        if self.intermediate_ramp_time <= 0:
-            raise ValueError("intermediate_ramp_time should be > 0")
-        ranges = _ENV_CFG.commands.ranges
-        # The joystick is symmetric, so x is bounded by the slower direction.
-        trained = {
-            "lin_vel_x": min(-min(ranges.lin_vel_x), max(ranges.lin_vel_x)),
-            "lin_vel_y": ranges.lin_vel_y,
-            "yaw_vel": ranges.yaw_vel,
-        }
-        for name, limit in self.command_limits.items():
-            if not 0 <= limit <= trained[name]:
+    def validate(self):
+        if not math.isfinite(self.ctrl_freq) or self.ctrl_freq < 20:
+            raise ValueError("ctrl_freq must be finite and at least 20 Hz")
+        for name in ("kp", "kd", "ema_time_const"):
+            value = getattr(self, name)
+            if not math.isfinite(value) or value <= 0:
+                raise ValueError(f"{name} must be finite and > 0")
+        for name in ("ctrl_freq", "kp", "kd", "exp_moving_avg"):
+            trained = getattr(self.custom_impl, f"trained_{name}", None)
+            if trained is not None and getattr(self, name) != trained:
+                raise ValueError(f"{name} must match the trained value {trained}")
+        bounds = getattr(self.custom_impl, "command_limits", self.command_limits)
+        for name, maximum in bounds.items():
+            if not 0 <= self.command_limits[name] <= maximum:
+                raise ValueError(f"{name} command limit must be within [0, {maximum}]")
+        gait_range = getattr(self.custom_impl, "trained_gait_freq_range", None)
+        if gait_range is not None:
+            low, high = gait_range
+            hz = self.custom_impl.get_custom_buffers_dict()["phase_frequency"]
+            if not low <= hz <= high:
                 raise ValueError(
-                    f"command_limits[{name!r}] = {limit} is outside the "
-                    f"trained range [0, {trained[name]}]"
+                    f"phase_frequency is outside trained gait_freq {gait_range}"
                 )
-        if hasattr(_ENV_CFG.control, "gait_freq"):
-            low, high = _ENV_CFG.control.gait_freq
-            if not low <= self.phase_frequency <= high:
-                raise ValueError(
-                    f"phase_frequency {self.phase_frequency} Hz is outside the "
-                    f"trained gait_freq [{low}, {high}]"
-                )
+        ramp_time = self.intermediate_ramp_time
+        if ramp_time is not None and (not math.isfinite(ramp_time) or ramp_time <= 0):
+            raise ValueError("intermediate_ramp_time must be finite and > 0")
         for obs in self.obs_vector:
             if obs not in self.obs_sizes:
                 raise KeyError("observation " + obs + " not supported")
+        if self.default_dof_pos.shape != (12,):
+            raise ValueError(
+                f"default_dof_pos should have 12 joint angles, "
+                f"got shape {tuple(self.default_dof_pos.shape)}"
+            )
+        if self.dof_pos_limits is not None:
+            if self.dof_pos_limits.shape != (12, 2):
+                raise ValueError("dof_pos_limits must contain 12 [lower, upper] pairs")
+            lower, upper = self.dof_pos_limits.unbind(1)
+            if not (
+                (lower < self.default_dof_pos) & (self.default_dof_pos < upper)
+            ).all():
+                raise ValueError("default_dof_pos must be within dof_pos_limits")

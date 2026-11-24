@@ -12,20 +12,21 @@ import torch
 
 from go2_deploy.deploy_config import DeployConfig
 from go2_deploy.utility import deploy_utility
+from go2_deploy.utility.import_custom_impl import load_custom_impl
 
 SDK_IN_QGYM_ORDER = [3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8]
 
 
 def _controller(cfg=None):
     if cfg is None:
-        cfg = DeployConfig()
+        cfg = DeployConfig(load_custom_impl("go2trot"))
     return SimpleNamespace(
         cfg=cfg,
         obs_vec_size=sum(cfg.obs_sizes[name] for name in cfg.obs_vector),
         last_command=torch.tensor([0.5, -0.25, 0.75]),
         last_action=torch.zeros(2, 12),
         phase=0.4,
-        phase_frequency=cfg.phase_frequency,
+        phase_frequency=cfg.custom_impl.get_custom_buffers_dict()["phase_frequency"],
     )
 
 
@@ -90,7 +91,7 @@ def test_wxyz_quaternion_projects_gravity_but_gyro_is_already_body_local():
 
 
 def test_observation_dispatch_preserves_configured_order_sizes_and_scaling():
-    cfg = DeployConfig()
+    cfg = DeployConfig(load_custom_impl("go2trot"))
     cfg.obs_vector = [
         "phase_frequency",
         "dof_vel",
@@ -137,8 +138,7 @@ def test_observation_dispatch_preserves_configured_order_sizes_and_scaling():
 
 
 def test_frequency_observation_tracks_active_controller_frequency():
-    cfg = DeployConfig()
-    cfg.phase_frequency = 1.25
+    cfg = DeployConfig(load_custom_impl("go2trot"))
     cfg.obs_vector = ["phase_frequency"]
     cfg.DeployScaling = SimpleNamespace(phase_frequency=4.0)
     controller = _controller(cfg)
@@ -174,8 +174,8 @@ def test_action_target_roundtrip_uses_static_default_pose(task_name):
     )
 
 
-def _lowcmd_controller():
-    controller = _controller()
+def _lowcmd_controller(cfg=None):
+    controller = _controller(cfg)
     controller.default_lowcmd = SimpleNamespace(
         motor_cmd=[SimpleNamespace(q=0.0, kp=0.0, kd=0.0) for _ in range(20)]
     )
@@ -205,7 +205,7 @@ def test_existing_lowcmd_receives_permuted_targets_and_scaled_gains():
 def test_deploy_controller_matches_training_controller():
     from gym.envs.go2.go2payload_config import Go2PayloadCfg
 
-    cfg = DeployConfig()
+    cfg = DeployConfig(load_custom_impl("go2payload"))
     assert cfg.task_name == "go2payload"
     assert cfg.ctrl_freq == Go2PayloadCfg.control.ctrl_frequency == 50
     assert set(Go2PayloadCfg.control.stiffness.values()) == {cfg.kp}
@@ -224,21 +224,24 @@ def test_deploy_controller_matches_training_controller():
         ("yaw_vel", 3.0),
     ],
 )
-def test_command_limits_outside_training_are_rejected(monkeypatch, name, limit):
-    limits = dict(DeployConfig.command_limits, **{name: limit})
-    monkeypatch.setattr(DeployConfig, "command_limits", limits)
+def test_command_limits_outside_training_are_rejected(name, limit):
+    cfg = DeployConfig(load_custom_impl("go2payload"))
+    cfg.command_limits[name] = limit
     with pytest.raises(ValueError, match=name):
-        DeployConfig()
+        cfg.validate()
 
 
 def test_gait_frequency_outside_training_is_rejected(monkeypatch):
-    monkeypatch.setattr(DeployConfig, "phase_frequency", 4.0)
+    impl = load_custom_impl("go2payload")
+    monkeypatch.setattr(
+        impl, "get_custom_buffers_dict", lambda: {"phase_frequency": 4.0}
+    )
     with pytest.raises(ValueError, match="gait_freq"):
-        DeployConfig()
+        DeployConfig(impl)
 
 
 def test_lowcmd_clamps_targets_to_urdf_limits():
-    controller = _lowcmd_controller()
+    controller = _lowcmd_controller(DeployConfig(load_custom_impl("go2payload")))
     limits = controller.cfg.dof_pos_limits
     action = torch.full((12,), 10.0)
     action[::2] = -10.0
@@ -253,12 +256,16 @@ def test_lowcmd_clamps_targets_to_urdf_limits():
 
 
 def test_urdf_limits_are_canonical_and_contain_nominal_pose():
-    cfg = DeployConfig()
+    from gym import GYM_ROOT_DIR
+    from gym.envs.base.urdf_limits import parse_urdf_position_limits
+    from gym.envs.go2.go2payload_config import Go2PayloadCfg
+
+    cfg = DeployConfig(load_custom_impl("go2payload"))
     lower, upper = cfg.dof_pos_limits.unbind(1)
-    assert cfg.dof_pos_limits.shape == (12, 2)
-    # FL hip, thigh and calf ranges from go2.urdf.
-    torch.testing.assert_close(lower[:3], torch.tensor([-1.0472, -1.5708, -2.7227]))
-    torch.testing.assert_close(upper[:3], torch.tensor([1.0472, 3.4907, -0.83776]))
+    asset = Go2PayloadCfg.asset
+    limits = parse_urdf_position_limits(asset.file.format(GYM_ROOT_DIR=GYM_ROOT_DIR))
+    expected = torch.tensor([limits[name] for name in asset.robot_layout.dof_names])
+    torch.testing.assert_close(cfg.dof_pos_limits, expected)
     assert ((lower < cfg.default_dof_pos) & (cfg.default_dof_pos < upper)).all()
 
 
