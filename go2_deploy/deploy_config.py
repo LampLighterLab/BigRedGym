@@ -23,15 +23,10 @@ class DeployConfig:
 
         # Apply exponential moving average to actions
         self.exp_moving_avg = True
-<<<<<<< HEAD
-        self.ema_time_const = 0.095      # seconds
-        self.ema_smoothing_factor = -np.expm1(-(1/self.ctrl_freq)/self.ema_time_const)     # alpha in EMA
-=======
         self.ema_time_const = 0.095  # seconds
         self.ema_smoothing_factor = -np.expm1(
             -(1 / self.ctrl_freq) / self.ema_time_const
         )  # alpha in EMA
->>>>>>> 0b93bca (Go2 wireless deployment (#28))
 
         self.obs_vector = list(self.custom_impl.obs_vector)
 
