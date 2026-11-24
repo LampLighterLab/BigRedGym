@@ -71,10 +71,11 @@ class MuJocoBackendBase(SimBackend):
         # per-world native views.
         self._contact_friction_t: torch.Tensor = None
         self._nominal_contact_friction: float = 1.0
+        self._randomize_link_inertials: bool = False
         self._link_mass_t: torch.Tensor = None
+        self._link_com_t: torch.Tensor = None
         self._link_inertia_t: torch.Tensor = None
-        self._nominal_link_mass: torch.Tensor = None
-        self._nominal_link_inertia: torch.Tensor = None
+        self._link_inertia_quat_t: torch.Tensor = None
 
     # ── SimBackend.device ─────────────────────────────────────────────────────
 
@@ -118,6 +119,10 @@ class MuJocoBackendBase(SimBackend):
         return self._link_mass_t
 
     @property
+    def link_com(self) -> torch.Tensor:
+        return self._link_com_t
+
+    @property
     def payload_mass(self) -> torch.Tensor:
         return self._payload_mass_t
 
@@ -150,6 +155,33 @@ class MuJocoBackendBase(SimBackend):
     @property
     def link_inertia(self) -> torch.Tensor:
         return self._link_inertia_t
+
+    @property
+    def link_inertia_quat(self) -> torch.Tensor:
+        return self._link_inertia_quat_t
+
+    def _record_link_inertial_update(
+        self, env_ids, masses, coms, inertias, inertia_quats
+    ) -> tuple[torch.Tensor, ...] | None:
+        """Validate and record an update; return its values in native order.
+
+        Returns (ids, masses, ipos, inertias, iquat [w,x,y,z]) indexed by the
+        canonical bodies' native ids, or ``None`` when there is nothing to do.
+        """
+        ids, masses, coms, inertias, quats = self._prepare_link_inertial_update(
+            env_ids, masses, coms, inertias, inertia_quats
+        )
+        if ids.numel() == 0:
+            return None
+        if not self._randomize_link_inertials:
+            raise RuntimeError(
+                "link mass-property randomization was not enabled before setup"
+            )
+        self._link_mass_t[ids] = masses
+        self._link_com_t[ids] = coms
+        self._link_inertia_t[ids] = inertias
+        self._link_inertia_quat_t[ids] = quats
+        return ids, masses, coms, inertias, quats[..., XYZW_TO_WXYZ]
 
     # ── World building ─────────────────────────────────────────────────────────
 
@@ -318,14 +350,18 @@ class MuJocoBackendBase(SimBackend):
         device: str,
     ) -> None:
         body_indices = self._canonical_to_native_body_np
-        self._nominal_link_mass = torch.tensor(
-            mjm.body_mass[body_indices].copy(), dtype=torch.float, device=device
-        ).unsqueeze(0)
-        self._nominal_link_inertia = torch.tensor(
-            mjm.body_inertia[body_indices].copy(), dtype=torch.float, device=device
-        ).unsqueeze(0)
-        self._link_mass_t = self._nominal_link_mass.repeat(num_envs, 1)
-        self._link_inertia_t = self._nominal_link_inertia.repeat(num_envs, 1, 1)
+
+        def nominal(values):
+            return torch.tensor(
+                values[body_indices].copy(), dtype=torch.float, device=device
+            ).unsqueeze(0)
+
+        self._link_mass_t = nominal(mjm.body_mass).repeat(num_envs, 1)
+        self._link_com_t = nominal(mjm.body_ipos).repeat(num_envs, 1, 1)
+        self._link_inertia_t = nominal(mjm.body_inertia).repeat(num_envs, 1, 1)
+        self._link_inertia_quat_t = nominal(mjm.body_iquat[:, WXYZ_TO_XYZW]).repeat(
+            num_envs, 1, 1
+        )
 
         self._payload_mass_t = torch.zeros(num_envs, device=device)
         self._payload_com_t = torch.zeros(num_envs, 3, device=device)

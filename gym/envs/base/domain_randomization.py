@@ -226,6 +226,14 @@ def payload_box_inertia(mass: torch.Tensor, size) -> torch.Tensor:
     return mass.unsqueeze(-1) * extents / 12.0
 
 
+def randomizes_link_inertials(cfg) -> bool:
+    """Whether any DR axis changes link mass properties after setup.
+
+    Backends use this to allocate per-environment mass properties.
+    """
+    return link_mass_scale_range(cfg) is not None
+
+
 class DomainRandomizer:
     def __init__(self, cfg, backend, device: str) -> None:
         self._backend = backend
@@ -281,6 +289,8 @@ class DomainRandomizer:
                 self._generators["payload"] = generator
 
         self.link_mass_scale = None
+        self._randomizes_link_inertials = randomizes_link_inertials(cfg)
+        self._nominal_link_inertials = None
         self._payload_mass_candidates = None
         self._payload_com_candidates = None
         self._episode_targets = {}
@@ -288,9 +298,38 @@ class DomainRandomizer:
         self._episode_scales = {}
         self._episode_candidates = {}
 
-    def bind_link_masses(self) -> None:
+    def bind_link_inertials(self) -> None:
+        """Capture the backend's nominal link mass properties after setup."""
+        if not self._randomizes_link_inertials:
+            return
+        backend = self._backend
+        # Every environment still holds the nominal values before startup DR.
+        self._nominal_link_inertials = tuple(
+            value[:1].clone()
+            for value in (
+                backend.link_mass,
+                backend.link_com,
+                backend.link_inertia,
+                backend.link_inertia_quat,
+            )
+        )
         if self._link_mass_scale_range is not None:
-            self.link_mass_scale = torch.ones_like(self._backend.link_mass)
+            self.link_mass_scale = torch.ones_like(backend.link_mass)
+
+    def _apply_link_inertials(self, env_ids: torch.Tensor) -> None:
+        """Rebuild selected environments' link mass properties from nominal.
+
+        One backend call keeps Warp to one constant recompute.
+        """
+        mass, com, inertia, quat = (
+            value.expand(env_ids.numel(), *value.shape[1:]).clone()
+            for value in self._nominal_link_inertials
+        )
+        if self.link_mass_scale is not None:
+            scales = self.link_mass_scale[env_ids]
+            mass *= scales
+            inertia *= scales.unsqueeze(-1)
+        self._backend.set_link_inertials(env_ids, mass, com, inertia, quat)
 
     def bind_episode_targets(self, targets: dict[str, torch.Tensor]) -> None:
         for name in self._episode_scale_ranges:
@@ -351,7 +390,7 @@ class DomainRandomizer:
                 self._generators["link_mass"],
             )
             self.link_mass_scale[env_ids] = scales
-            self._backend.set_link_mass_scale(env_ids, scales)
+            self._apply_link_inertials(env_ids)
 
     def randomize_episode(self, reset_mask: torch.Tensor) -> None:
         """Resample configured task tensors for resetting environments."""

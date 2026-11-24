@@ -1,9 +1,9 @@
 """Plain MuJoCo (mj_step) backend — no Warp dependency.
 
 Works on any platform (Linux CPU, Mac Apple Silicon). Each environment owns an
-MjData. Models are shared unless link-mass DR or the payload requires one
-compact model per environment; physics runs in a Python loop and state is
-copied numpy→torch after each step.
+MjData. Models are shared unless link mass-property DR requires one compact
+model per environment; physics runs in a Python loop and state is copied
+numpy→torch after each step.
 """
 
 import copy
@@ -16,8 +16,8 @@ import torch
 from gym import GYM_ROOT_DIR
 from gym.envs.base.domain_randomization import (
     contact_friction_range,
-    link_mass_scale_range,
     payload_mass_range,
+    randomizes_link_inertials,
 )
 from gym.envs.base.mujoco_backend_base import (
     MuJocoBackendBase,
@@ -50,7 +50,6 @@ class MuJocoCPUBackend(MuJocoBackendBase):
         self._render_deadline = None
         self._render_pending_time = 0.0
         self._randomize_contact_friction = False
-        self._randomize_link_mass = False
         self._randomize_payload = False
         self._models: list[mujoco.MjModel] | None = None
 
@@ -101,26 +100,28 @@ class MuJocoCPUBackend(MuJocoBackendBase):
             for env_id, value in zip(ids.tolist(), values.tolist()):
                 self._set_model_contact_friction(self._models[env_id], value)
 
-    def set_link_mass_scale(
+    def set_link_inertials(
         self,
         env_ids: torch.Tensor,
-        scales: torch.Tensor,
+        masses: torch.Tensor,
+        coms: torch.Tensor,
+        inertias: torch.Tensor,
+        inertia_quats: torch.Tensor,
     ) -> None:
-        ids, values = self._prepare_link_mass_scale_update(env_ids, scales)
-        if ids.numel() == 0:
+        update = self._record_link_inertial_update(
+            env_ids, masses, coms, inertias, inertia_quats
+        )
+        if update is None:
             return
-        if not self._randomize_link_mass:
-            raise RuntimeError("link-mass randomization was not enabled before setup")
-
-        masses = self._nominal_link_mass * values
-        inertias = self._nominal_link_inertia * values.unsqueeze(-1)
-        self._link_mass_t[ids] = masses
-        self._link_inertia_t[ids] = inertias
-        body_indices = self._canonical_to_native_body_np
+        ids, *values = update
+        mass_np, ipos_np, inertia_np, iquat_np = (v.cpu().numpy() for v in values)
+        bodies = self._canonical_to_native_body_np
         for row, env_id in enumerate(ids.tolist()):
             model = self._models[env_id]
-            model.body_mass[body_indices] = masses[row].cpu().numpy()
-            model.body_inertia[body_indices] = inertias[row].cpu().numpy()
+            model.body_mass[bodies] = mass_np[row]
+            model.body_ipos[bodies] = ipos_np[row]
+            model.body_inertia[bodies] = inertia_np[row]
+            model.body_iquat[bodies] = iquat_np[row]
             self._recompute_model_constants(env_id)
 
     def set_payload(
@@ -178,9 +179,9 @@ class MuJocoCPUBackend(MuJocoBackendBase):
         self._device = device
         self._num_envs = num_envs
         self._randomize_contact_friction = contact_friction_range(cfg) is not None
-        self._randomize_link_mass = link_mass_scale_range(cfg) is not None
+        self._randomize_link_inertials = randomizes_link_inertials(cfg)
         self._randomize_payload = payload_mass_range(cfg) is not None
-        per_env_models = self._randomize_link_mass or self._randomize_payload
+        per_env_models = self._randomize_link_inertials or self._randomize_payload
         headless = task.headless if task is not None else True
         visual_model = getattr(cfg.asset, "mujoco_visual_model", None)
         visual_model_path = (

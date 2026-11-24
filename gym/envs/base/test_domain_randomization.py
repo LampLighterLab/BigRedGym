@@ -42,11 +42,23 @@ def _payload(mass_range=(0.0, 5.0), **overrides):
 
 
 class _RecordingBackend:
+    nominal_mass = torch.tensor([[0.1, 6.0, 1.0]])
+    nominal_com = torch.tensor(
+        [[[0.0, 0.0, 0.0], [0.02, 0.0, -0.01], [0.0, 0.0, -0.1]]]
+    )
+    nominal_inertia = torch.tensor([[[1e-4] * 3, [0.02, 0.09, 0.1], [1e-3] * 3]])
+    # Base principal axes yawed by 90 degrees about z.
+    nominal_quat = torch.tensor(
+        [[[0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.5**0.5, 0.5**0.5], [0.0, 0.0, 0.0, 1.0]]]
+    )
+
     def __init__(self, num_envs):
         self.contact_friction = torch.ones(num_envs)
-        self._nominal_link_mass = torch.tensor([[1.0, 2.0, 3.0]])
-        self.link_mass = self._nominal_link_mass.repeat(num_envs, 1)
-        self.link_mass_updates = []
+        self.link_mass = self.nominal_mass.repeat(num_envs, 1)
+        self.link_com = self.nominal_com.repeat(num_envs, 1, 1)
+        self.link_inertia = self.nominal_inertia.repeat(num_envs, 1, 1)
+        self.link_inertia_quat = self.nominal_quat.repeat(num_envs, 1, 1)
+        self.inertial_updates = []
         self.payload_updates = []
         self.updates = []
 
@@ -56,11 +68,14 @@ class _RecordingBackend:
         self.updates.append((env_ids, coefficients))
         self.contact_friction[env_ids] = coefficients
 
-    def set_link_mass_scale(self, env_ids, scales):
-        env_ids = env_ids.clone()
-        scales = scales.clone()
-        self.link_mass_updates.append((env_ids, scales))
-        self.link_mass[env_ids] = self._nominal_link_mass * scales
+    def set_link_inertials(self, env_ids, masses, coms, inertias, quats):
+        values = tuple(v.clone() for v in (env_ids, masses, coms, inertias, quats))
+        self.inertial_updates.append(values)
+        ids = values[0]
+        self.link_mass[ids] = values[1]
+        self.link_com[ids] = values[2]
+        self.link_inertia[ids] = values[3]
+        self.link_inertia_quat[ids] = values[4]
 
     def set_payload(self, env_ids, masses, coms):
         self.payload_updates.append((env_ids.clone(), masses.clone(), coms.clone()))
@@ -90,11 +105,13 @@ def test_disabled_randomization_needs_no_seed_or_backend_support():
     backend = _RecordingBackend(3)
     randomizer = DomainRandomizer(cfg, backend, "cpu")
 
+    randomizer.bind_link_inertials()
     randomizer.randomize_startup(torch.arange(3))
     randomizer.randomize_episode(torch.ones(3, dtype=torch.bool))
     randomizer.randomize_payload(torch.ones(3, dtype=torch.bool))
 
     assert backend.updates == []
+    assert backend.inertial_updates == []
     assert backend.payload_updates == []
 
 
@@ -267,19 +284,25 @@ def test_link_mass_scales_each_body_once_at_startup():
         backend,
         "cpu",
     )
-    randomizer.bind_link_masses()
+    randomizer.bind_link_inertials()
     randomizer.randomize_startup(torch.arange(4))
     before = backend.link_mass.clone()
 
     randomizer.randomize_episode(torch.tensor([False, True, False, True]))
 
+    scale = randomizer.link_mass_scale
+    torch.testing.assert_close(backend.link_mass, backend.nominal_mass * scale)
     torch.testing.assert_close(
-        backend.link_mass,
-        backend._nominal_link_mass * randomizer.link_mass_scale,
+        backend.link_inertia, backend.nominal_inertia * scale.unsqueeze(-1)
+    )
+    # Scaling keeps COMs and principal axes.
+    torch.testing.assert_close(backend.link_com, backend.nominal_com.expand(4, -1, -1))
+    torch.testing.assert_close(
+        backend.link_inertia_quat, backend.nominal_quat.expand(4, -1, -1)
     )
     torch.testing.assert_close(backend.link_mass, before)
-    assert len(backend.link_mass_updates) == 1
-    assert torch.unique(randomizer.link_mass_scale[0]).numel() > 1
+    assert len(backend.inertial_updates) == 1
+    assert torch.unique(scale[0]).numel() > 1
 
 
 def _payload_randomizer(num_envs=4, seed=7, **payload_overrides):
