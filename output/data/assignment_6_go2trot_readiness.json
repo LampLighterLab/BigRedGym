@@ -1,0 +1,3772 @@
+{
+  "protocol": "go2trot-v1",
+  "jitter_cutoff_hz": 10.0,
+  "checkpoint": "D:\\MAE5110\\HuaijinPeter\\BigRedGym\\logs\\go2trot\\Nov16_20-08-42_trot_v1\\model_500.pt",
+  "checkpoint_sha256": "2b98e1e294d779d836481bb8af8cf25178935d2fecdd1450e78100157b416ad2",
+  "revision": "711dc9b0a1b813f7b55b1e889ceee6ec6bede7c2",
+  "worktree": "?? deliverables/\n?? output/\n?? scripts/evaluate_go2height_readiness.py\n?? tests/unit_tests/test_go2height_readiness.py\n",
+  "arguments": {
+    "experiment_name": "go2trot",
+    "load_run": "Nov16_20-08-42_trot_v1",
+    "checkpoint": 500,
+    "original_cfg": true,
+    "backend": "mujoco",
+    "device": "cpu",
+    "seed": 123,
+    "replicas": 1,
+    "seconds": 4.0,
+    "warmup": 1.0,
+    "output": "output\\data\\assignment_6_go2trot_readiness.json",
+    "check": false
+  },
+  "env_config": {
+    "asset": {
+      "disable_gravity": false,
+      "disable_motors": false,
+      "end_effector_names": [
+        "foot"
+      ],
+      "file": "{GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf",
+      "fix_base_link": false,
+      "foot_name": "foot",
+      "joint_damping": 0.01,
+      "mujoco_visual_model": "{GYM_ROOT_DIR}/thirdparty/vlearn/assets/go2/go2.xml",
+      "penalize_contacts_on": [
+        "calf"
+      ],
+      "robot_layout": {
+        "actuated_dof_names": [
+          "FL_hip_joint",
+          "FL_thigh_joint",
+          "FL_calf_joint",
+          "FR_hip_joint",
+          "FR_thigh_joint",
+          "FR_calf_joint",
+          "RL_hip_joint",
+          "RL_thigh_joint",
+          "RL_calf_joint",
+          "RR_hip_joint",
+          "RR_thigh_joint",
+          "RR_calf_joint"
+        ],
+        "body_groups": {
+          "feet": [
+            "FL_foot",
+            "FR_foot",
+            "RL_foot",
+            "RR_foot"
+          ]
+        },
+        "dof_names": [
+          "FL_hip_joint",
+          "FL_thigh_joint",
+          "FL_calf_joint",
+          "FR_hip_joint",
+          "FR_thigh_joint",
+          "FR_calf_joint",
+          "RL_hip_joint",
+          "RL_thigh_joint",
+          "RL_calf_joint",
+          "RR_hip_joint",
+          "RR_thigh_joint",
+          "RR_calf_joint"
+        ],
+        "version": "go2_v1"
+      },
+      "rotor_inertia": [
+        0.002268,
+        0.002268,
+        0.005484,
+        0.002268,
+        0.002268,
+        0.005484,
+        0.002268,
+        0.002268,
+        0.005484,
+        0.002268,
+        0.002268,
+        0.005484
+      ],
+      "terminate_after_contacts_on": [
+        "base"
+      ],
+      "vsim_visual_mesh_dir": "{GYM_ROOT_DIR}/thirdparty/vlearn/assets/go2/assets"
+    },
+    "commands": {
+      "ranges": {
+        "lin_vel_x": [
+          -0.5,
+          0.0,
+          0.5,
+          1.0,
+          2.0
+        ],
+        "lin_vel_y": 0.5,
+        "yaw_vel": 1.5
+      },
+      "resampling_time": 5.0,
+      "var": 0.1
+    },
+    "control": {
+      "ctrl_dt": 0.02,
+      "ctrl_frequency": 50,
+      "damping": {
+        "hip": 0.5,
+        "thigh": 0.5,
+        "calf": 0.5
+      },
+      "decimation": 1,
+      "desired_sim_frequency": 50,
+      "gait_freq": [
+        1.0,
+        3.0
+      ],
+      "gait_joint_amplitudes": [
+        0.0,
+        -0.15,
+        0.3,
+        0.0,
+        -0.15,
+        0.3,
+        0.0,
+        -0.15,
+        0.3,
+        0.0,
+        -0.15,
+        0.3
+      ],
+      "gait_joint_offsets": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gait_phase_offsets": {
+        "FL_foot": 0.0,
+        "FR_foot": 0.5,
+        "RL_foot": 0.5,
+        "RR_foot": 0.0
+      },
+      "stiffness": {
+        "hip": 20.0,
+        "thigh": 20.0,
+        "calf": 20.0
+      }
+    },
+    "domain_randomization": {
+      "episode": {
+        "scale_ranges": {}
+      },
+      "startup": {
+        "contact_friction_range": null,
+        "link_mass_scale_range": null
+      }
+    },
+    "env": {
+      "env_spacing": 3.0,
+      "episode_length_s": 5.0,
+      "num_actuators": 12,
+      "num_envs": 30
+    },
+    "init_member_classes": {},
+    "init_state": {
+      "ang_vel": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "default_joint_angles": {
+        "hip_joint": 0.0,
+        "calf_joint": -1.36,
+        "FL_thigh_joint": 0.96,
+        "FR_thigh_joint": 0.96,
+        "RL_thigh_joint": 0.96,
+        "RR_thigh_joint": 0.96
+      },
+      "dof_pos_range": {
+        "hip": [
+          -0.01,
+          0.01
+        ],
+        "thigh": [
+          0.65,
+          0.67
+        ],
+        "calf": [
+          -1.37,
+          -1.35
+        ]
+      },
+      "dof_vel_range": {
+        "hip": [
+          0.0,
+          0.0
+        ],
+        "thigh": [
+          0.0,
+          0.0
+        ],
+        "calf": [
+          0.0,
+          0.0
+        ]
+      },
+      "lin_vel": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "pos": [
+        0.0,
+        0.0,
+        0.4
+      ],
+      "reset_mode": "reset_to_basic",
+      "root_pos_range": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.45,
+          0.5
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "root_vel_range": [
+        [
+          -0.5,
+          3.0
+        ],
+        [
+          -0.1,
+          0.1
+        ],
+        [
+          -0.05,
+          0.05
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "rot": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "mujoco": {
+      "ccd_iterations": 50,
+      "disableflags": 524288,
+      "njmax": 256,
+      "solref": [
+        0.005,
+        1.0
+      ]
+    },
+    "push_interval": 250.0,
+    "push_robots": {
+      "interval_s": 5,
+      "max_push_vel_xy": 0.5,
+      "push_box_dims": [
+        0.3,
+        0.1,
+        0.1
+      ],
+      "toggle": false
+    },
+    "reward_settings": {
+      "base_height_target": 0.4,
+      "max_contact_force": 600.0,
+      "soft_dof_pos_limit": 0.9,
+      "soft_dof_vel_limit": 0.9,
+      "soft_torque_limit": 0.9,
+      "tracking_sigma": 0.25
+    },
+    "scaling": {
+      "base_ang_vel": 0.3,
+      "base_height": 0.3,
+      "base_lin_vel": 0.4,
+      "commands": [
+        3,
+        1,
+        3
+      ],
+      "dof_pos": [
+        1.0472,
+        2.53075,
+        0.94247,
+        1.0472,
+        2.53075,
+        0.94247,
+        1.0472,
+        2.53075,
+        0.94247,
+        1.0472,
+        2.53075,
+        0.94247
+      ],
+      "dof_pos_obs": [
+        1.0472,
+        2.53075,
+        0.94247,
+        1.0472,
+        2.53075,
+        0.94247,
+        1.0472,
+        2.53075,
+        0.94247,
+        1.0472,
+        2.53075,
+        0.94247
+      ],
+      "dof_pos_target": [
+        0.2,
+        0.3,
+        0.3,
+        0.2,
+        0.3,
+        0.3,
+        0.2,
+        0.3,
+        0.3,
+        0.2,
+        0.3,
+        0.3
+      ],
+      "dof_vel": [
+        2.0,
+        2.0,
+        4.0,
+        2.0,
+        2.0,
+        4.0,
+        2.0,
+        2.0,
+        4.0,
+        2.0,
+        2.0,
+        4.0
+      ],
+      "tau_ff": [
+        23.7,
+        23.7,
+        45.43,
+        23.7,
+        23.7,
+        45.43,
+        23.7,
+        23.7,
+        45.43,
+        23.7,
+        23.7,
+        45.43
+      ]
+    },
+    "seed": 123,
+    "sim_dt": 0.02,
+    "terrain": {
+      "dynamic_friction": 1.0,
+      "mesh_type": "plane",
+      "restitution": 0.0,
+      "static_friction": 1.0
+    },
+    "viewer": {
+      "lookat": [
+        11.0,
+        5,
+        3.0
+      ],
+      "pos": [
+        10,
+        0,
+        6
+      ],
+      "ref_env": 0,
+      "show_ui": false
+    }
+  },
+  "runner_config": {
+    "actor": {
+      "actions": [
+        "dof_pos_target"
+      ],
+      "activation": "elu",
+      "add_noise": false,
+      "disable_actions": false,
+      "frequency": 50,
+      "hidden_dims": [
+        256,
+        256,
+        128
+      ],
+      "noise": {
+        "ang_vel": [
+          0.3,
+          0.15,
+          0.4
+        ],
+        "base_ang_vel": 0.01,
+        "dof_pos": 0.005,
+        "dof_pos_obs": 0.01,
+        "dof_vel": 0.005,
+        "gravity_vec": 0.1,
+        "lin_vel": 0.05,
+        "scale": 1.0
+      },
+      "normalize_obs": false,
+      "obs": [
+        "base_ang_vel",
+        "projected_gravity",
+        "commands",
+        "dof_pos_obs",
+        "dof_vel",
+        "dof_pos_target",
+        "phase_obs",
+        "phase_frequency"
+      ],
+      "smooth_exploration": false
+    },
+    "algorithm": {
+      "batch_size": 32768,
+      "clip_param": 0.2,
+      "desired_kl": 0.01,
+      "entropy_coef": 0.001,
+      "gamma": 0.99,
+      "lam": 0.95,
+      "learning_rate": 0.001,
+      "lr_range": [
+        2e-05,
+        0.01
+      ],
+      "lr_ratio": 1.5,
+      "max_grad_norm": 1.0,
+      "max_gradient_steps": 24,
+      "rollout_size": 65536,
+      "schedule": "adaptive",
+      "use_clipped_value_loss": true
+    },
+    "critic": {
+      "activation": "elu",
+      "hidden_dims": [
+        128,
+        64
+      ],
+      "normalize_obs": false,
+      "obs": [
+        "base_height",
+        "base_lin_vel",
+        "base_ang_vel",
+        "projected_gravity",
+        "commands",
+        "dof_pos_obs",
+        "dof_vel",
+        "dof_pos_target",
+        "phase_obs",
+        "phase_frequency"
+      ],
+      "reward": {
+        "termination_weight": {
+          "termination": 0.01
+        },
+        "weights": {
+          "action_rate": 0.1,
+          "action_rate2": 0.05,
+          "ang_vel_xy": 0.01,
+          "dof_near_home": 0.0,
+          "dof_pos_limits": 0.0,
+          "dof_vel": 0.0,
+          "feet_contact_forces": 0.0,
+          "lin_vel_z": 0.0,
+          "min_base_height": 0.5,
+          "orientation": 1.0,
+          "reference_traj": 3.0,
+          "stand_still": 0.0,
+          "swing_contact": 3.0,
+          "torques": 5e-06,
+          "tracking_ang_vel": 4.0,
+          "tracking_lin_vel": 4.0,
+          "trot_support": 3.0
+        }
+      }
+    },
+    "init_member_classes": {},
+    "log_dir": null,
+    "logging": {
+      "enable_local_saving": false
+    },
+    "runner": {
+      "algorithm_class_name": "PPO2",
+      "checkpoint": -1,
+      "device": "cpu",
+      "experiment_name": "go2trot",
+      "load_run": "Nov16_20-08-42_trot_v1",
+      "max_iterations": 500,
+      "policy_class_name": "ActorCritic",
+      "resume": false,
+      "resume_path": null,
+      "run_name": "",
+      "save_interval": 50
+    },
+    "runner_class_name": "OnPolicyRunner",
+    "seed": -1
+  },
+  "foot_order": [
+    "FL_foot",
+    "FR_foot",
+    "RL_foot",
+    "RR_foot"
+  ],
+  "joint_order": [
+    "FL_hip_joint",
+    "FL_thigh_joint",
+    "FL_calf_joint",
+    "FR_hip_joint",
+    "FR_thigh_joint",
+    "FR_calf_joint",
+    "RL_hip_joint",
+    "RL_thigh_joint",
+    "RL_calf_joint",
+    "RR_hip_joint",
+    "RR_thigh_joint",
+    "RR_calf_joint"
+  ],
+  "cases": {
+    "stopped@1Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.0745047852396965,
+      "yaw_rmse_rad_s": 0.08442729711532593,
+      "residual_step_rms_rad": 0.06620991230010986,
+      "joint_acceleration_rms_rad_s2": 98.10234832763672,
+      "residual_jitter_rms_rad": 0.02125749452432232,
+      "joint_velocity_jitter_rms_rad_s": 0.8748188617018332,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.056644219905138016,
+        0.059311870485544205,
+        0.11167439073324203,
+        0.04897531867027283,
+        0.05278497189283371,
+        0.08360842615365982,
+        0.03431152179837227,
+        0.06534605473279953,
+        0.06217959523200989,
+        0.03844736889004707,
+        0.08024103194475174,
+        0.06325884908437729
+      ],
+      "foot_support_weight_ratio": 0.9822694063186646,
+      "swing_load_fraction": 0.24315175451967017,
+      "load_share": [
+        0.2950793206691742,
+        0.28979161381721497,
+        0.20339278876781464,
+        0.21173624694347382
+      ],
+      "contact_duty": [
+        0.7733333110809326,
+        0.8066666722297668,
+        0.46666666865348816,
+        0.46000000834465027
+      ],
+      "complete_strides": 2,
+      "stride_load_max_deviation_p90": 0.058836665004491806,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.2
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "residual_jitter_rms_rad",
+        "swing_load_fraction",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.0,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 1.0
+    },
+    "stopped@2Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.05043971166014671,
+      "yaw_rmse_rad_s": 0.08355208486318588,
+      "residual_step_rms_rad": 0.10073820501565933,
+      "joint_acceleration_rms_rad_s2": 153.4647216796875,
+      "residual_jitter_rms_rad": 0.030984808479852455,
+      "joint_velocity_jitter_rms_rad_s": 1.4841683206844205,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.0745665580034256,
+        0.08060276508331299,
+        0.16562888026237488,
+        0.06731419265270233,
+        0.08185577392578125,
+        0.1322416067123413,
+        0.04929052293300629,
+        0.10245992243289948,
+        0.10726512968540192,
+        0.04835788160562515,
+        0.11564555019140244,
+        0.11585827171802521
+      ],
+      "foot_support_weight_ratio": 0.9892756342887878,
+      "swing_load_fraction": 0.15613171059503775,
+      "load_share": [
+        0.315991073846817,
+        0.26702359318733215,
+        0.1961449384689331,
+        0.22084036469459534
+      ],
+      "contact_duty": [
+        0.8133333325386047,
+        0.8133333325386047,
+        0.40666666626930237,
+        0.4399999976158142
+      ],
+      "complete_strides": 5,
+      "stride_load_max_deviation_p90": 0.07023824751377106,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.2
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.0,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 2.0
+    },
+    "stopped@3Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.05804656818509102,
+      "yaw_rmse_rad_s": 0.10855771601200104,
+      "residual_step_rms_rad": 0.13135826587677002,
+      "joint_acceleration_rms_rad_s2": 193.8404998779297,
+      "residual_jitter_rms_rad": 0.04295912281576394,
+      "joint_velocity_jitter_rms_rad_s": 1.9771695103960336,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.09479954093694687,
+        0.07753512263298035,
+        0.20179854333400726,
+        0.09041658788919449,
+        0.11767600476741791,
+        0.19608724117279053,
+        0.07235667109489441,
+        0.1027597039937973,
+        0.14821480214595795,
+        0.07074548304080963,
+        0.14940357208251953,
+        0.16055095195770264
+      ],
+      "foot_support_weight_ratio": 0.9939323663711548,
+      "swing_load_fraction": 0.09714417877766736,
+      "load_share": [
+        0.3073333501815796,
+        0.27296218276023865,
+        0.2033499926328659,
+        0.21635450422763824
+      ],
+      "contact_duty": [
+        0.7599999904632568,
+        0.7333333492279053,
+        0.4333333373069763,
+        0.4266666769981384
+      ],
+      "complete_strides": 8,
+      "stride_load_max_deviation_p90": 0.06063633784651756,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.2
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.0,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 3.0
+    },
+    "forward_slow@1Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.2568691372871399,
+      "yaw_rmse_rad_s": 0.08363820612430573,
+      "residual_step_rms_rad": 0.10762032866477966,
+      "joint_acceleration_rms_rad_s2": 164.13650512695312,
+      "residual_jitter_rms_rad": 0.04653037549245859,
+      "joint_velocity_jitter_rms_rad_s": 1.6307160740549889,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.1029408797621727,
+        0.09405495971441269,
+        0.1693187952041626,
+        0.078626349568367,
+        0.11350073665380478,
+        0.16024024784564972,
+        0.06036905199289322,
+        0.07496403157711029,
+        0.0955255851149559,
+        0.04469140246510506,
+        0.10623613744974136,
+        0.12024792283773422
+      ],
+      "foot_support_weight_ratio": 0.9911541938781738,
+      "swing_load_fraction": 0.33107386530477817,
+      "load_share": [
+        0.3378758430480957,
+        0.319291889667511,
+        0.16260398924350739,
+        0.18022818863391876
+      ],
+      "contact_duty": [
+        0.846666693687439,
+        0.846666693687439,
+        0.5533333420753479,
+        0.5266666412353516
+      ],
+      "complete_strides": 2,
+      "stride_load_max_deviation_p90": 0.09725534915924072,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.25
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "linear_rmse_m_s",
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "swing_load_fraction",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.5,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 1.0
+    },
+    "forward_slow@2Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.11828309297561646,
+      "yaw_rmse_rad_s": 0.09353117644786835,
+      "residual_step_rms_rad": 0.13544628024101257,
+      "joint_acceleration_rms_rad_s2": 249.0637664794922,
+      "residual_jitter_rms_rad": 0.04995766565526173,
+      "joint_velocity_jitter_rms_rad_s": 2.445757919893332,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.12121312320232391,
+        0.1364063024520874,
+        0.21961449086666107,
+        0.10701078921556473,
+        0.12652313709259033,
+        0.17493577301502228,
+        0.07307129353284836,
+        0.08959703892469406,
+        0.13859468698501587,
+        0.06268992274999619,
+        0.15209731459617615,
+        0.14462849497795105
+      ],
+      "foot_support_weight_ratio": 0.9906056523323059,
+      "swing_load_fraction": 0.1633695471515174,
+      "load_share": [
+        0.3186943531036377,
+        0.3071645498275757,
+        0.17710377275943756,
+        0.19703727960586548
+      ],
+      "contact_duty": [
+        0.6800000071525574,
+        0.8399999737739563,
+        0.3866666555404663,
+        0.36000001430511475
+      ],
+      "complete_strides": 5,
+      "stride_load_max_deviation_p90": 0.07783520221710205,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.25
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.5,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 2.0
+    },
+    "forward_slow@3Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.10243059694766998,
+      "yaw_rmse_rad_s": 0.11665235459804535,
+      "residual_step_rms_rad": 0.1587628722190857,
+      "joint_acceleration_rms_rad_s2": 264.2563781738281,
+      "residual_jitter_rms_rad": 0.06039073663964191,
+      "joint_velocity_jitter_rms_rad_s": 2.612362138817143,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.1349302977323532,
+        0.115763820707798,
+        0.24173370003700256,
+        0.12381986528635025,
+        0.17039154469966888,
+        0.22982220351696014,
+        0.08479729294776917,
+        0.11381351947784424,
+        0.16318216919898987,
+        0.08469763398170471,
+        0.15823566913604736,
+        0.19041413068771362
+      ],
+      "foot_support_weight_ratio": 0.9889349341392517,
+      "swing_load_fraction": 0.1266136294726013,
+      "load_share": [
+        0.32479768991470337,
+        0.2978667616844177,
+        0.18411873281002045,
+        0.19321686029434204
+      ],
+      "contact_duty": [
+        0.7666666507720947,
+        0.7200000286102295,
+        0.41333332657814026,
+        0.36666667461395264
+      ],
+      "complete_strides": 8,
+      "stride_load_max_deviation_p90": 0.10332463681697845,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.25
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.5,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 3.0
+    },
+    "forward@1Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.5570136904716492,
+      "yaw_rmse_rad_s": 0.14815707504749298,
+      "residual_step_rms_rad": 0.1469094455242157,
+      "joint_acceleration_rms_rad_s2": 244.88803100585938,
+      "residual_jitter_rms_rad": 0.06051127032259021,
+      "joint_velocity_jitter_rms_rad_s": 2.719803746597434,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.13322895765304565,
+        0.1609656810760498,
+        0.2570227384567261,
+        0.09564612060785294,
+        0.1290905624628067,
+        0.23735621571540833,
+        0.07012728601694107,
+        0.08382347971200943,
+        0.1098286435008049,
+        0.07460594177246094,
+        0.11445657163858414,
+        0.15634766221046448
+      ],
+      "foot_support_weight_ratio": 0.9816280007362366,
+      "swing_load_fraction": 0.31289757584704375,
+      "load_share": [
+        0.35830411314964294,
+        0.31719812750816345,
+        0.15231189131736755,
+        0.17218589782714844
+      ],
+      "contact_duty": [
+        0.8600000143051147,
+        0.8399999737739563,
+        0.54666668176651,
+        0.5400000214576721
+      ],
+      "complete_strides": 2,
+      "stride_load_max_deviation_p90": 0.11232823133468628,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.30000000000000004
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "linear_rmse_m_s",
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "swing_load_fraction",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 1.0,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 1.0
+    },
+    "forward@2Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.2992168068885803,
+      "yaw_rmse_rad_s": 0.13668881356716156,
+      "residual_step_rms_rad": 0.17288503050804138,
+      "joint_acceleration_rms_rad_s2": 315.0964660644531,
+      "residual_jitter_rms_rad": 0.07414632017889716,
+      "joint_velocity_jitter_rms_rad_s": 3.5722696962620994,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.14666588604450226,
+        0.1904599517583847,
+        0.3008759319782257,
+        0.13922975957393646,
+        0.16415394842624664,
+        0.2410452961921692,
+        0.08882921934127808,
+        0.09357325732707977,
+        0.1767808198928833,
+        0.0908154845237732,
+        0.15421085059642792,
+        0.16123853623867035
+      ],
+      "foot_support_weight_ratio": 0.9669063091278076,
+      "swing_load_fraction": 0.17841283267186497,
+      "load_share": [
+        0.3138633370399475,
+        0.32834696769714355,
+        0.18586891889572144,
+        0.1719207912683487
+      ],
+      "contact_duty": [
+        0.6399999856948853,
+        0.753333330154419,
+        0.3733333349227905,
+        0.35333332419395447
+      ],
+      "complete_strides": 5,
+      "stride_load_max_deviation_p90": 0.09318484365940094,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.30000000000000004
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 1.0,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 2.0
+    },
+    "forward@3Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.25132566690444946,
+      "yaw_rmse_rad_s": 0.14590905606746674,
+      "residual_step_rms_rad": 0.1923588216304779,
+      "joint_acceleration_rms_rad_s2": 336.1062927246094,
+      "residual_jitter_rms_rad": 0.0766900710621828,
+      "joint_velocity_jitter_rms_rad_s": 3.393495390017453,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.17909522354602814,
+        0.16451236605644226,
+        0.31104180216789246,
+        0.14411486685276031,
+        0.208892360329628,
+        0.2797909677028656,
+        0.09334279596805573,
+        0.12383723258972168,
+        0.18490688502788544,
+        0.10504475980997086,
+        0.18344587087631226,
+        0.20620998740196228
+      ],
+      "foot_support_weight_ratio": 0.9936995506286621,
+      "swing_load_fraction": 0.1685435058381616,
+      "load_share": [
+        0.33166173100471497,
+        0.31847265362739563,
+        0.17091697454452515,
+        0.17894862592220306
+      ],
+      "contact_duty": [
+        0.7799999713897705,
+        0.7733333110809326,
+        0.4399999976158142,
+        0.36000001430511475
+      ],
+      "complete_strides": 8,
+      "stride_load_max_deviation_p90": 0.09814374148845673,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.30000000000000004
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 1.0,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 3.0
+    },
+    "forward_fast@1Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 1.1276484727859497,
+      "yaw_rmse_rad_s": 0.19339415431022644,
+      "residual_step_rms_rad": 0.2141910046339035,
+      "joint_acceleration_rms_rad_s2": 403.5024108886719,
+      "residual_jitter_rms_rad": 0.10111525651005868,
+      "joint_velocity_jitter_rms_rad_s": 4.4874883126168195,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.17343401908874512,
+        0.2647543251514435,
+        0.3715609610080719,
+        0.14016959071159363,
+        0.21134398877620697,
+        0.31478047370910645,
+        0.09578757733106613,
+        0.12418249249458313,
+        0.1961987316608429,
+        0.10825762152671814,
+        0.17367522418498993,
+        0.20958974957466125
+      ],
+      "foot_support_weight_ratio": 0.9423684477806091,
+      "swing_load_fraction": 0.3095616530248958,
+      "load_share": [
+        0.31991997361183167,
+        0.3205203413963318,
+        0.16585339605808258,
+        0.19370630383491516
+      ],
+      "contact_duty": [
+        0.7066666483879089,
+        0.746666669845581,
+        0.5400000214576721,
+        0.5533333420753479
+      ],
+      "complete_strides": 2,
+      "stride_load_max_deviation_p90": 0.09388511627912521,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.4
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "linear_rmse_m_s",
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "swing_load_fraction"
+      ],
+      "command": {
+        "vx_m_s": 2.0,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 1.0
+    },
+    "forward_fast@2Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.7853502035140991,
+      "yaw_rmse_rad_s": 0.19594880938529968,
+      "residual_step_rms_rad": 0.21618469059467316,
+      "joint_acceleration_rms_rad_s2": 406.7288818359375,
+      "residual_jitter_rms_rad": 0.09288084841860099,
+      "joint_velocity_jitter_rms_rad_s": 4.232537679900007,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.19988833367824554,
+        0.25560662150382996,
+        0.34961602091789246,
+        0.1706758588552475,
+        0.20951953530311584,
+        0.3171079456806183,
+        0.12123002856969833,
+        0.15477538108825684,
+        0.20796766877174377,
+        0.10281271487474442,
+        0.16305477917194366,
+        0.20164872705936432
+      ],
+      "foot_support_weight_ratio": 0.9429945945739746,
+      "swing_load_fraction": 0.28880941000952204,
+      "load_share": [
+        0.3100680708885193,
+        0.3511541783809662,
+        0.15321248769760132,
+        0.18556518852710724
+      ],
+      "contact_duty": [
+        0.6733333468437195,
+        0.7133333086967468,
+        0.3400000035762787,
+        0.4866666793823242
+      ],
+      "complete_strides": 5,
+      "stride_load_max_deviation_p90": 0.120942123234272,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.4
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "linear_rmse_m_s",
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "swing_load_fraction",
+        "stride_load_max_deviation_p90"
+      ],
+      "command": {
+        "vx_m_s": 2.0,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 2.0
+    },
+    "forward_fast@3Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.814123809337616,
+      "yaw_rmse_rad_s": 0.18256597220897675,
+      "residual_step_rms_rad": 0.2447049468755722,
+      "joint_acceleration_rms_rad_s2": 484.5780944824219,
+      "residual_jitter_rms_rad": 0.10211368406920086,
+      "joint_velocity_jitter_rms_rad_s": 5.170374653584087,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.2186325639486313,
+        0.24278384447097778,
+        0.4387352168560028,
+        0.18224236369132996,
+        0.2517456114292145,
+        0.3412851393222809,
+        0.11569395661354065,
+        0.152990460395813,
+        0.24884732067584991,
+        0.11625948548316956,
+        0.2007010579109192,
+        0.23185423016548157
+      ],
+      "foot_support_weight_ratio": 0.9673323631286621,
+      "swing_load_fraction": 0.21705274107335096,
+      "load_share": [
+        0.324028342962265,
+        0.33946213126182556,
+        0.15928812325000763,
+        0.17722144722938538
+      ],
+      "contact_duty": [
+        0.6733333468437195,
+        0.7933333516120911,
+        0.4399999976158142,
+        0.3400000035762787
+      ],
+      "complete_strides": 8,
+      "stride_load_max_deviation_p90": 0.11616204679012299,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.4
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "linear_rmse_m_s",
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "swing_load_fraction",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 2.0,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 3.0
+    },
+    "reverse@1Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.45114246010780334,
+      "yaw_rmse_rad_s": 0.14510640501976013,
+      "residual_step_rms_rad": 0.05684692785143852,
+      "joint_acceleration_rms_rad_s2": 77.45144653320312,
+      "residual_jitter_rms_rad": 0.013348987601991453,
+      "joint_velocity_jitter_rms_rad_s": 0.6275992690752513,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.03602401912212372,
+        0.05643131211400032,
+        0.10651911050081253,
+        0.031968340277671814,
+        0.040997229516506195,
+        0.04308287799358368,
+        0.028655529022216797,
+        0.06557728350162506,
+        0.06574485450983047,
+        0.021906865760684013,
+        0.08207956701517105,
+        0.041600301861763
+      ],
+      "foot_support_weight_ratio": 0.969989001750946,
+      "swing_load_fraction": 0.29369296909554354,
+      "load_share": [
+        0.25641587376594543,
+        0.268596887588501,
+        0.20994658768177032,
+        0.26504069566726685
+      ],
+      "contact_duty": [
+        0.8933333158493042,
+        1.0,
+        0.46000000834465027,
+        0.7799999713897705
+      ],
+      "complete_strides": 2,
+      "stride_load_max_deviation_p90": 0.044797684997320175,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.25
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "linear_rmse_m_s",
+        "swing_load_fraction",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": -0.5,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 1.0
+    },
+    "reverse@2Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.3536362051963806,
+      "yaw_rmse_rad_s": 0.13135838508605957,
+      "residual_step_rms_rad": 0.08650907129049301,
+      "joint_acceleration_rms_rad_s2": 114.77251434326172,
+      "residual_jitter_rms_rad": 0.02602866135519406,
+      "joint_velocity_jitter_rms_rad_s": 1.1848673064947992,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.06629861146211624,
+        0.07353902608156204,
+        0.13616515696048737,
+        0.041158441454172134,
+        0.06961693614721298,
+        0.09359608590602875,
+        0.059834305197000504,
+        0.09981560707092285,
+        0.09173920750617981,
+        0.041654396802186966,
+        0.1225314810872078,
+        0.08632604032754898
+      ],
+      "foot_support_weight_ratio": 0.976012647151947,
+      "swing_load_fraction": 0.1830561307632356,
+      "load_share": [
+        0.2847597301006317,
+        0.24535223841667175,
+        0.20641769468784332,
+        0.263470321893692
+      ],
+      "contact_duty": [
+        0.8266666531562805,
+        0.9599999785423279,
+        0.47333332896232605,
+        0.5199999809265137
+      ],
+      "complete_strides": 5,
+      "stride_load_max_deviation_p90": 0.04558746889233589,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.25
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "linear_rmse_m_s",
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": -0.5,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 2.0
+    },
+    "reverse@3Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.287950336933136,
+      "yaw_rmse_rad_s": 0.14808130264282227,
+      "residual_step_rms_rad": 0.11108745634555817,
+      "joint_acceleration_rms_rad_s2": 139.45396423339844,
+      "residual_jitter_rms_rad": 0.03097966449643826,
+      "joint_velocity_jitter_rms_rad_s": 1.4419097820046607,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.07853925228118896,
+        0.08104439079761505,
+        0.18265116214752197,
+        0.06744450330734253,
+        0.08223334699869156,
+        0.14226818084716797,
+        0.07922577112913132,
+        0.10341885685920715,
+        0.11962959170341492,
+        0.05254924297332764,
+        0.1500825136899948,
+        0.11775443702936172
+      ],
+      "foot_support_weight_ratio": 0.9749735593795776,
+      "swing_load_fraction": 0.10080716559550615,
+      "load_share": [
+        0.2880670130252838,
+        0.24778467416763306,
+        0.22334425151348114,
+        0.24080415070056915
+      ],
+      "contact_duty": [
+        0.7599999904632568,
+        0.9333333373069763,
+        0.4866666793823242,
+        0.5
+      ],
+      "complete_strides": 8,
+      "stride_load_max_deviation_p90": 0.049188800156116486,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.25
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "linear_rmse_m_s",
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": -0.5,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 3.0
+    },
+    "left@1Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.39312878251075745,
+      "yaw_rmse_rad_s": 0.15152288973331451,
+      "residual_step_rms_rad": 0.08533172309398651,
+      "joint_acceleration_rms_rad_s2": 130.20277404785156,
+      "residual_jitter_rms_rad": 0.02837301564369213,
+      "joint_velocity_jitter_rms_rad_s": 1.2202629141198889,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.07668640464544296,
+        0.07186301052570343,
+        0.10650133341550827,
+        0.08693474531173706,
+        0.05966991186141968,
+        0.1469234824180603,
+        0.05178727209568024,
+        0.0680757388472557,
+        0.07404295355081558,
+        0.05917348340153694,
+        0.0814238116145134,
+        0.09672552347183228
+      ],
+      "foot_support_weight_ratio": 0.9864702224731445,
+      "swing_load_fraction": 0.296593144832626,
+      "load_share": [
+        0.3095059096813202,
+        0.26696112751960754,
+        0.23123730719089508,
+        0.19229565560817719
+      ],
+      "contact_duty": [
+        0.8199999928474426,
+        0.8066666722297668,
+        0.6000000238418579,
+        0.54666668176651
+      ],
+      "complete_strides": 2,
+      "stride_load_max_deviation_p90": 0.07800085097551346,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.25
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "linear_rmse_m_s",
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "swing_load_fraction",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.0,
+        "vy_m_s": 0.5,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 1.0
+    },
+    "left@2Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.32768678665161133,
+      "yaw_rmse_rad_s": 0.12040053308010101,
+      "residual_step_rms_rad": 0.1312990039587021,
+      "joint_acceleration_rms_rad_s2": 225.55665588378906,
+      "residual_jitter_rms_rad": 0.048191091085081655,
+      "joint_velocity_jitter_rms_rad_s": 2.231707700024162,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.10464712232351303,
+        0.1412392556667328,
+        0.17689673602581024,
+        0.126514732837677,
+        0.1026940792798996,
+        0.18372303247451782,
+        0.10144735127687454,
+        0.10309422016143799,
+        0.11716681718826294,
+        0.08569004386663437,
+        0.13573846220970154,
+        0.15478745102882385
+      ],
+      "foot_support_weight_ratio": 0.9714868068695068,
+      "swing_load_fraction": 0.20441539170000944,
+      "load_share": [
+        0.3636663854122162,
+        0.22160236537456512,
+        0.16907478868961334,
+        0.24565650522708893
+      ],
+      "contact_duty": [
+        0.7866666913032532,
+        0.6866666674613953,
+        0.5400000214576721,
+        0.4333333373069763
+      ],
+      "complete_strides": 5,
+      "stride_load_max_deviation_p90": 0.14297889173030853,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.25
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "linear_rmse_m_s",
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "swing_load_fraction",
+        "stride_load_max_deviation_p90",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.0,
+        "vy_m_s": 0.5,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 2.0
+    },
+    "left@3Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.28168049454689026,
+      "yaw_rmse_rad_s": 0.09181389957666397,
+      "residual_step_rms_rad": 0.14671610295772552,
+      "joint_acceleration_rms_rad_s2": 222.03543090820312,
+      "residual_jitter_rms_rad": 0.05104149369364409,
+      "joint_velocity_jitter_rms_rad_s": 2.239138043365788,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.10601809620857239,
+        0.11270918697118759,
+        0.19867943227291107,
+        0.13139906525611877,
+        0.12731589376926422,
+        0.22101761400699615,
+        0.11484841257333755,
+        0.12729887664318085,
+        0.16079556941986084,
+        0.09360389411449432,
+        0.14009380340576172,
+        0.17008386552333832
+      ],
+      "foot_support_weight_ratio": 0.9793748259544373,
+      "swing_load_fraction": 0.10546539207976918,
+      "load_share": [
+        0.33451807498931885,
+        0.24594345688819885,
+        0.1791197508573532,
+        0.2404187023639679
+      ],
+      "contact_duty": [
+        0.746666669845581,
+        0.6733333468437195,
+        0.4466666579246521,
+        0.4533333480358124
+      ],
+      "complete_strides": 8,
+      "stride_load_max_deviation_p90": 0.10840575397014618,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.25
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "linear_rmse_m_s",
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s"
+      ],
+      "command": {
+        "vx_m_s": 0.0,
+        "vy_m_s": 0.5,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 3.0
+    },
+    "right@1Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.4214456379413605,
+      "yaw_rmse_rad_s": 0.08367938548326492,
+      "residual_step_rms_rad": 0.057384226471185684,
+      "joint_acceleration_rms_rad_s2": 76.82117462158203,
+      "residual_jitter_rms_rad": 0.017678676818781512,
+      "joint_velocity_jitter_rms_rad_s": 0.737086906836391,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.05111129209399223,
+        0.04521294683218002,
+        0.11366476118564606,
+        0.040285710245370865,
+        0.054412323981523514,
+        0.04745719954371452,
+        0.02574898675084114,
+        0.05590591952204704,
+        0.06063274294137955,
+        0.025960013270378113,
+        0.06391303241252899,
+        0.053662870079278946
+      ],
+      "foot_support_weight_ratio": 0.9950632452964783,
+      "swing_load_fraction": 0.2699205293193805,
+      "load_share": [
+        0.2734946012496948,
+        0.3260197937488556,
+        0.1757851541042328,
+        0.22470048069953918
+      ],
+      "contact_duty": [
+        0.7866666913032532,
+        1.0,
+        0.6000000238418579,
+        0.5600000023841858
+      ],
+      "complete_strides": 2,
+      "stride_load_max_deviation_p90": 0.08148036152124405,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.25
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "linear_rmse_m_s",
+        "swing_load_fraction",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.0,
+        "vy_m_s": -0.5,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 1.0
+    },
+    "right@2Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.33592134714126587,
+      "yaw_rmse_rad_s": 0.13958029448986053,
+      "residual_step_rms_rad": 0.09845926612615585,
+      "joint_acceleration_rms_rad_s2": 133.1224365234375,
+      "residual_jitter_rms_rad": 0.029412368212234356,
+      "joint_velocity_jitter_rms_rad_s": 1.116975003895438,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.08316183090209961,
+        0.07814086228609085,
+        0.18297763168811798,
+        0.05534423515200615,
+        0.07604430615901947,
+        0.10801703482866287,
+        0.04090253636240959,
+        0.08089694380760193,
+        0.10852651298046112,
+        0.056607067584991455,
+        0.12870918214321136,
+        0.09771838784217834
+      ],
+      "foot_support_weight_ratio": 0.9928932785987854,
+      "swing_load_fraction": 0.1884720547428116,
+      "load_share": [
+        0.25035881996154785,
+        0.343788206577301,
+        0.2058020532131195,
+        0.20005089044570923
+      ],
+      "contact_duty": [
+        0.7599999904632568,
+        0.9800000190734863,
+        0.41333332657814026,
+        0.4399999976158142
+      ],
+      "complete_strides": 5,
+      "stride_load_max_deviation_p90": 0.09945400804281235,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.25
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "linear_rmse_m_s",
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.0,
+        "vy_m_s": -0.5,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 2.0
+    },
+    "right@3Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.3333611786365509,
+      "yaw_rmse_rad_s": 0.1574276238679886,
+      "residual_step_rms_rad": 0.12510822713375092,
+      "joint_acceleration_rms_rad_s2": 174.79627990722656,
+      "residual_jitter_rms_rad": 0.03613758743620777,
+      "joint_velocity_jitter_rms_rad_s": 1.5680620245454675,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.10635679960250854,
+        0.0975857824087143,
+        0.22444398701190948,
+        0.0715027004480362,
+        0.09234096854925156,
+        0.13065658509731293,
+        0.055590998381376266,
+        0.10117035359144211,
+        0.13570675253868103,
+        0.06989283859729767,
+        0.16037636995315552,
+        0.1534816324710846
+      ],
+      "foot_support_weight_ratio": 0.9982521533966064,
+      "swing_load_fraction": 0.1370481387619216,
+      "load_share": [
+        0.26849353313446045,
+        0.31569814682006836,
+        0.20839142799377441,
+        0.2074168622493744
+      ],
+      "contact_duty": [
+        0.6800000071525574,
+        1.0,
+        0.41999998688697815,
+        0.41999998688697815
+      ],
+      "complete_strides": 8,
+      "stride_load_max_deviation_p90": 0.07454971224069595,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.25
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "linear_rmse_m_s",
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.0,
+        "vy_m_s": -0.5,
+        "yaw_rad_s": 0.0
+      },
+      "gait_frequency_hz": 3.0
+    },
+    "turn_left@1Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.11543020606040955,
+      "yaw_rmse_rad_s": 0.257523775100708,
+      "residual_step_rms_rad": 0.10811079293489456,
+      "joint_acceleration_rms_rad_s2": 159.58538818359375,
+      "residual_jitter_rms_rad": 0.04058457881922452,
+      "joint_velocity_jitter_rms_rad_s": 1.5660162927231236,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.08123841136693954,
+        0.10511337220668793,
+        0.1295626312494278,
+        0.10630632936954498,
+        0.10058648884296417,
+        0.1902969628572464,
+        0.06341880559921265,
+        0.10981552302837372,
+        0.09987161308526993,
+        0.06265327334403992,
+        0.09959062933921814,
+        0.09104539453983307
+      ],
+      "foot_support_weight_ratio": 0.990909218788147,
+      "swing_load_fraction": 0.32080866106792233,
+      "load_share": [
+        0.287942498922348,
+        0.3107011616230011,
+        0.20277327299118042,
+        0.19858306646347046
+      ],
+      "contact_duty": [
+        0.7933333516120911,
+        0.8399999737739563,
+        0.5733333230018616,
+        0.5600000023841858
+      ],
+      "complete_strides": 2,
+      "stride_load_max_deviation_p90": 0.0687025636434555,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.2
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "swing_load_fraction",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.0,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 1.0
+      },
+      "gait_frequency_hz": 1.0
+    },
+    "turn_left@2Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.05171839892864227,
+      "yaw_rmse_rad_s": 0.13977307081222534,
+      "residual_step_rms_rad": 0.11614631116390228,
+      "joint_acceleration_rms_rad_s2": 171.11459350585938,
+      "residual_jitter_rms_rad": 0.04005607836656941,
+      "joint_velocity_jitter_rms_rad_s": 1.6864850052319607,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.07972008734941483,
+        0.11466763913631439,
+        0.1441776603460312,
+        0.09218350052833557,
+        0.12000126391649246,
+        0.1692642718553543,
+        0.0649106502532959,
+        0.1369684338569641,
+        0.1205984428524971,
+        0.06085981801152229,
+        0.11893481016159058,
+        0.12113138288259506
+      ],
+      "foot_support_weight_ratio": 0.9917795658111572,
+      "swing_load_fraction": 0.19025847044035873,
+      "load_share": [
+        0.33321985602378845,
+        0.2508014142513275,
+        0.1706707626581192,
+        0.24530795216560364
+      ],
+      "contact_duty": [
+        0.8199999928474426,
+        0.8066666722297668,
+        0.4266666769981384,
+        0.4466666579246521
+      ],
+      "complete_strides": 5,
+      "stride_load_max_deviation_p90": 0.09109341353178024,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.2
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.0,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 1.0
+      },
+      "gait_frequency_hz": 2.0
+    },
+    "turn_left@3Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.06947442889213562,
+      "yaw_rmse_rad_s": 0.16520348191261292,
+      "residual_step_rms_rad": 0.14991497993469238,
+      "joint_acceleration_rms_rad_s2": 226.39407348632812,
+      "residual_jitter_rms_rad": 0.05530985107264701,
+      "joint_velocity_jitter_rms_rad_s": 2.313367630604868,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.09960414469242096,
+        0.13377752900123596,
+        0.18793243169784546,
+        0.10975544154644012,
+        0.15311528742313385,
+        0.2325778305530548,
+        0.0869063138961792,
+        0.15827085077762604,
+        0.17064528167247772,
+        0.08827432245016098,
+        0.14650262892246246,
+        0.1612371802330017
+      ],
+      "foot_support_weight_ratio": 0.9924876689910889,
+      "swing_load_fraction": 0.14082086303661248,
+      "load_share": [
+        0.3455360233783722,
+        0.24494653940200806,
+        0.1891777068376541,
+        0.22033965587615967
+      ],
+      "contact_duty": [
+        0.7799999713897705,
+        0.699999988079071,
+        0.3799999952316284,
+        0.4266666769981384
+      ],
+      "complete_strides": 7,
+      "stride_load_max_deviation_p90": 0.11126559972763062,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.2
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.0,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": 1.0
+      },
+      "gait_frequency_hz": 3.0
+    },
+    "turn_right@1Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.13518697023391724,
+      "yaw_rmse_rad_s": 0.3346710205078125,
+      "residual_step_rms_rad": 0.10356106609106064,
+      "joint_acceleration_rms_rad_s2": 192.349853515625,
+      "residual_jitter_rms_rad": 0.04029533728784383,
+      "joint_velocity_jitter_rms_rad_s": 1.8640871253839726,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.07508350908756256,
+        0.10597458481788635,
+        0.20032721757888794,
+        0.08137460052967072,
+        0.09038158506155014,
+        0.09454100579023361,
+        0.060667235404253006,
+        0.09384287148714066,
+        0.07947473227977753,
+        0.05676953122019768,
+        0.12499608099460602,
+        0.1015918105840683
+      ],
+      "foot_support_weight_ratio": 0.9744580984115601,
+      "swing_load_fraction": 0.2942648306715896,
+      "load_share": [
+        0.3046208620071411,
+        0.26518094539642334,
+        0.19771645963191986,
+        0.2324816733598709
+      ],
+      "contact_duty": [
+        0.9066666960716248,
+        0.846666693687439,
+        0.5933333039283752,
+        0.5400000214576721
+      ],
+      "complete_strides": 2,
+      "stride_load_max_deviation_p90": 0.06865188479423523,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.2
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "swing_load_fraction",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.0,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": -1.0
+      },
+      "gait_frequency_hz": 1.0
+    },
+    "turn_right@2Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.09732374548912048,
+      "yaw_rmse_rad_s": 0.1244603618979454,
+      "residual_step_rms_rad": 0.12174265831708908,
+      "joint_acceleration_rms_rad_s2": 218.12545776367188,
+      "residual_jitter_rms_rad": 0.03961002949397283,
+      "joint_velocity_jitter_rms_rad_s": 2.2234399191605854,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.08487741649150848,
+        0.11654166877269745,
+        0.23368100821971893,
+        0.09727557748556137,
+        0.09213513880968094,
+        0.11900683492422104,
+        0.07213252037763596,
+        0.07216417789459229,
+        0.1053931713104248,
+        0.044668082147836685,
+        0.17800205945968628,
+        0.1230846419930458
+      ],
+      "foot_support_weight_ratio": 0.9925559759140015,
+      "swing_load_fraction": 0.17675153165306795,
+      "load_share": [
+        0.2797021269798279,
+        0.2933856248855591,
+        0.24037057161331177,
+        0.18654166162014008
+      ],
+      "contact_duty": [
+        0.8199999928474426,
+        0.8266666531562805,
+        0.4866666793823242,
+        0.41999998688697815
+      ],
+      "complete_strides": 5,
+      "stride_load_max_deviation_p90": 0.0725969523191452,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.2
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.0,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": -1.0
+      },
+      "gait_frequency_hz": 2.0
+    },
+    "turn_right@3Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.06905539333820343,
+      "yaw_rmse_rad_s": 0.10622171312570572,
+      "residual_step_rms_rad": 0.13970313966274261,
+      "joint_acceleration_rms_rad_s2": 225.209716796875,
+      "residual_jitter_rms_rad": 0.0411884384992685,
+      "joint_velocity_jitter_rms_rad_s": 2.2598453940427765,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.09872544556856155,
+        0.08662790805101395,
+        0.2569446563720703,
+        0.10336629301309586,
+        0.11365263909101486,
+        0.1460946947336197,
+        0.07411844283342361,
+        0.09840275347232819,
+        0.14974920451641083,
+        0.056931231170892715,
+        0.19130286574363708,
+        0.1689595729112625
+      ],
+      "foot_support_weight_ratio": 0.9798672199249268,
+      "swing_load_fraction": 0.0984603490428382,
+      "load_share": [
+        0.2996967136859894,
+        0.27451014518737793,
+        0.21615976095199585,
+        0.2096334844827652
+      ],
+      "contact_duty": [
+        0.7266666889190674,
+        0.8133333325386047,
+        0.47999998927116394,
+        0.41999998688697815
+      ],
+      "complete_strides": 8,
+      "stride_load_max_deviation_p90": 0.06817305833101273,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.2
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 0.0,
+        "vy_m_s": 0.0,
+        "yaw_rad_s": -1.0
+      },
+      "gait_frequency_hz": 3.0
+    },
+    "combined@1Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.4843449294567108,
+      "yaw_rmse_rad_s": 0.1651926189661026,
+      "residual_step_rms_rad": 0.17151276767253876,
+      "joint_acceleration_rms_rad_s2": 290.9452819824219,
+      "residual_jitter_rms_rad": 0.0750672682424682,
+      "joint_velocity_jitter_rms_rad_s": 3.225772134627069,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.1343197226524353,
+        0.18136537075042725,
+        0.2184816300868988,
+        0.14742377400398254,
+        0.15704283118247986,
+        0.324616014957428,
+        0.085578054189682,
+        0.1264640837907791,
+        0.14637762308120728,
+        0.09018705040216446,
+        0.14090022444725037,
+        0.1727096438407898
+      ],
+      "foot_support_weight_ratio": 0.977360725402832,
+      "swing_load_fraction": 0.3113572893061941,
+      "load_share": [
+        0.32787391543388367,
+        0.3251086473464966,
+        0.16401010751724243,
+        0.1830074042081833
+      ],
+      "contact_duty": [
+        0.846666693687439,
+        0.7599999904632568,
+        0.4399999976158142,
+        0.5333333611488342
+      ],
+      "complete_strides": 2,
+      "stride_load_max_deviation_p90": 0.09072838723659515,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.30440306663513184
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "linear_rmse_m_s",
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "swing_load_fraction",
+        "contact_duty"
+      ],
+      "command": {
+        "vx_m_s": 1.0,
+        "vy_m_s": 0.3,
+        "yaw_rad_s": 0.5
+      },
+      "gait_frequency_hz": 1.0
+    },
+    "combined@2Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.28371161222457886,
+      "yaw_rmse_rad_s": 0.11369436234235764,
+      "residual_step_rms_rad": 0.19625015556812286,
+      "joint_acceleration_rms_rad_s2": 337.8733825683594,
+      "residual_jitter_rms_rad": 0.08010953572124409,
+      "joint_velocity_jitter_rms_rad_s": 3.350716057531442,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.180950328707695,
+        0.27015984058380127,
+        0.2568463683128357,
+        0.22187329828739166,
+        0.15256346762180328,
+        0.2860441207885742,
+        0.1141563206911087,
+        0.11627666652202606,
+        0.1605394184589386,
+        0.11378493160009384,
+        0.18413224816322327,
+        0.19227299094200134
+      ],
+      "foot_support_weight_ratio": 0.9655001759529114,
+      "swing_load_fraction": 0.24074223445863407,
+      "load_share": [
+        0.34600359201431274,
+        0.3089333176612854,
+        0.16110417246818542,
+        0.18395887315273285
+      ],
+      "contact_duty": [
+        0.7200000286102295,
+        0.6733333468437195,
+        0.3466666638851166,
+        0.41333332657814026
+      ],
+      "complete_strides": 5,
+      "stride_load_max_deviation_p90": 0.11536473035812378,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.30440306663513184
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s",
+        "swing_load_fraction"
+      ],
+      "command": {
+        "vx_m_s": 1.0,
+        "vy_m_s": 0.3,
+        "yaw_rad_s": 0.5
+      },
+      "gait_frequency_hz": 2.0
+    },
+    "combined@3Hz": {
+      "survival": 1.0,
+      "samples": 150,
+      "linear_rmse_m_s": 0.3037768006324768,
+      "yaw_rmse_rad_s": 0.11114364862442017,
+      "residual_step_rms_rad": 0.20615503191947937,
+      "joint_acceleration_rms_rad_s2": 371.3492736816406,
+      "residual_jitter_rms_rad": 0.07745235925122262,
+      "joint_velocity_jitter_rms_rad_s": 3.741590577053939,
+      "clipped_action_fraction": 0.0,
+      "clipped_action_fraction_by_joint": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_discarded_target_rms_rad": 0.0,
+      "residual_step_rms_rad_by_joint": [
+        0.18976153433322906,
+        0.19787171483039856,
+        0.2942569851875305,
+        0.21338671445846558,
+        0.1872546672821045,
+        0.3000340163707733,
+        0.12405245751142502,
+        0.14323082566261292,
+        0.20953570306301117,
+        0.13315528631210327,
+        0.17900799214839935,
+        0.21919596195220947
+      ],
+      "foot_support_weight_ratio": 0.965595006942749,
+      "swing_load_fraction": 0.17349259623784463,
+      "load_share": [
+        0.30573323369026184,
+        0.33113545179367065,
+        0.15429872274398804,
+        0.2088325172662735
+      ],
+      "contact_duty": [
+        0.699999988079071,
+        0.746666669845581,
+        0.41999998688697815,
+        0.40666666626930237
+      ],
+      "complete_strides": 8,
+      "stride_load_max_deviation_p90": 0.11446458846330643,
+      "bounds": {
+        "survival": [
+          0.95,
+          1.0
+        ],
+        "linear_rmse_m_s": [
+          0,
+          0.30440306663513184
+        ],
+        "yaw_rmse_rad_s": [
+          0,
+          0.35
+        ],
+        "residual_jitter_rms_rad": [
+          0,
+          0.02
+        ],
+        "joint_velocity_jitter_rms_rad_s": [
+          0,
+          1.0
+        ],
+        "max_discarded_target_rms_rad": [
+          0,
+          0.05
+        ],
+        "foot_support_weight_ratio": [
+          0.8,
+          1.2
+        ],
+        "swing_load_fraction": [
+          0,
+          0.2
+        ],
+        "stride_load_max_deviation_p90": [
+          0,
+          0.12
+        ]
+      },
+      "passed": false,
+      "failures": [
+        "residual_jitter_rms_rad",
+        "joint_velocity_jitter_rms_rad_s"
+      ],
+      "command": {
+        "vx_m_s": 1.0,
+        "vy_m_s": 0.3,
+        "yaw_rad_s": 0.5
+      },
+      "gait_frequency_hz": 3.0
+    }
+  },
+  "passed": false
+}
