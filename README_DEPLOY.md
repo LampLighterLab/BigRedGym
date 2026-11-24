@@ -48,7 +48,7 @@ Built cyclonedds==0.10.2
 ### Set up ethernet connection
 
 Instructions are for Linux (Ubuntu)
-- Connect an ethernet cable to the robot and to your device.
+- Connect an ethernet cable to the robot and to your device, and turn the robot on.
 - Go to Settings -> Network -> click the settings icon under Wired -> IPv4
 - Switch IPv4 Method to Manual
 - Under Addresses, in the first row, type `192.168.123.99` under Addresses, and `255.255.255.0` under Netmask
