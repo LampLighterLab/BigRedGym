@@ -1,5 +1,4 @@
 import torch
-from go2_deploy.deploy_config import DeployConfig
 from gym.utils.torch_quat import quat_rotate_inverse
 
 # Unitree motor order: Front Right hip (haa), FR thigh (hfe), FR calf (kfe),
@@ -8,8 +7,8 @@ from gym.utils.torch_quat import quat_rotate_inverse
 UNITREE_TO_QGYM_JOINT_IDX = torch.tensor([3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8])
 QGYM_TO_UNITREE_JOINT_IDX = torch.tensor([3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8])
 
-# Compute pieces of the observation vector, returning torch tensors
 
+# Compute pieces of the observation vector, returning torch tensors
 
 def _get_obs_base_ang_vel(main_controller, lowstate_msg):
     return torch.tensor(lowstate_msg.imu_state.gyroscope)
@@ -26,17 +25,15 @@ def _get_obs_commands(main_controller, lowstate_msg):
     return main_controller.last_command
 
 
-# Absolute joint positions in QGym order (radians), not an observation.
-def get_dof_pos(lowstate_msg):
+def _get_obs_dof_pos_obs(main_controller, lowstate_msg):
     motor_states = lowstate_msg.motor_state
     dof_pos_unitree_convention = torch.zeros(12)
     for i in range(12):
         dof_pos_unitree_convention[i] = motor_states[i].q
-    return dof_pos_unitree_convention[UNITREE_TO_QGYM_JOINT_IDX]
-
-
-def _get_obs_dof_pos_obs(main_controller, lowstate_msg):
-    return get_dof_pos(lowstate_msg) - main_controller.cfg.default_dof_pos
+    return (
+        dof_pos_unitree_convention[UNITREE_TO_QGYM_JOINT_IDX]
+        - main_controller.cfg.default_dof_pos
+    )
 
 
 def _get_obs_dof_vel(main_controller, lowstate_msg):
@@ -79,9 +76,10 @@ def lowstate_to_obs(main_controller, lowstate_msg):
         "dof_vel": _get_obs_dof_vel,
         "dof_accel": _get_obs_dof_accel,
         "dof_pos_target": _get_obs_dof_pos_target,
-        "phase_obs": _get_obs_phase_obs,
-        "phase_frequency": _get_obs_phase_frequency,
     }
+
+    custom_obs_pieces = main_controller.cfg.custom_impl.get_custom_obs_pieces()
+    get_obs_piece.update(custom_obs_pieces)
 
     obs_vector = torch.zeros(main_controller.obs_vec_size)
     i = 0
@@ -107,20 +105,10 @@ def target_pos_to_action(main_controller, target_pos):
     return target_pos - main_controller.cfg.default_dof_pos
 
 
-# Return torch.tensor(12): absolute target moving linearly from start_pos to
-# goal_pos over duration seconds, then holding goal_pos.
-def ramp_target(start_pos, goal_pos, elapsed, duration):
-    fraction = min(max(elapsed / duration, 0.0), 1.0)
-    return start_pos + fraction * (goal_pos - start_pos)
-
-
 # Returns LowCmd_ from the actor output action_qgm_convention, kp_mult
-# Adds the static default posture, clamps targets to the URDF joint limits and
-# maps them to Unitree motor order. The policy still observes the raw action.
+# Adds the static default posture and maps targets to Unitree motor order.
 def action_to_lowcmd(main_controller, action_qgym_convention, kp_mult=1.0, kd_mult=1.0):
     target_pos_qgym = action_to_target_pos(main_controller, action_qgym_convention)
-    limits = main_controller.cfg.dof_pos_limits
-    target_pos_qgym = torch.clamp(target_pos_qgym, limits[:, 0], limits[:, 1])
     target_pos = target_pos_qgym[QGYM_TO_UNITREE_JOINT_IDX]
 
     lowcmd = main_controller.default_lowcmd
@@ -132,8 +120,8 @@ def action_to_lowcmd(main_controller, action_qgym_convention, kp_mult=1.0, kd_mu
     return lowcmd
 
 
-# Returns LowCmd_ of q, dq, kp, kd = 0
-def default_lowcmd():
+# Returns LowCmd_ of q, dq = 0 and the configured kp, kd
+def default_lowcmd(cfg):
     from unitree_sdk2py.idl.default import unitree_go_msg_dds__LowCmd_
     from unitree_sdk2py.utils.crc import CRC
 
@@ -143,8 +131,6 @@ def default_lowcmd():
     lowcmd.head[1] = 0xEF
     lowcmd.level_flag = 0xFF
     lowcmd.gpio = 0
-    cfg = DeployConfig()
-
     for i in range(20):
         lowcmd.motor_cmd[i].mode = 0x01
         lowcmd.motor_cmd[i].q = 0
@@ -164,10 +150,10 @@ def default_lowcmd():
 
 
 # Returns LowCmd_ of q, dq, kp = 0, kd > 0
-def emergency_lowcmd():
+def emergency_lowcmd(cfg):
     from unitree_sdk2py.utils.crc import CRC
 
-    lowcmd = default_lowcmd()
+    lowcmd = default_lowcmd(cfg)
     crc = CRC()
 
     for i in range(12):

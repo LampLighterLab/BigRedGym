@@ -15,6 +15,9 @@ if __name__ == "__main__":
     args = get_play_args()
     with torch.no_grad():
         env, runner = setup(args)
+        if not hasattr(env, "base_height_target"):
+            env._backend.close()
+            raise SystemExit("Use a task with a height target, such as go2payload.")
         low, high = env.command_ranges["base_height"]
         times, targets, heights = [], [], []
         for i in range(int(14.0 / env.dt)):

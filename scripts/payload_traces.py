@@ -65,7 +65,8 @@ def record(env, runner, masses, args):
             )
         # Pin commands each step so no sampler can change them.
         env.commands[:] = command
-        env.base_height_target[:] = args.height
+        if hasattr(env, "base_height_target"):
+            env.base_height_target[:] = args.height
         env.phase_frequency[:] = args.gait_hz
         runner.set_actions(runner.actor_cfg["actions"], runner.get_inference_actions())
         env.step()

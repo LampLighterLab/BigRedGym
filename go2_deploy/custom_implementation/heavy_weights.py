@@ -11,8 +11,12 @@ import math
 
 import torch
 
+from go2_deploy.custom_implementation.custom_config import CustomConfig
 
-class CustomDeployConfig:
+
+class Go2PayloadDeployConfig(CustomConfig):
+    task_name = "go2payload"
+
     # 48 values; matches Go2PayloadRunnerCfg.actor.obs. The actor observes no
     # body-height target and no payload information.
     obs_vector = [
@@ -44,53 +48,28 @@ class CustomDeployConfig:
         phase_obs = 1.0
         phase_frequency = 1.0
 
-    # Training settings the deploy config must match. DeployConfig does not read
-    # these; they are listed here so they travel with the observation layout.
-    trained_ctrl_freq = 50  # Hz, policy rate
-    trained_kp = 20.0  # every joint
-    trained_kd = 0.5  # every joint
-    trained_exp_moving_avg = False  # no action smoothing in training
     # Nominal posture (rad); policy actions are offsets from it.
-    trained_default_joint_angles = {"hip": 0.0, "thigh": 0.96, "calf": -1.36}
-    # Joystick limits inside the trained command ranges (vx -1.0 to 2.5 m/s,
-    # vy +/-0.5 m/s, yaw +/-1.5 rad/s). The stick is symmetric, so vx is capped
-    # by the trained reverse speed.
-    command_limits = {"lin_vel_x": 1.0, "lin_vel_y": 0.5, "yaw_vel": 1.5}
+    default_dof_pos = 4 * [0.0, 0.96, -1.36]
 
+    def get_custom_buffers_dict(self):
+        return {"phase_frequency": 2.0, "phase": 0.0}
 
-# Initialize any custom buffers your implementation uses (for 1 environment)
-def get_custom_buffers_dict():
-    buffer_dict = {
-        # Gait frequency in Hz; training sampled 1-3 Hz.
-        "phase_frequency": 2.0,
-        "phase": 0.0,
-    }
-    return buffer_dict
+    def update_custom_buffers(self, main_controller, t):
+        main_controller.phase = (
+            2 * math.pi * main_controller.phase_frequency * t % (2 * math.pi)
+        )
 
+    def get_custom_obs_pieces(self):
+        return {
+            "phase_obs": self._get_obs_phase_obs,
+            "phase_frequency": self._get_obs_phase_frequency,
+        }
 
-# Define how your custom buffers should be updated at the control frequency
-def update_custom_buffers(main_controller, t):
-    main_controller.phase = (
-        2 * math.pi * main_controller.phase_frequency * t % (2 * math.pi)
-    )
+    @staticmethod
+    def _get_obs_phase_obs(main_controller, lowstate_msg):
+        phase = main_controller.phase
+        return torch.tensor([math.sin(phase), math.cos(phase)])
 
-
-# Return a dict mapping observation names to functions that generate the
-# observation pieces
-def get_custom_obs_pieces():
-    obs_pieces = {
-        "phase_obs": _get_obs_phase_obs,
-        "phase_frequency": _get_obs_phase_frequency,
-    }
-    return obs_pieces
-
-
-# Return the phase observation piece of the observation vector
-def _get_obs_phase_obs(main_controller, lowstate_msg):
-    phase = torch.tensor([main_controller.phase])
-    return torch.tensor([torch.sin(phase), torch.cos(phase)])
-
-
-# Return the phase frequency observation piece
-def _get_obs_phase_frequency(main_controller, lowstate_msg):
-    return torch.tensor([main_controller.phase_frequency])
+    @staticmethod
+    def _get_obs_phase_frequency(main_controller, lowstate_msg):
+        return torch.tensor([main_controller.phase_frequency])
