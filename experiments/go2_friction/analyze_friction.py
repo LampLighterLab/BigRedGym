@@ -1,7 +1,6 @@
-"""Aggregate saved simulation results across 7 friction ranges and 3 seeds.
+"""Aggregate archived friction sweeps that already contain legacy summary CSVs.
 
-Run from BigRedGym root AFTER evaluation:
-    uv run --frozen experiments/go2_friction/analyze_friction.py
+For current telemetry datasets, use metrics.py followed by analyze_results.py.
 
 Outputs summary CSV and a critical-friction plot. Uses matplotlib only for plot.
 """
@@ -9,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import math
 import re
 import statistics
 from pathlib import Path
@@ -70,7 +68,10 @@ def main(argv=None):
     output_dir.mkdir(parents=True, exist_ok=True)
     rows = read_rows(input_dir)
     if not rows:
-        parser.error(f"No evaluated policies found in {input_dir}")
+        parser.error(
+            f"No archived policy summary.csv files in {input_dir}. "
+            "For current telemetry, run metrics.py followed by analyze_results.py."
+        )
     critical = compute_critical(rows)
     write_csv(output_dir / "all_conditions.csv", rows)
     write_csv(output_dir / "critical_friction_by_seed.csv", critical)
@@ -79,12 +80,18 @@ def main(argv=None):
     for row in critical:
         if row["critical_friction"] == "":
             continue
-        groups.setdefault(row["training_lower_bound"], []).append(float(row["critical_friction"]))
+        lower = row["training_lower_bound"]
+        groups.setdefault(lower, []).append(float(row["critical_friction"]))
     summary = []
     for lower, vals in sorted(groups.items()):
-        summary.append({"training_lower_bound": lower, "seeds_with_pass": len(vals),
-                        "critical_mu_mean": statistics.mean(vals),
-                        "critical_mu_std": statistics.stdev(vals) if len(vals) >= 2 else ""})
+        summary.append(
+            {
+                "training_lower_bound": lower,
+                "seeds_with_pass": len(vals),
+                "critical_mu_mean": statistics.mean(vals),
+                "critical_mu_std": statistics.stdev(vals) if len(vals) >= 2 else "",
+            }
+        )
     write_csv(output_dir / "critical_friction_summary.csv", summary)
     if summary:
         import matplotlib.pyplot as plt
