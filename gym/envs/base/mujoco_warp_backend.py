@@ -27,7 +27,6 @@ import warp as wp
 
 from gym.envs.base.domain_randomization import (
     contact_friction_range,
-    payload_mass_range,
     randomizes_link_inertials,
 )
 from gym.envs.base.mujoco_backend_base import (
@@ -65,7 +64,6 @@ class MuJocoWarpBackend(MuJocoBackendBase):
         self._geom_friction_t: torch.Tensor = None
         self._pair_friction_t: torch.Tensor = None
         self._randomize_contact_friction = False
-        self._randomize_payload = False
         # Per-world native mass-property views, [N, nbody, ...].
         self._body_mass_native_t: torch.Tensor = None
         self._body_ipos_native_t: torch.Tensor = None
@@ -190,22 +188,6 @@ class MuJocoWarpBackend(MuJocoBackendBase):
         self._body_iquat_native_t[rows, bodies] = iquats
         self._recompute_model_constants()
 
-    def set_payload(
-        self,
-        env_ids: torch.Tensor,
-        masses: torch.Tensor,
-        coms: torch.Tensor,
-    ) -> None:
-        update = self._prepare_native_payload_update(env_ids, masses, coms)
-        if update is None:
-            return
-        ids, mass_values, com_values, inertias = update
-        body = self._payload_body_id
-        self._body_mass_native_t[ids, body] = mass_values
-        self._body_ipos_native_t[ids, body] = com_values
-        self._body_inertia_native_t[ids, body] = inertias
-        self._recompute_model_constants()
-
     def _recompute_model_constants(self) -> None:
         """Rebuild mass-derived constants for every world, keeping sim state."""
         with self._wp_ctx:
@@ -219,8 +201,7 @@ class MuJocoWarpBackend(MuJocoBackendBase):
         self._num_envs = num_envs
         self._randomize_contact_friction = contact_friction_range(cfg) is not None
         self._randomize_link_inertials = randomizes_link_inertials(cfg)
-        self._randomize_payload = payload_mass_range(cfg) is not None
-        per_world_mass = self._randomize_link_inertials or self._randomize_payload
+        per_world_mass = self._randomize_link_inertials
 
         wp.init()
         self._wp_ctx = wp.ScopedDevice(device)

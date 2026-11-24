@@ -271,12 +271,6 @@ def test_mujoco_warp_reproduces_reference():
 
 
 @pytest.mark.vsim
-@pytest.mark.xfail(
-    raises=RuntimeError,
-    strict=True,
-    reason="VSimBackend refuses the payload until payload DR moves to link "
-    "mass properties",
-)
 def test_vsim_flight_tracks_warp_reference():
     from tests.unit_tests.conftest import vsim_guard
 

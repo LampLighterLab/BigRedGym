@@ -16,7 +16,6 @@ import torch
 from gym import GYM_ROOT_DIR
 from gym.envs.base.domain_randomization import (
     contact_friction_range,
-    payload_mass_range,
     randomizes_link_inertials,
 )
 from gym.envs.base.mujoco_backend_base import (
@@ -50,7 +49,6 @@ class MuJocoCPUBackend(MuJocoBackendBase):
         self._render_deadline = None
         self._render_pending_time = 0.0
         self._randomize_contact_friction = False
-        self._randomize_payload = False
         self._models: list[mujoco.MjModel] | None = None
 
     # ── State tensors ──────────────────────────────────────────────────────────
@@ -124,27 +122,6 @@ class MuJocoCPUBackend(MuJocoBackendBase):
             model.body_iquat[bodies] = iquat_np[row]
             self._recompute_model_constants(env_id)
 
-    def set_payload(
-        self,
-        env_ids: torch.Tensor,
-        masses: torch.Tensor,
-        coms: torch.Tensor,
-    ) -> None:
-        update = self._prepare_native_payload_update(env_ids, masses, coms)
-        if update is None:
-            return
-        ids, mass_values, com_values, inertias = update
-        body = self._payload_body_id
-        mass_np = mass_values.cpu().numpy()
-        com_np = com_values.cpu().numpy()
-        inertia_np = inertias.cpu().numpy()
-        for row, env_id in enumerate(ids.tolist()):
-            model = self._models[env_id]
-            model.body_mass[body] = mass_np[row]
-            model.body_ipos[body] = com_np[row]
-            model.body_inertia[body] = inertia_np[row]
-            self._recompute_model_constants(env_id)
-
     def _recompute_model_constants(self, env_id: int) -> None:
         """Rebuild mass-derived constants without disturbing the sim state."""
         model = self._models[env_id]
@@ -180,8 +157,7 @@ class MuJocoCPUBackend(MuJocoBackendBase):
         self._num_envs = num_envs
         self._randomize_contact_friction = contact_friction_range(cfg) is not None
         self._randomize_link_inertials = randomizes_link_inertials(cfg)
-        self._randomize_payload = payload_mass_range(cfg) is not None
-        per_env_models = self._randomize_link_inertials or self._randomize_payload
+        per_env_models = self._randomize_link_inertials
         headless = task.headless if task is not None else True
         visual_model = getattr(cfg.asset, "mujoco_visual_model", None)
         visual_model_path = (
