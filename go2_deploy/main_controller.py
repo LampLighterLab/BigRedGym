@@ -1,5 +1,6 @@
 import time
 import threading
+import math
 
 from go2_deploy.state import State
 from go2_deploy.unitree_remote_controller import UnitreeRemoteController, RCHandler
@@ -22,7 +23,6 @@ from unitree_sdk2py.comm.motion_switcher.motion_switcher_client import (
     MotionSwitcherClient,
 )
 from unitree_sdk2py.utils.crc import CRC
-
 
 class MainController:
     # cfg and rl_controller must come from the same source (one bundle, or the
@@ -159,12 +159,14 @@ class MainController:
     def _process_custom_buffers(self, t):
         self.cfg.custom_impl.update_custom_buffers(self, t)
 
+
     # Read last lowstate msg, publish LowCmd_
     # KNOWN RISK: if this process dies outright (OOM, kill) while in
     # CUSTOM_CTRL, LowCmd_ stops and the RC's X can no longer reach us.
     # See "Known risks" in README_DEPLOY.md.
     def _control_loop(self):
         t = time.monotonic()
+
         self._process_custom_buffers(t)
 
         with self.last_command_lock:
@@ -208,15 +210,7 @@ class MainController:
         if self._state == State.CUSTOM_CTRL:
             return self.rl_controller.act(last_obs)
         elif self._state == State.INTERMEDIATE:
-            target = self.intermediate_start_pos
-            if self.cfg.intermediate_ramp_time is not None:
-                target = deploy_utility.ramp_target(
-                    target,
-                    self.cfg.default_dof_pos,
-                    time.monotonic() - self.intermediate_start_time,
-                    self.cfg.intermediate_ramp_time,
-                )
-            return deploy_utility.target_pos_to_action(self, target)
+            return deploy_utility.target_pos_to_action(self, self.intermediate_pos)
         else:
             return self.last_action[0]
 
@@ -343,11 +337,16 @@ class MainController:
             print("Must be in recovery state to switch to intermediate")
             return
 
-        with self.last_lowstate_msg_lock:
-            if self.last_lowstate_msg is None:
-                print("Waiting for joint measurements before entering intermediate")
-                return
+        self._state = State.INTERMEDIATE
         print("Switching to intermediate")
+
+        self.intermediate_pos = (
+            torch.tensor(
+                deploy_utility._get_obs_dof_pos_obs(self, self.last_lowstate_msg)
+            )
+            .detach()
+            .clone()
+        )
 
         self.motion_switcher_client.ReleaseMode()
         mode = self.motion_switcher_client.CheckMode()[1]["name"]
@@ -357,37 +356,17 @@ class MainController:
             self.motion_switcher_client.ReleaseMode()
             mode = self.motion_switcher_client.CheckMode()[1]["name"]
 
-        # Ramp from the pose measured as the PD loop starts, so the first
-        # target equals where the joints are.
-        with self.last_lowstate_msg_lock:
-            self.intermediate_start_pos = deploy_utility.get_dof_pos(
-                self.last_lowstate_msg
-            )
-        self.intermediate_start_time = time.monotonic()
-        self._state = State.INTERMEDIATE
         self.lowcmd_thread.Start()
-        if self.cfg.intermediate_ramp_time is not None:
-            print(
-                f"Ramping to the nominal pose over {self.cfg.intermediate_ramp_time}s"
-            )
 
     def switch_to_custom_controller(self):
         self._custom_ctrl_flag = False
 
-        if self._state not in (State.INTERMEDIATE, State.RECOVERY):
+        if self._state != State.INTERMEDIATE and self._state != State.RECOVERY:
             print(
                 "Must be in recovery or intermediate state "
                 + "to switch to custom controller!"
             )
             return
-        ramp_time = self.cfg.intermediate_ramp_time
-        if ramp_time is not None:
-            if self._state != State.INTERMEDIATE:
-                print("Enter intermediate mode first (B on the remote or q)")
-                return
-            if time.monotonic() - self.intermediate_start_time < ramp_time:
-                print("Wait for the intermediate ramp to finish before custom control")
-                return
 
         self._state = State.CUSTOM_CTRL
         print("Switching to custom controller")
@@ -434,8 +413,6 @@ class MainController:
         )
         print("Current mode: " + self._state.name)
         print("Keyboard command [RC command]: meaning")
-        if self.cfg.intermediate_ramp_time is not None:
-            print("q [B]: ramp to the nominal pose")
         print(
             "<enter> [X]: emergency stop | c [A]: custom controller"  # noqa: E501
         )

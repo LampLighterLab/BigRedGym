@@ -149,11 +149,8 @@ class RCHandler:
                 return
             # if self.rc.Y == [1, 0]:
             #     self.controller.request_recovery()
-            elif (
-                self.rc.B == [1, 0]
-                and self.controller.cfg.intermediate_ramp_time is not None
-            ):
-                self.controller.request_intermediate()
+            #elif self.rc.B == [1, 0]:
+            #    self.controller.request_intermediate()
             elif self.rc.A == [1, 0]:
                 self.controller.request_custom_ctrl()
 

@@ -27,36 +27,6 @@ def resolve_run_dir(task_name, run_name=None):
     return max(runs, key=lambda d: d.stat().st_ctime)
 
 
-def validate_training_config(deploy_cfg, env, train_cfg):
-    """Check the snapshot against a custom implementation with declared gains."""
-    if train_cfg.actor.obs != deploy_cfg.obs_vector:
-        raise ValueError(
-            "Deploy observation order does not match the saved training run"
-        )
-    if train_cfg.actor.actions != ["dof_pos_target"]:
-        raise ValueError("Saved policy does not use joint-position offset actions")
-    control = env.cfg.control
-    if (
-        control.ctrl_frequency != deploy_cfg.ctrl_freq
-        or train_cfg.actor.frequency != deploy_cfg.ctrl_freq
-        or set(control.stiffness.values()) != {deploy_cfg.kp}
-        or set(control.damping.values()) != {deploy_cfg.kd}
-        or (getattr(control, "action_ema_alpha", 1.0) < 1) != deploy_cfg.exp_moving_avg
-    ):
-        raise ValueError(
-            "Deploy controller settings do not match the saved training run"
-        )
-    keys = set(deploy_cfg.obs_vector) | {"dof_pos_target"}
-    for name in sorted(keys):
-        scale = torch.as_tensor(getattr(deploy_cfg.DeployScaling, name, 1.0))
-        trained = torch.as_tensor(env.scales.get(name, 1.0))
-        if not torch.equal(scale, trained):
-            raise ValueError(f"Deploy scaling for {name} does not match the saved run")
-    nominal = env.default_dof_pos[0, env.actuated_dof_indices]
-    if not torch.equal(nominal, deploy_cfg.default_dof_pos):
-        raise ValueError("Deploy nominal posture does not match the saved training run")
-
-
 # Returns the Actor of a run in logs/<task_name>/ (default: most recent), where
 # task_name comes from deploy_cfg.custom_impl. The task class, env and train
 # configs all come from that run's saved source, not from the repo's gym.envs;
@@ -104,16 +74,11 @@ def setup_actor(run_name=None, deploy_cfg=None):
             headless=True,
             backend=select_backend(env_cfg, "cpu"),
         )
-        try:
-            if hasattr(deploy_cfg.custom_impl, "trained_ctrl_freq"):
-                validate_training_config(deploy_cfg, env, train_cfg)
-            runner = task_registry.make_alg_runner(env, train_cfg)
-            print(f"Loading model from: {checkpoint}")
-            runner.load(str(checkpoint))
-            runner.switch_to_eval()
-            deploy_cfg.run_dir = str(run_dir)
-        finally:
-            env._backend.close()
+        runner = task_registry.make_alg_runner(env, train_cfg)
+        print(f"Loading model from: {checkpoint}")
+        runner.load(str(checkpoint))
+        runner.switch_to_eval()
+        deploy_cfg.run_dir = str(run_dir)
 
     actor = runner.alg.actor
     if actor.num_obs != deploy_cfg.obs_dim():

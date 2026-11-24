@@ -16,6 +16,8 @@ from go2_deploy.utility.import_custom_impl import load_custom_impl
 from gym.envs.go2.go2payload_config import Go2PayloadCfg, Go2PayloadRunnerCfg
 from learning.modules.actor import Actor
 
+STAFF_COMMAND_LIMITS = {"lin_vel_x": 1.0, "lin_vel_y": 0.5, "yaw_vel": 1.5}
+
 
 @pytest.fixture(scope="module")
 def impl():
@@ -47,10 +49,11 @@ def test_scaling_matches_training_for_every_observation_and_the_action(impl):
 def test_listed_training_settings_match_the_task(impl):
     cfg = DeployConfig(impl)
     control = Go2PayloadCfg.control
-    assert cfg.ctrl_freq == control.ctrl_frequency
-    assert set(control.stiffness.values()) == {cfg.kp}
-    assert set(control.damping.values()) == {cfg.kd}
-    assert not cfg.exp_moving_avg
+    assert control.ctrl_frequency == 50
+    assert set(control.stiffness.values()) == {20.0}
+    assert set(control.damping.values()) == {0.5}
+    assert getattr(control, "action_ema_alpha", 1.0) == 1.0
+    assert Go2PayloadRunnerCfg.runner.max_iterations == 2000
     angles = Go2PayloadCfg.init_state.default_joint_angles
     expected = [
         angle
@@ -63,7 +66,7 @@ def test_listed_training_settings_match_the_task(impl):
     ]
     torch.testing.assert_close(cfg.default_dof_pos, torch.tensor(expected))
     ranges = Go2PayloadCfg.commands.ranges
-    limits = cfg.command_limits
+    limits = STAFF_COMMAND_LIMITS
     assert limits["lin_vel_x"] <= min(-min(ranges.lin_vel_x), max(ranges.lin_vel_x))
     assert limits["lin_vel_y"] <= ranges.lin_vel_y
     assert limits["yaw_vel"] <= ranges.yaw_vel
@@ -92,17 +95,22 @@ def test_phase_buffers_and_observation_pieces(impl):
         assert piece(controller, None).shape == (impl.custom_obs_sizes[name],)
 
 
-def test_export_and_reload_preserve_payload_controller(tmp_path, impl):
+def test_stock_bundle_preserves_payload_observations_and_supported_settings(
+    tmp_path, impl
+):
     cfg = DeployConfig(impl)
+    # Staff set these values on their side. The stock bundle format stores
+    # gains and joystick limits; staff must also set rate and smoothing there.
+    cfg.kp, cfg.kd = 20.0, 0.5
+    cfg.command_limits = dict(STAFF_COMMAND_LIMITS)
     actor = Actor(48, 12, [16], normalize_obs=False).eval()
     export_bundle(actor, cfg, tmp_path)
     policy, reloaded = load_bundle(tmp_path)
 
-    assert reloaded.bundle_meta["ctrl_freq"] == reloaded.ctrl_freq == 50
-    assert not reloaded.bundle_meta["exp_moving_avg"]
-    assert not reloaded.exp_moving_avg
     assert (reloaded.kp, reloaded.kd) == (20.0, 0.5)
     assert reloaded.command_limits == cfg.command_limits
+    assert reloaded.obs_vector == cfg.obs_vector
+    assert reloaded.obs_dim() == 48
     assert reloaded.DeployScaling.dof_pos_target == pytest.approx(4 * [0.2, 0.5, 0.5])
     torch.testing.assert_close(reloaded.default_dof_pos, cfg.default_dof_pos)
     obs = torch.linspace(-1, 1, 48)

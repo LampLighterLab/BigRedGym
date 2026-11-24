@@ -28,24 +28,3 @@ def parse_urdf_limits(urdf_path: str) -> dict:
             continue
         out[name] = (float(eff), float(vel))
     return out
-
-
-def parse_urdf_position_limits(urdf_path: str) -> dict:
-    """Read <joint><limit lower=... upper=.../></joint> from a URDF.
-
-    Returns {joint_name: (lower, upper)} in radians.  Joints without both
-    attributes are absent — caller decides the default.
-    """
-    out: dict = {}
-    root = ET.parse(urdf_path).getroot()
-    for joint in root.findall("joint"):
-        name = joint.get("name")
-        limit = joint.find("limit")
-        if name is None or limit is None:
-            continue
-        lower = limit.get("lower")
-        upper = limit.get("upper")
-        if lower is None or upper is None:
-            continue
-        out[name] = (float(lower), float(upper))
-    return out

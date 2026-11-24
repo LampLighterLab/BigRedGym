@@ -48,23 +48,8 @@ class Go2PayloadDeployConfig(CustomConfig):
         phase_obs = 1.0
         phase_frequency = 1.0
 
-    # Nominal control settings from training. The course's stock loader needs
-    # these applied separately; this fork reads them in DeployConfig.
-    trained_ctrl_freq = 50  # Hz, policy rate
-    trained_kp = 20.0  # every joint
-    trained_kd = 0.5  # every joint
-    trained_exp_moving_avg = False  # no action smoothing in training
     # Nominal posture (rad); policy actions are offsets from it.
     default_dof_pos = 4 * [0.0, 0.96, -1.36]
-    # Joystick limits inside the trained command ranges (vx -1.0 to 2.5 m/s,
-    # vy +/-0.5 m/s, yaw +/-1.5 rad/s). The stick is symmetric, so vx is capped
-    # by the trained reverse speed.
-    command_limits = {"lin_vel_x": 1.0, "lin_vel_y": 0.5, "yaw_vel": 1.5}
-    trained_gait_freq_range = (1.0, 3.0)
-    intermediate_ramp_time = 2.0
-    # Go2 URDF position limits, radians, in the same joint order as the actor.
-    dof_pos_limits = 2 * [(-1.0472, 1.0472), (-1.5708, 3.4907), (-2.7227, -0.83776)]
-    dof_pos_limits += 2 * [(-1.0472, 1.0472), (-0.5236, 4.5379), (-2.7227, -0.83776)]
 
     def get_custom_buffers_dict(self):
         return {"phase_frequency": 2.0, "phase": 0.0}

@@ -65,38 +65,19 @@ Policy-specific settings live in the task's `CustomConfig` subclass in
 - Custom buffers and observations, e.g. the gait frequency (`phase_frequency`,
   in Hz) that drives the Go2Trot phase clock and its frequency observation
 
-The `go2payload` implementation lives in
-[`heavy_weights.py`](go2_deploy/custom_implementation/heavy_weights.py).
-It declares the 48-value observation, a 2 Hz gait clock, and the task's nominal
-posture and scaling explicitly, without importing its training environment.
-The actor's action scales are **0.2 / 0.5 / 0.5 rad** per hip / thigh / calf.
-
-For `go2payload`, this fork uses **50 Hz**, **Kp 20**, **Kd 0.5**, and **EMA off**.
-Joystick limits are ±1.0 m/s forward, ±0.5 m/s sideways, and ±1.5 rad/s yaw.
-These settings are written into exported bundles. If course staff use the
-unmodified course checkout, give them these settings alongside `heavy_weights.py`
-and the full `logs/go2payload/<run>/` folder containing the checkpoint and saved
-training snapshot. The stock course loader does not read the training-setting
-extensions in `heavy_weights.py` or apply the bundle's rate and EMA fields.
-
-To validate and export the selected run offline from this fork:
-
-```bash
-uv run --frozen python -m scripts.export_go2_policy --task go2payload \
-    --run_name YOUR_RUN_FOLDER --name go2payload
-```
-
-The exporter loads the saved training snapshot and checks the policy's
-observation order, scaling, posture, rate, and gains before writing the bundle.
+Deploy-only settings stay in `go2_deploy/deploy_config.py`:
+- Control frequency
+- kp (Stiffness constant)
+- kd (Damping constant)
+- Command limits (ex. pushing the joystick all the way to the right commands x m/s)
 
 For current Go2Trot policies, joint-position observations are relative to the
 static nominal posture `default_dof_pos` (hip 0, thigh 0.96, calf -1.36 radians).
 Scaled policy actions are offsets from that posture. The gait reference is a
 training reward only; deployment retains the sine/cosine phase observations and
 observes the controller's active gait frequency, divided by its observation scale.
-The previous-action observation contains the policy offset after optional EMA
-smoothing. For `go2payload`, only the outgoing position target is clamped to the
-URDF joint limits.
+The previous-action observation contains the applied offset after optional EMA
+smoothing. Neither that offset nor the resulting position target is clipped.
 Deployment sends position targets and PD gains to Unitree; this path does not
 compute or clamp torques locally.
 
@@ -114,8 +95,8 @@ If anything goes wrong, the emergency stop on the wireless controller is X or th
 - There are 4 states the robot can be in:
     - `RECOVERY`: Initially when the script starts running, the robot is in this mode. You must enter this state from `EMERGENCY_STOP` otherwise. The default Unitree controller can be used to make the robot walk, do tricks, etc. The `F1` key on the remote control can be used to disable/enable the A, B, X, and Y buttons, so that the default Unitree button combinations can be used without accidentally turning on a different state.
     - `EMERGENCY_STOP`: The robot will immediately start damping, wait around 15 seconds, and then stand up again. The robot will automatically enter the `RECOVERY` state.
-    - `INTERMEDIATE`: For `go2payload`, press **B** (or **q**) in `RECOVERY` to ramp from the measured pose to the nominal pose over two seconds.
-    - `CUSTOM_CTRL`: For `go2payload`, press **A** (or **c**) once the ramp finishes. The model then controls the robot.
+    - `INTERMEDIATE`: The robot will hold its current position. This is for testing to make sure the kp and kd values are good, etc.
+    - `CUSTOM_CTRL`: The robot will use the policy you trained to move.
 - To stop running the script, return to `RECOVERY`, lie the robot on the ground, and press `Ctrl+C` in the terminal.
 - Logs of the robot data can be found in `logs/deploy/`.
 

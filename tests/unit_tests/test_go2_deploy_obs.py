@@ -174,18 +174,12 @@ def test_action_target_roundtrip_uses_static_default_pose(task_name):
     )
 
 
-def _lowcmd_controller(cfg=None):
-    controller = _controller(cfg)
+def test_existing_lowcmd_receives_permuted_unrestricted_targets_and_scaled_gains():
+    controller = _controller()
     controller.default_lowcmd = SimpleNamespace(
         motor_cmd=[SimpleNamespace(q=0.0, kp=0.0, kd=0.0) for _ in range(20)]
     )
-    return controller
-
-
-def test_existing_lowcmd_receives_permuted_targets_and_scaled_gains():
-    controller = _lowcmd_controller()
-    # Distinct in-range targets, so any permutation error is visible.
-    canonical_target = controller.cfg.default_dof_pos + torch.linspace(-0.3, 0.3, 12)
+    canonical_target = torch.arange(12, dtype=torch.float) - 6
     action = canonical_target - controller.cfg.default_dof_pos
 
     command = deploy_utility.action_to_lowcmd(
@@ -200,90 +194,3 @@ def test_existing_lowcmd_receives_permuted_targets_and_scaled_gains():
     assert all(motor.kp == controller.cfg.kp * 0.5 for motor in command.motor_cmd[:12])
     assert all(motor.kd == controller.cfg.kd * 0.25 for motor in command.motor_cmd[:12])
     assert all(motor.q == 0.0 for motor in command.motor_cmd[12:])
-
-
-def test_deploy_controller_matches_training_controller():
-    from gym.envs.go2.go2payload_config import Go2PayloadCfg
-
-    cfg = DeployConfig(load_custom_impl("go2payload"))
-    assert cfg.task_name == "go2payload"
-    assert cfg.ctrl_freq == Go2PayloadCfg.control.ctrl_frequency == 50
-    assert set(Go2PayloadCfg.control.stiffness.values()) == {cfg.kp}
-    assert set(Go2PayloadCfg.control.damping.values()) == {cfg.kd}
-    # Training applies no action smoothing, and the actor observes the result.
-    assert not cfg.exp_moving_avg
-
-
-@pytest.mark.parametrize(
-    "name, limit",
-    [
-        # Symmetric joystick: 2.0 forward also means -2.0 in reverse, and
-        # training only reverses to -1.0 m/s.
-        ("lin_vel_x", 2.0),
-        ("lin_vel_y", 1.0),
-        ("yaw_vel", 3.0),
-    ],
-)
-def test_command_limits_outside_training_are_rejected(name, limit):
-    cfg = DeployConfig(load_custom_impl("go2payload"))
-    cfg.command_limits[name] = limit
-    with pytest.raises(ValueError, match=name):
-        cfg.validate()
-
-
-def test_gait_frequency_outside_training_is_rejected(monkeypatch):
-    impl = load_custom_impl("go2payload")
-    monkeypatch.setattr(
-        impl, "get_custom_buffers_dict", lambda: {"phase_frequency": 4.0}
-    )
-    with pytest.raises(ValueError, match="gait_freq"):
-        DeployConfig(impl)
-
-
-def test_lowcmd_clamps_targets_to_urdf_limits():
-    controller = _lowcmd_controller(DeployConfig(load_custom_impl("go2payload")))
-    limits = controller.cfg.dof_pos_limits
-    action = torch.full((12,), 10.0)
-    action[::2] = -10.0
-
-    command = deploy_utility.action_to_lowcmd(controller, action)
-
-    expected = torch.where(action > 0, limits[:, 1], limits[:, 0])
-    torch.testing.assert_close(
-        torch.tensor([motor.q for motor in command.motor_cmd[:12]]),
-        expected[SDK_IN_QGYM_ORDER],
-    )
-
-
-def test_urdf_limits_are_canonical_and_contain_nominal_pose():
-    from gym import GYM_ROOT_DIR
-    from gym.envs.base.urdf_limits import parse_urdf_position_limits
-    from gym.envs.go2.go2payload_config import Go2PayloadCfg
-
-    cfg = DeployConfig(load_custom_impl("go2payload"))
-    lower, upper = cfg.dof_pos_limits.unbind(1)
-    asset = Go2PayloadCfg.asset
-    limits = parse_urdf_position_limits(asset.file.format(GYM_ROOT_DIR=GYM_ROOT_DIR))
-    expected = torch.tensor([limits[name] for name in asset.robot_layout.dof_names])
-    torch.testing.assert_close(cfg.dof_pos_limits, expected)
-    assert ((lower < cfg.default_dof_pos) & (cfg.default_dof_pos < upper)).all()
-
-
-def test_intermediate_ramp_starts_at_measured_pose_and_ends_at_nominal():
-    controller, message = _controller(), _message()
-    # Unitree stand pose, in SDK motor order (FR, FL, RR, RL).
-    for motor, position in zip(message.motor_state, [0.0, 0.67, -1.30] * 4):
-        motor.q = position
-    start = deploy_utility.get_dof_pos(message)
-    nominal = controller.cfg.default_dof_pos
-
-    def commanded(elapsed):
-        target = deploy_utility.ramp_target(start, nominal, elapsed, 2.0)
-        action = deploy_utility.target_pos_to_action(controller, target)
-        return deploy_utility.action_to_target_pos(controller, action)
-
-    # The first target is where the joints are, not an offset from nominal.
-    torch.testing.assert_close(commanded(0.0), torch.tensor([0.0, 0.67, -1.30] * 4))
-    torch.testing.assert_close(commanded(1.0), (start + nominal) / 2)
-    torch.testing.assert_close(commanded(2.0), nominal)
-    torch.testing.assert_close(commanded(5.0), nominal)

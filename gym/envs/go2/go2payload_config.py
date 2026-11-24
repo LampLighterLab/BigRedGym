@@ -9,6 +9,7 @@ class Go2PayloadCfg(Go2TrotCfg):
 
     class commands(Go2TrotCfg.commands):
         class ranges(Go2TrotCfg.commands.ranges):
+            lin_vel_x = [-1.0, -0.5, 0.0, 0.5, 1.0, 1.75, 2.5]
             # Fixed height: the actor doesn't observe it, matching deploy.
             base_height = [0.30, 0.30]
 
@@ -22,6 +23,8 @@ class Go2PayloadCfg(Go2TrotCfg):
             size = [0.2, 0.12, 0.08]
 
     class scaling(Go2TrotCfg.scaling):
+        dof_pos_target = 4 * [0.2, 0.5, 0.5]
+        base_height_target = 0.3
         # [mass kg, COM offset x, y, z m], matching domain_randomization.payload.
         payload_obs = [5.0, 0.05, 0.02, 0.02]
 
@@ -64,5 +67,14 @@ class Go2PayloadRunnerCfg(Go2TrotRunnerCfg):
             "payload_obs",
         ]
 
+        class reward(Go2TrotRunnerCfg.critic.reward):
+            class weights(Go2TrotRunnerCfg.critic.reward.weights):
+                tracking_lin_vel = 6.0
+                orientation = 2.0
+                min_base_height = 0.0
+                tracking_base_height = 4.0
+                hip_splay = 0.5
+
     class runner(Go2TrotRunnerCfg.runner):
         experiment_name = "go2payload"
+        max_iterations = 2000

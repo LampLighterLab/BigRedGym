@@ -25,17 +25,15 @@ def _get_obs_commands(main_controller, lowstate_msg):
     return main_controller.last_command
 
 
-# Absolute joint positions in QGym order (radians), not an observation.
-def get_dof_pos(lowstate_msg):
+def _get_obs_dof_pos_obs(main_controller, lowstate_msg):
     motor_states = lowstate_msg.motor_state
     dof_pos_unitree_convention = torch.zeros(12)
     for i in range(12):
         dof_pos_unitree_convention[i] = motor_states[i].q
-    return dof_pos_unitree_convention[UNITREE_TO_QGYM_JOINT_IDX]
-
-
-def _get_obs_dof_pos_obs(main_controller, lowstate_msg):
-    return get_dof_pos(lowstate_msg) - main_controller.cfg.default_dof_pos
+    return (
+        dof_pos_unitree_convention[UNITREE_TO_QGYM_JOINT_IDX]
+        - main_controller.cfg.default_dof_pos
+    )
 
 
 def _get_obs_dof_vel(main_controller, lowstate_msg):
@@ -107,21 +105,10 @@ def target_pos_to_action(main_controller, target_pos):
     return target_pos - main_controller.cfg.default_dof_pos
 
 
-# Return torch.tensor(12): absolute target moving linearly from start_pos to
-# goal_pos over duration seconds, then holding goal_pos.
-def ramp_target(start_pos, goal_pos, elapsed, duration):
-    fraction = min(max(elapsed / duration, 0.0), 1.0)
-    return start_pos + fraction * (goal_pos - start_pos)
-
-
 # Returns LowCmd_ from the actor output action_qgm_convention, kp_mult
-# Adds the static default posture, clamps targets to the URDF joint limits and
-# maps them to Unitree motor order. The policy still observes the raw action.
+# Adds the static default posture and maps targets to Unitree motor order.
 def action_to_lowcmd(main_controller, action_qgym_convention, kp_mult=1.0, kd_mult=1.0):
     target_pos_qgym = action_to_target_pos(main_controller, action_qgym_convention)
-    limits = main_controller.cfg.dof_pos_limits
-    if limits is not None:
-        target_pos_qgym = torch.clamp(target_pos_qgym, limits[:, 0], limits[:, 1])
     target_pos = target_pos_qgym[QGYM_TO_UNITREE_JOINT_IDX]
 
     lowcmd = main_controller.default_lowcmd

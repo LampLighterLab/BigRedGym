@@ -71,11 +71,8 @@ def export_bundle(actor, cfg, out_dir, provenance=None):
         "obs_sizes": {obs: cfg.obs_sizes[obs] for obs in cfg.obs_vector},
         "scaling": _scaling_snapshot(cfg),
         "default_dof_pos": _as_number_or_list(cfg.default_dof_pos),
-        "ctrl_freq": cfg.ctrl_freq,
         "kp": cfg.kp,
         "kd": cfg.kd,
-        "exp_moving_avg": cfg.exp_moving_avg,
-        "ema_time_const": cfg.ema_time_const,
         "command_limits": dict(cfg.command_limits),
         "num_obs": actor.num_obs,
         "num_actions": actor.num_actions,
@@ -94,9 +91,9 @@ def export_bundle(actor, cfg, out_dir, provenance=None):
 def config_from_meta(meta, custom_impl=None):
     """DeployConfig with every policy-coupled field taken from the bundle.
 
-    Older bundles without timing and smoothing metadata use the custom
-    implementation's defaults. The implementation also supplies custom buffers
-    and observation pieces.
+    Deploy-only settings (ctrl_freq, EMA, logging) keep their DeployConfig
+    defaults. Missing keys raise KeyError on purpose. custom_impl supplies the
+    custom buffers/obs pieces (default: the one for the bundle's task_name).
     """
     if custom_impl is None:
         custom_impl = load_custom_impl(meta["task_name"])
@@ -110,11 +107,8 @@ def config_from_meta(meta, custom_impl=None):
     cfg.obs_vector = list(meta["obs_vector"])
     cfg.obs_sizes = dict(meta["obs_sizes"])
     cfg.default_dof_pos = torch.tensor(meta["default_dof_pos"])
-    cfg.ctrl_freq = meta.get("ctrl_freq", cfg.ctrl_freq)
     cfg.kp = meta["kp"]
     cfg.kd = meta["kd"]
-    cfg.exp_moving_avg = meta.get("exp_moving_avg", cfg.exp_moving_avg)
-    cfg.ema_time_const = meta.get("ema_time_const", cfg.ema_time_const)
     cfg.command_limits = dict(meta["command_limits"])
 
     scaling = meta["scaling"]
