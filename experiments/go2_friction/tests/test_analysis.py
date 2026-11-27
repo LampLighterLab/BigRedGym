@@ -20,6 +20,7 @@ from analyze_results import (
     run_analysis,
     select_runs,
 )
+from final_protocol import FINAL_RESEARCH_ID, PREVIOUS_FINAL_RESEARCH_ID, reward_schedule
 from metrics import Thresholds, run_metrics
 from plot_results import (
     configuration_style,
@@ -33,6 +34,7 @@ from plot_results import (
     velocity_history,
 )
 from synthetic_step4 import DT, generate
+import synthetic_step4
 
 
 def table(output, name, **filters):
@@ -49,6 +51,64 @@ def hashes(directory):
         for path in directory.rglob("*")
         if path.is_file()
     }
+
+
+def test_finalized_baseline_once_in_metrics_and_on_each_curve(tmp_path, monkeypatch):
+    dataset = tmp_path / "evaluation" / "shared_baseline"
+    monkeypatch.setattr(
+        synthetic_step4,
+        "SCHEDULES",
+        {
+            "stand_1_stop": ((4, (0, 0, 0)), (10, (1, 0, 0)), (8, (0, 0, 0))),
+            "steady_0p5": ((12, (0.5, 0, 0)),),
+        },
+    )
+    synthetic_step4.write_dataset(dataset, "friction", 1.25, (0.4, 0.4), 0, 4)
+    metadata_path = dataset / "metadata.json"
+    metadata = json.loads(metadata_path.read_text())
+    metadata["training"]["experiment_name"] = "go2_final_staged_baseline_seed_42"
+    metadata["training"]["seed"] = 42
+    metadata["checkpoint_iteration"] = 400
+    metadata["training"]["final_research"] = {
+        "study": FINAL_RESEARCH_ID,
+        "method": "baseline",
+        "run_name": "synthetic",
+        "template_checkpoint_sha256": "synthetic-template",
+        "reward_schedule": reward_schedule(),
+    }
+    metadata_path.write_text(json.dumps(metadata))
+    metrics, output = tmp_path / "metrics", tmp_path / "analysis"
+    assert (
+        run_metrics(
+            dataset,
+            metrics,
+            Thresholds(),
+            {},
+            primary_maneuver="stand_1_stop",
+        )
+        == 1
+    )
+    [cutoff] = table(metrics, "critical_friction", noise_scale=0.0)
+    assert cutoff["critical_friction"] == "0.4"
+    report = run_analysis(metrics, output)
+    assert report["primary_maneuver"] == "stand_1_stop"
+    rows = table(output, "seed_nominal", maneuver="stand_1_stop", test_noise_scale=0.0)
+    assert {row["method"] for row in rows} == {"friction", "noise"}
+    assert len(rows) == 2
+    assert {row["dataset"] for row in rows} == {str(dataset)}
+    assert {row["training_seed"] for row in rows} == {"42"}
+    assert {row["critical_friction"] for row in rows} == {"0.4"}
+    assert {row["training_protocol"] for row in rows} == {FINAL_RESEARCH_ID}
+    staged_profiles = report["evaluation_profiles"]
+    staged_id = rows[0]["evaluation_profile"]
+    assert staged_profiles[staged_id]["final_research"]["reward_schedule"] == (
+        reward_schedule()
+    )
+    metadata["training"]["final_research"]["study"] = PREVIOUS_FINAL_RESEARCH_ID
+    previous = evaluation_profile(metadata, str(dataset), "stand_1_stop", 0.0, {})
+    assert previous != staged_id
+    secondary = table(output, "seed_nominal", maneuver="steady_0p5")
+    assert {row["critical_friction_status"] for row in secondary} == {"not_applicable"}
 
 
 @pytest.fixture(scope="module")

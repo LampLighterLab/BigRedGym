@@ -1,4 +1,4 @@
-"""Collect evaluation traces across Step 1 checkpoints, friction, and noise."""
+"""Collect evaluation traces across policies, test friction, and actor noise."""
 
 import argparse
 import json
@@ -8,14 +8,17 @@ import shlex
 import subprocess
 import sys
 
+from controller_checkpoint import read_controller_profile
 from evaluate_friction import (
     DEFAULT_FRICTIONS,
+    PRIMARY_MANEUVER,
     REPO,
     RESULTS,
     add_evaluation_arguments,
     checkpoint_output_path,
     evaluation_settings,
 )
+import final_protocol as final
 
 EXPERIMENT = re.compile(r"go2(?:friction_lb|noise_scale)_.+_seed_\d+")
 MODEL = re.compile(r"model_(\d+)\.pt")
@@ -42,6 +45,32 @@ def discover_checkpoints(logs_dir):
             yield max(runs)[1].resolve()
 
 
+def finalized_checkpoints(logs_dir, run_name, *, dry_run):
+    final.validate_run_name(run_name)
+    initializations = {}
+    template_hashes = set()
+    for run in final.final_training_runs():
+        directory = (logs_dir / run["experiment_name"] / run_name).resolve()
+        checkpoint = directory / f"model_{final.ITERATIONS}.pt"
+        if not dry_run:
+            data = final.read_completed_run(directory, run)
+            details = data.get("final_research", {})
+            profile = read_controller_profile(
+                checkpoint, expected_iteration=final.ITERATIONS
+            )
+            if profile is None or profile != data["controller_profile"]:
+                raise ValueError(f"Missing or mismatched checkpoint: {checkpoint}")
+            template_hashes.add(details["template_checkpoint_sha256"])
+            initial = details["initial_actor_sha256"], details["initial_critic_sha256"]
+            if initializations.setdefault(run["seed"], initial) != initial:
+                raise ValueError(
+                    f"Seed {run['seed']} initialization differs: {directory}"
+                )
+        yield checkpoint
+    if not dry_run and len(template_hashes) != 1:
+        raise ValueError("The finalized runs use different controller templates")
+
+
 def evaluation_command(checkpoint, output, args, seeds):
     command = [
         sys.executable,
@@ -62,39 +91,72 @@ def evaluation_command(checkpoint, output, args, seeds):
         args.device,
         "--num-envs",
         str(args.num_envs),
-        "--gait-frequency",
-        str(args.gait_frequency),
     ]
+    if args.gait_frequency is not None:
+        command.extend(("--gait-frequency", str(args.gait_frequency)))
     if args.original_cfg:
         command.append("--original-cfg")
     if args.maneuver_config is not None:
         command.extend(("--maneuver-config", str(args.maneuver_config.resolve())))
+    if args.record_coordination_diagnostics:
+        command.append("--record-coordination-diagnostics")
     return command
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument(
         "--checkpoint-path",
         type=Path,
         action="append",
         help="Repeat to pin checkpoints. Defaults to completed Step 1 runs.",
     )
+    source.add_argument(
+        "--finalized-run",
+        help="Select all 14 finalized iteration-400 policies by their shared run name",
+    )
     parser.add_argument("--logs-dir", type=Path, default=REPO / "logs")
     parser.add_argument("--output-dir", type=Path, default=RESULTS / "evaluation_sweep")
     parser.add_argument("--dry-run", action="store_true")
     add_evaluation_arguments(
-        parser, frictions=DEFAULT_FRICTIONS, noise_scales=(0.0, 1.0)
+        parser, frictions=None, noise_scales=final.TEST_NOISE_SCALES
     )
+    parser.set_defaults(maneuvers=None)
     args = parser.parse_args(argv)
+    if args.finalized_run is not None:
+        if args.original_cfg:
+            parser.error(
+                "Finalized policies use the controller profile in the checkpoint"
+            )
+        args.record_coordination_diagnostics = True
+        if args.dry_run:
+            print("Previewing finalized paths. Evaluation requires completed runs.")
+    if args.maneuvers is None:
+        args.maneuvers = (
+            ",".join(final.MANEUVERS)
+            if args.finalized_run is not None
+            else PRIMARY_MANEUVER
+        )
+    if args.frictions is None:
+        args.frictions = (
+            final.TEST_FRICTIONS
+            if args.finalized_run is not None
+            else DEFAULT_FRICTIONS
+        )
     seeds, maneuvers = evaluation_settings(parser, args)
     try:
-        checkpoints = (
-            [path.resolve() for path in args.checkpoint_path]
-            if args.checkpoint_path
-            else list(discover_checkpoints(args.logs_dir))
-        )
-    except (OSError, ValueError) as exc:
+        if args.finalized_run is not None:
+            checkpoints = list(
+                finalized_checkpoints(
+                    args.logs_dir, args.finalized_run, dry_run=args.dry_run
+                )
+            )
+        elif args.checkpoint_path:
+            checkpoints = [path.resolve() for path in args.checkpoint_path]
+        else:
+            checkpoints = list(discover_checkpoints(args.logs_dir))
+    except (OSError, KeyError, ValueError) as exc:
         parser.error(str(exc))
     if not checkpoints:
         parser.error("No completed Step 1 checkpoints found. Supply --checkpoint-path.")
@@ -102,7 +164,9 @@ def main(argv=None):
         parser.error("Checkpoint paths must be unique")
     outputs = []
     for checkpoint in checkpoints:
-        if not checkpoint.is_file():
+        if not checkpoint.is_file() and not (
+            args.finalized_run is not None and args.dry_run
+        ):
             parser.error(f"Checkpoint not found: {checkpoint}")
         output = args.output_dir.resolve() / checkpoint_output_path(checkpoint)
         if output.exists() and not args.dry_run:

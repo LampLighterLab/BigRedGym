@@ -428,7 +428,7 @@ def load_series(path):
         return {key: archive[key] for key in archive.files}
 
 
-def trial_inputs(row, dataset, schedule, dt, foot_count, cfg):
+def trial_inputs(row, dataset, schedule, dt, foot_count, cfg, *, primary):
     if row is None:
         return {
             "trial_status": "missing_trial",
@@ -467,7 +467,7 @@ def trial_inputs(row, dataset, schedule, dt, foot_count, cfg):
             friction,
             outcome,
             cfg,
-            primary=row["maneuver"] == PRIMARY_MANEUVER,
+            primary=primary,
         )
     except (OSError, ValueError, TypeError, KeyError, EOFError, BadZipFile) as exc:
         result.update(data_status="unavailable", issues=str(exc))
@@ -494,11 +494,11 @@ def summarize_condition(trials):
     return result
 
 
-def critical_friction(conditions):
+def critical_friction(conditions, primary_maneuver=PRIMARY_MANEUVER):
     eligible = [
         row
         for row in conditions
-        if row["maneuver"] == PRIMARY_MANEUVER
+        if row["maneuver"] == primary_maneuver
         and row["expected_trials"] == row["scored_trials"] == 10
     ]
     passed = [row["friction"] for row in eligible if row["successes"] >= 9]
@@ -620,7 +620,9 @@ def dataset_identity(metadata, dataset):
     }
 
 
-def evaluate_dataset(dataset, output, dataset_index, cfg, criteria, trial_writer):
+def evaluate_dataset(
+    dataset, output, dataset_index, cfg, criteria, trial_writer, *, primary_maneuver
+):
     meta, dt, schedules, frictions, scales, seeds, rows = read_dataset(dataset)
     identity = dataset_identity(meta, dataset)
     condition_rows = []
@@ -643,6 +645,7 @@ def evaluate_dataset(dataset, output, dataset_index, cfg, criteria, trial_writer
                 dt,
                 len(meta["foot_order"]),
                 cfg,
+                primary=name == primary_maneuver,
             )
             if derived is not None:
                 path = derived_dir / f"trial_{ordinal:06d}.npz"
@@ -663,7 +666,7 @@ def evaluate_dataset(dataset, output, dataset_index, cfg, criteria, trial_writer
     critical_rows = []
     for scale in scales:
         selected = [row for row in condition_rows if row["noise_scale"] == scale]
-        critical = critical_friction(selected)
+        critical = critical_friction(selected, primary_maneuver)
         critical_rows.append(identity | {"noise_scale": scale} | critical)
         for row in selected:
             status, details = assess_readiness(
@@ -693,7 +696,7 @@ def write_csv(path, fields, rows):
         writer.writerows(rows)
 
 
-def run_metrics(input_dir, output, cfg, criteria):
+def run_metrics(input_dir, output, cfg, criteria, *, primary_maneuver=PRIMARY_MANEUVER):
     input_dir, output = Path(input_dir).resolve(), Path(output).resolve()
     if not input_dir.is_dir():
         raise ValueError(f"Dataset directory does not exist: {input_dir}")
@@ -712,7 +715,13 @@ def run_metrics(input_dir, output, cfg, criteria):
         summaries, critical, sources = [], [], []
         for index, dataset in enumerate(datasets):
             conditions, cutoffs, source = evaluate_dataset(
-                dataset, output, index, cfg, criteria, writer
+                dataset,
+                output,
+                index,
+                cfg,
+                criteria,
+                writer,
+                primary_maneuver=primary_maneuver,
             )
             summaries.extend(conditions)
             critical.extend(cutoffs)
@@ -724,6 +733,7 @@ def run_metrics(input_dir, output, cfg, criteria):
         "sources": sources,
         "thresholds": asdict(cfg),
         "hardware_readiness_rubric": criteria or None,
+        "primary_maneuver": primary_maneuver,
         "critical_friction_rule": (
             "Lowest tested coefficient with at least 9 successes "
             "in 10 scored primary trials"
@@ -742,6 +752,11 @@ def main(argv=None):
     )
     parser.add_argument("--output-dir", type=Path, help="New metrics directory")
     parser.add_argument(
+        "--primary-maneuver",
+        default=PRIMARY_MANEUVER,
+        help="Maneuver used for the stopping requirement and critical friction",
+    )
+    parser.add_argument(
         "--readiness-rubric", type=Path, help="JSON limits from the proposal"
     )
     defaults = Thresholds()
@@ -755,7 +770,9 @@ def main(argv=None):
     try:
         cfg = Thresholds(**{field: getattr(args, field) for field in asdict(defaults)})
         criteria = read_criteria(args.readiness_rubric)
-        count = run_metrics(source, output, cfg, criteria)
+        count = run_metrics(
+            source, output, cfg, criteria, primary_maneuver=args.primary_maneuver
+        )
     except (OSError, ValueError, TypeError, KeyError) as exc:
         parser.error(str(exc))
     print(f"Scored {count} dataset(s) in {output}")

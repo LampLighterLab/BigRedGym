@@ -11,6 +11,7 @@ import math
 from pathlib import Path
 from statistics import fmean, stdev
 
+from final_protocol import FINAL_RESEARCH_ID, FINAL_RESEARCH_IDS, reward_schedule
 from metrics import METRICS, PRIMARY_MANEUVER, write_csv
 
 
@@ -40,6 +41,7 @@ SEED = (
     *EVALUATION,
     *CONFIGURATION,
     "training_seed",
+    "training_protocol",
     "experiment_name",
     "dataset",
     "checkpoint",
@@ -104,9 +106,12 @@ def stats_fields(fields):
 
 def dataset_details(name, raw, source):
     training = raw.get("training") or {}
+    final = training.get("final_research", {})
     label = training.get("experiment_name") or ""
     method = "unknown"
-    if label.startswith("go2friction_lb_"):
+    if final.get("study") in FINAL_RESEARCH_IDS:
+        method = final["method"]
+    elif label.startswith("go2friction_lb_"):
         method = "friction"
     elif label.startswith("go2noise_scale_"):
         method = "noise"
@@ -123,6 +128,7 @@ def dataset_details(name, raw, source):
             training.get("noise_scale", source.get("training_noise_scale"))
         ),
         "training_seed": training.get("seed", source.get("training_seed")),
+        "training_protocol": final.get("study"),
         "experiment_name": label,
         "checkpoint": raw.get("checkpoint"),
         "checkpoint_iteration": raw.get("checkpoint_iteration"),
@@ -178,6 +184,16 @@ def evaluation_profile(raw, dataset, maneuver, scale, profiles):
         "foot_order": raw.get("foot_order"),
         "environment": protocol_environment,
     }
+    final = (raw.get("training") or {}).get("final_research", {})
+    if final.get("study") in FINAL_RESEARCH_IDS:
+        settings["final_research"] = {
+            key: final[key]
+            for key in ("study", "run_name", "template_checkpoint_sha256")
+        }
+        if final["study"] == FINAL_RESEARCH_ID:
+            if final.get("reward_schedule") != reward_schedule():
+                raise ValueError(f"Invalid staged reward schedule in {dataset}")
+            settings["final_research"]["reward_schedule"] = final["reward_schedule"]
     if settings["stages"] is None or not settings["test_friction_grid"]:
         settings["unverified_dataset"] = dataset
     encoded = json.dumps(settings, sort_keys=True).encode()
@@ -228,7 +244,7 @@ def full_horizon(trial):
     )
 
 
-def nominal_row(run, trials, cutoff, nominal_friction, cost_metric):
+def nominal_row(run, trials, cutoff, nominal_friction, cost_metric, primary_maneuver):
     planned = [
         trial for trial in trials if float(trial["friction"]) == nominal_friction
     ]
@@ -242,7 +258,7 @@ def nominal_row(run, trials, cutoff, nominal_friction, cost_metric):
         "critical_friction_status": cutoff.get(
             "status",
             "missing_cutoff"
-            if run["maneuver"] == PRIMARY_MANEUVER
+            if run["maneuver"] == primary_maneuver
             else "not_applicable",
         ),
         "critical_eligible_conditions": number(cutoff.get("eligible_conditions")),
@@ -429,6 +445,7 @@ def run_analysis(
     metadata = read_json(metrics_dir / "metrics_metadata.json")
     if metadata.get("protocol") != "go2trot-friction-metrics-v1":
         raise ValueError("Expected a Step 3 metrics directory")
+    primary_maneuver = metadata.get("primary_maneuver", PRIMARY_MANEUVER)
     sources = {row["dataset"]: row for row in metadata["sources"]}
     raw = {}
     for name in sources:
@@ -450,23 +467,21 @@ def run_analysis(
     }
     runs = {}
     profiles = {}
+    identities = {
+        dataset: dataset_details(dataset, raw[dataset], source)
+        for dataset, source in sources.items()
+    }
     for row in read_csv(metrics_dir / "summary.csv"):
         dataset, maneuver, scale, friction = trial_key(row)
-        run_key = (dataset, maneuver, scale)
-        if run_key not in runs:
-            ident = dataset_details(dataset, raw[dataset], sources[dataset])
-            runs[run_key] = ident | {
-                "maneuver": maneuver,
-                "test_noise_scale": scale,
-                "evaluation_profile": evaluation_profile(
-                    raw[dataset], dataset, maneuver, scale, profiles
-                ),
-                "selected": False,
-                "selection_status": "unknown_training_provenance",
-                "conditions": [],
-            }
+        ident = identities[dataset]
+        # One physical baseline dataset appears at the reference point of both curves.
+        methods = (
+            ("friction", "noise")
+            if ident["method"] == "baseline"
+            else (ident["method"],)
+        )
         recorded = trials[trial_key(row)]
-        runs[run_key]["conditions"].append(
+        condition = (
             {
                 "test_friction": friction,
                 "eval_seeds": ";".join(trial["eval_seed"] for trial in recorded),
@@ -476,10 +491,25 @@ def run_analysis(
             | {metric: number(row[f"mean_{metric}"]) for metric in METRICS}
             | {f"n_trials_{metric}": int(row[f"n_{metric}"]) for metric in METRICS}
         )
+        for method in methods:
+            run_key = (dataset, maneuver, scale, method)
+            if run_key not in runs:
+                runs[run_key] = ident | {
+                    "method": method,
+                    "maneuver": maneuver,
+                    "test_noise_scale": scale,
+                    "evaluation_profile": evaluation_profile(
+                        raw[dataset], dataset, maneuver, scale, profiles
+                    ),
+                    "selected": False,
+                    "selection_status": "unknown_training_provenance",
+                    "conditions": [],
+                }
+            runs[run_key]["conditions"].append(condition)
     select_runs(runs.values())
 
     seed_conditions, seed_nominal, traces = [], [], []
-    for (dataset, maneuver, scale), run in runs.items():
+    for (dataset, maneuver, scale, _), run in runs.items():
         run_trials = []
         for condition in run["conditions"]:
             seed_conditions.append(subset(run, SEED) | condition)
@@ -501,10 +531,12 @@ def run_analysis(
                     }
                 )
         cutoff = (
-            critical.get((dataset, scale), {}) if maneuver == PRIMARY_MANEUVER else {}
+            critical.get((dataset, scale), {}) if maneuver == primary_maneuver else {}
         )
         seed_nominal.append(
-            nominal_row(run, run_trials, cutoff, nominal_friction, cost_metric)
+            nominal_row(
+                run, run_trials, cutoff, nominal_friction, cost_metric, primary_maneuver
+            )
         )
 
     selected_nominal = [row for row in seed_nominal if row["selected"]]
@@ -520,7 +552,7 @@ def run_analysis(
                 for metric in MATCH_METRICS
             }
             for row in selected_nominal
-            if row["maneuver"] == PRIMARY_MANEUVER
+            if row["maneuver"] == primary_maneuver
         ),
         "seed",
         match_tolerance,
@@ -534,7 +566,7 @@ def run_analysis(
                     for metric in ("critical_friction", *MATCH_METRICS)
                 }
                 for row in nominal
-                if row["maneuver"] == PRIMARY_MANEUVER
+                if row["maneuver"] == primary_maneuver
             ),
             "configuration",
             match_tolerance,
@@ -562,6 +594,7 @@ def run_analysis(
         "source_metrics": str(metrics_dir),
         "nominal_friction": nominal_friction,
         "cost_metric": cost_metric,
+        "primary_maneuver": primary_maneuver,
         "match_tolerance": match_tolerance,
         "thresholds": metadata.get("thresholds"),
         "critical_friction_rule": metadata.get("critical_friction_rule"),

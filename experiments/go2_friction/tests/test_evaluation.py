@@ -4,6 +4,7 @@ import csv
 import hashlib
 import json
 from pathlib import Path
+import shlex
 import sys
 from types import SimpleNamespace
 
@@ -15,8 +16,157 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import evaluate_friction as evaluation
+from controller_checkpoint import PROFILE_VERSION
 from evaluation_contacts import FootGroundContacts
-from sweep_evaluation import discover_checkpoints, main as sweep_evaluation
+import final_protocol as final
+from gait_controller import MOTION_THRESHOLD, RAMP_S
+from sweep_evaluation import (
+    discover_checkpoints,
+    finalized_checkpoints,
+    main as sweep_evaluation,
+)
+from sweep_friction import main as sweep_friction
+from sweep_noise import main as sweep_noise
+
+
+def test_finalized_sweeps_share_exactly_one_baseline_per_seed(tmp_path, capsys):
+    checkpoint = tmp_path / "model_200.pt"
+    checkpoint.touch()
+    args = ["--dry-run", "--finalized-template", str(checkpoint), "--run-name", "final"]
+
+    def printed_commands():
+        return [
+            shlex.split(line[2:])
+            for line in capsys.readouterr().out.splitlines()
+            if line.startswith("$ ")
+        ]
+
+    sweep_friction(args)
+    friction = printed_commands()
+    sweep_noise(args)
+    noise = printed_commands()
+    assert (len(friction), len(noise)) == (8, 6)
+
+    def option(cmd, flag):
+        return cmd[cmd.index(flag) + 1]
+
+    expected = {
+        (lower, 0.0, seed) for lower in (1.25, 0.6, 0.4, 0.2) for seed in (42, 43)
+    } | {(1.25, scale, seed) for scale in (1, 2, 4) for seed in (42, 43)}
+    actual = set()
+    for cmd in friction + noise:
+        actual.add(
+            (
+                float(option(cmd, "--min-friction")),
+                float(option(cmd, "--noise-scale")),
+                int(option(cmd, "--seed")),
+            )
+        )
+        assert option(cmd, "--max-friction") == "1.25"
+        assert option(cmd, "--num_envs") == "64"
+        assert option(cmd, "--batch_size") == "8192"
+        assert option(cmd, "--rollout-size") == "16384"
+        assert option(cmd, "--max_iterations") == "400"
+        assert option(cmd, "--finalized-template") == str(checkpoint)
+    assert actual == expected
+
+    sweep_evaluation(
+        [
+            "--finalized-run",
+            "final",
+            "--logs-dir",
+            str(tmp_path / "logs"),
+            "--dry-run",
+        ]
+    )
+    commands = printed_commands()
+    assert (
+        len(commands)
+        == len({option(cmd, "--checkpoint-path") for cmd in commands})
+        == 14
+    )
+    for cmd in commands:
+        assert option(cmd, "--maneuvers") == "stand_1_stop,steady_0p5,steady_1p0"
+        assert option(cmd, "--frictions") == "0.2,0.4,0.6,0.8,1.25"
+        assert option(cmd, "--noise-scales") == "0.0,1.0"
+        assert option(cmd, "--eval-seeds") == ",".join(map(str, range(10000, 10010)))
+        assert "--record-coordination-diagnostics" in cmd
+        assert Path(option(cmd, "--checkpoint-path")).name == "model_400.pt"
+    assert not (tmp_path / "logs").exists()
+
+    sweep_evaluation(
+        [
+            "--checkpoint-path",
+            str(checkpoint),
+            "--frictions",
+            "0.6,0.8",
+            "--maneuvers",
+            "stand_1_stop,steady_0p5,steady_1p0",
+            "--dry-run",
+        ]
+    )
+    [supplemental] = printed_commands()
+    assert option(supplemental, "--frictions") == "0.6,0.8"
+
+
+def test_finalized_evaluation_rejects_mixed_initializations(tmp_path):
+    profile_version = {
+        "version": PROFILE_VERSION,
+        "motion_threshold": MOTION_THRESHOLD,
+        "ramp_s": RAMP_S,
+    }
+    stages = {
+        stage["coordination_reward"]: {
+            "status": "completed",
+            "controller_profile": profile_version
+            | {
+                "options": {
+                    "coordination_reward": stage["coordination_reward"],
+                    "reference_mode": "additive",
+                },
+                "train_config": {"critic": {"reward": {"weights": stage["weights"]}}},
+            },
+        }
+        for stage in final.reward_schedule()
+    }
+    profile = stages["paired-contact"]["controller_profile"]
+    for run in final.final_training_runs():
+        directory = tmp_path / run["experiment_name"] / "final"
+        directory.mkdir(parents=True)
+        path = directory / "friction_experiment.json"
+        checkpoint = directory / "model_400.pt"
+        torch.save({"iter": 400, "controller_profile": profile}, checkpoint)
+        manifest = {
+            "status": "completed",
+            "experiment_name": run["experiment_name"],
+            "seed": run["seed"],
+            "max_iterations": 400,
+            "friction_range": [run["lower_bound"], 1.25],
+            "noise_scale": run["noise_scale"],
+            "controller_profile": profile,
+            "final_research": {
+                "study": final.FINAL_RESEARCH_ID,
+                "run_name": "final",
+                "method": run["method"],
+                "fresh_optimizers": True,
+                "initial_iteration": 0,
+                "template_checkpoint_sha256": "template",
+                "initial_actor_sha256": f"actor_{run['seed']}",
+                "initial_critic_sha256": f"critic_{run['seed']}",
+                "reward_schedule": final.reward_schedule(),
+                "stages": stages,
+                "transition": {"iteration": 200, "mode": "same_runner"},
+            },
+        }
+        path.write_text(json.dumps(manifest))
+    assert len(list(finalized_checkpoints(tmp_path, "final", dry_run=False))) == 14
+    manifest["final_research"]["initial_actor_sha256"] = "wrong"
+    path.write_text(json.dumps(manifest))
+    with pytest.raises(ValueError, match="initialization differs"):
+        list(finalized_checkpoints(tmp_path, "final", dry_run=False))
+    torch.save({"iter": 375, "controller_profile": profile}, checkpoint)
+    with pytest.raises(ValueError, match="iteration-400 checkpoint"):
+        list(finalized_checkpoints(tmp_path, "final", dry_run=False))
 
 
 def test_maneuver_overrides_compile_to_control_steps(tmp_path):

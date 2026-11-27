@@ -6,6 +6,7 @@ import argparse
 from collections import defaultdict
 from copy import deepcopy
 import csv
+from functools import partial
 import hashlib
 from itertools import product
 import json
@@ -17,7 +18,34 @@ import mujoco
 import numpy as np
 import torch
 
+from controller_checkpoint import (
+    FRESH_CONTROL_CONTINUATION_ID,
+    FRESH_STABILITY_ID,
+    PAIRED_WEIGHT_STUDY_ID,
+    WEIGHT3_CONTINUATION_ID,
+    read_controller_profile,
+    restore_controller_configs,
+    verify_controller_layout,
+)
+from controller_telemetry import (
+    COUNT_FIELDS,
+    MIN_LOAD_N,
+    RATE_FIELDS,
+    SLIP_SPEED_M_S,
+    SUSTAINED_SUPPORT_S,
+    ControllerTelemetry,
+    contact_force_source,
+    controller_counts,
+    controller_rates,
+)
 from evaluation_contacts import FootGroundContacts
+from final_protocol import (
+    FINAL_RESEARCH_ID,
+    FINAL_RESEARCH_IDS,
+    checkpoint_stage,
+    staged_checkpoint_profile,
+)
+from gait_controller import register_controller
 from gym.envs.base.domain_randomization import apply_domain_randomization_override
 from gym.envs.go2.go2trot_config import Go2TrotRunnerCfg
 from gym.utils.helpers import class_to_dict, get_load_path
@@ -61,6 +89,12 @@ MANEUVERS = {
         (3.0, 0.0, 1.0, 0.0),
     ),
 }
+PILOT_MANEUVER = "stand_1_stop"
+PILOT_STAGES = (
+    (1.0, *COMMANDS["stopped"]),
+    (3.0, *COMMANDS["forward"]),
+    (3.0, *COMMANDS["stopped"]),
+)
 
 
 def parse_numbers(value: str) -> tuple[float, ...]:
@@ -124,6 +158,7 @@ def critical_friction(aggregates: list[dict]) -> float | None:
 
 def select_maneuvers(names, config_path=None):
     maneuvers = dict(MANEUVERS)
+    maneuvers[PILOT_MANEUVER] = PILOT_STAGES
     if config_path is not None:
         overrides = json.loads(config_path.read_text(encoding="utf-8"))
         if not isinstance(overrides, dict):
@@ -146,7 +181,7 @@ def select_maneuvers(names, config_path=None):
                     )
             maneuvers[name] = tuple(tuple(stage) for stage in stages)
     if names == "all":
-        return maneuvers
+        return {name: stages for name, stages in maneuvers.items() if name in MANEUVERS}
     selected = names.split(",")
     selected = [name.strip() for name in selected]
     if any(name not in maneuvers for name in selected):
@@ -183,17 +218,26 @@ def add_evaluation_arguments(parser, *, frictions=(1.25,), noise_scales=(0.0,)):
         "--device", default="cpu", help="Actor device, e.g. cpu or cuda:0"
     )
     parser.add_argument(
-        "--gait-frequency", type=float, default=2.0, help="Fixed gait Hz"
+        "--gait-frequency",
+        type=float,
+        help="Fixed legacy gait Hz (default: 2). Controller checkpoints use saved Hz.",
     )
     parser.add_argument(
         "--original-cfg", action="store_true", help="Use saved config code"
+    )
+    parser.add_argument(
+        "--record-coordination-diagnostics",
+        action="store_true",
+        help="Record distal calf forces and actor outputs",
     )
 
 
 def evaluation_settings(parser, args):
     if args.num_envs < 1 or (args.trials is not None and args.trials < 1):
         parser.error("--num-envs and --trials must be positive")
-    if not math.isfinite(args.gait_frequency) or args.gait_frequency <= 0:
+    if args.gait_frequency is not None and (
+        not math.isfinite(args.gait_frequency) or args.gait_frequency <= 0
+    ):
         parser.error("--gait-frequency must be finite and positive")
     if any(
         len(set(values)) != len(values)
@@ -228,14 +272,31 @@ def evaluation_settings(parser, args):
 def make_environment(checkpoint, args, seeds, maneuvers):
     import gym.envs  # noqa: F401
 
-    if args.original_cfg:
+    profile = read_controller_profile(checkpoint)
+    if profile is not None:
+        if args.original_cfg:
+            raise ValueError(
+                "The checkpoint already contains its controller configuration"
+            )
+        env_cfg, train_cfg, options = restore_controller_configs(
+            profile, *task_registry.get_cfgs("go2trot")
+        )
+        if (
+            args.gait_frequency is not None
+            and env_cfg.control.gait_freq != [args.gait_frequency] * 2
+        ):
+            raise ValueError(
+                "--gait-frequency differs from the checkpoint controller profile"
+            )
+    elif args.original_cfg:
         env_cfg, train_cfg = load_original_cfgs_from_run("go2trot", checkpoint.parent)
     else:
         env_cfg, train_cfg = deepcopy(task_registry.get_cfgs("go2trot"))
     env_cfg.seed = train_cfg.seed = seeds[0]
     env_cfg.env.num_envs = min(args.num_envs, len(seeds))
-    env_cfg.init_state.reset_mode = "reset_to_basic"
-    env_cfg.control.gait_freq = [args.gait_frequency, args.gait_frequency]
+    if profile is None:
+        env_cfg.init_state.reset_mode = "reset_to_basic"
+        env_cfg.control.gait_freq = [args.gait_frequency or 2.0] * 2
     env_cfg.push_robots.toggle = False
     apply_domain_randomization_override(env_cfg, "off")
     # The CPU backend must enable the friction setter during construction.
@@ -257,7 +318,19 @@ def make_environment(checkpoint, args, seeds, maneuvers):
     )
     env_cfg.env.episode_length_s = (horizon + 2) * dt
     env_cfg.commands.resampling_time = (horizon + 2) * dt
-    env = task_registry.make_env("go2trot", env_cfg, "cpu", True, "mujoco")
+    task = (
+        register_controller(env_cfg, train_cfg, options, scripted=True)
+        if profile is not None
+        else "go2trot"
+    )
+    env = task_registry.make_env(task, env_cfg, "cpu", True, "mujoco")
+    if profile is not None:
+        try:
+            verify_controller_layout(env, profile)
+        except ValueError:
+            env._backend.close()
+            raise
+        env.checkpoint_controller_profile = profile
     return env, train_cfg, schedules
 
 
@@ -301,6 +374,8 @@ def reset_batch(env, friction, seeds):
     backend.set_contact_friction(torch.arange(env.num_envs), applied)
     for world, data in enumerate(backend._datas):
         mujoco.mj_resetData(backend._model_for_env(world), data)
+    if hasattr(env, "controller_options"):
+        env.commands.zero_()  # Warm up with a deterministic standing command.
     env.reset()
     if not torch.equal(backend.contact_friction, applied):
         raise RuntimeError("Evaluation friction changed during reset")
@@ -312,6 +387,13 @@ def reset_batch(env, friction, seeds):
         [torch.rand((), generator=generator) for generator in generators]
     )
     env.phase[:, 0] = initial_phase
+    if hasattr(env, "controller_options"):
+        low, high = env.cfg.control.gait_freq
+        if low == high:
+            env.phase_frequency.fill_(low)
+        else:
+            draws = torch.stack([torch.rand((), generator=gen) for gen in generators])
+            env.phase_frequency[:, 0] = low + (high - low) * draws
     env._update_phase_observation()
     env._update_gait_reference()
     return initial_phase, generators
@@ -329,11 +411,16 @@ def roll_pitch_yaw(quat):
     )
 
 
-def capture_step(env, contacts, step, stage, invalid_action):
+def capture_step(env, contacts, step, stage, invalid_action, *, controller=None):
     root = env.root_states.numpy().copy()
     rigid_bodies = env._backend.rigid_body_states.view(env.num_envs, env.num_bodies, 13)
     feet_velocity = rigid_bodies[:, env.feet_indices, 7:10].numpy()
-    active_contacts, forces = contacts.read()
+    if controller is None:
+        active_contacts, forces = contacts.read()
+    else:
+        active_contacts, forces, non_foot_load, group_loads, *distal = contacts.read(
+            split_support=True
+        )
     terminated = env.terminated.numpy().copy()
     timed_out = env.timed_out.numpy().copy()
     numerical_failure = invalid_action.numpy() | ~np.isfinite(root).all(axis=1)
@@ -345,7 +432,7 @@ def capture_step(env, contacts, step, stage, invalid_action):
         any(data.warning[warning].number for warning in NUMERICAL_WARNINGS)
         for data in env._backend._datas
     ]
-    return {
+    sample = {
         "time_s": np.full(env.num_envs, step * env.dt),
         "stage_index": np.full(env.num_envs, stage, dtype=np.int32),
         "command": env.commands.numpy().copy(),
@@ -364,11 +451,39 @@ def capture_step(env, contacts, step, stage, invalid_action):
         "timed_out": timed_out,
         "numerical_failure": numerical_failure,
     }
+    if controller is not None:
+        diagnostics = controller.sample(
+            env.commands, ground_forces=forces, non_foot_load=non_foot_load
+        )
+        sample.update({key: value.numpy().copy() for key, value in diagnostics.items()})
+        sample["calf_ground_load_N"] = group_loads[:, 0]
+        sample["head_ground_load_N"] = group_loads[:, 1]
+        if distal:
+            calf_contact, calf_forces, other_load = distal
+            sample["distal_calf_contact"] = calf_contact
+            sample["distal_calf_ground_force_world_N"] = calf_forces
+            sample["distal_leg_ground_force_world_N"] = forces + calf_forces
+            sample["other_non_foot_ground_load_N"] = other_load
+            sample["numerical_failure"] |= ~np.isfinite(calf_forces).all(axis=(1, 2))
+            sample["numerical_failure"] |= ~np.isfinite(other_load)
+    return sample
 
 
 @torch.inference_mode()
-def collect_batch(env, runner, contacts, friction, schedule, seeds, std):
+def collect_batch(
+    env, runner, contacts, friction, schedule, seeds, std, *, on_step=None
+):
     initial_phase, generators = reset_batch(env, friction, seeds)
+    controller = (
+        ControllerTelemetry(env, contacts)
+        if hasattr(env, "controller_options")
+        else None
+    )
+    capture = (
+        partial(capture_step, controller=controller)
+        if controller is not None
+        else capture_step
+    )
     active = torch.arange(env.num_envs) < len(seeds)
     lengths = np.zeros(env.num_envs, dtype=int)
     records = defaultdict(list)
@@ -382,6 +497,9 @@ def collect_batch(env, runner, contacts, friction, schedule, seeds, std):
             actions = inference_actions(runner, std, generators).cpu()
             invalid_action = ~torch.isfinite(actions).all(dim=1)
             actions[invalid_action | ~active] = 0
+            actor_actions = (
+                actions.numpy().copy() if contacts.distal_slots is not None else None
+            )
             runner.set_actions(
                 runner.actor_cfg["actions"],
                 actions,
@@ -393,7 +511,11 @@ def collect_batch(env, runner, contacts, friction, schedule, seeds, std):
                     "Task resampled a commanded velocity during evaluation"
                 )
             step += 1
-            sample = capture_step(env, contacts, step, stage, invalid_action)
+            sample = capture(env, contacts, step, stage, invalid_action)
+            if actor_actions is not None:
+                sample["actor_actions"] = actor_actions
+            if on_step is not None:
+                on_step(step, sample)
             for key, value in sample.items():
                 records[key].append(value)
             lengths += active.numpy()
@@ -434,7 +556,38 @@ def checkpoint_output_path(checkpoint):
 def record_evaluation(
     checkpoint, output, env, runner, train_cfg, schedules, args, seeds
 ):
-    contacts = FootGroundContacts(env)
+    training_manifest = checkpoint.with_name("friction_experiment.json")
+    training = (
+        json.loads(training_manifest.read_text(encoding="utf-8"))
+        if training_manifest.is_file()
+        else None
+    )
+    profile = getattr(env, "checkpoint_controller_profile", None)
+    provenance = (
+        (training or {}).get("fresh_pilot")
+        or (training or {}).get("continuation")
+        or (training or {}).get("final_research")
+        or {}
+    )
+    study_id = provenance.get("study")
+    if study_id in (*FINAL_RESEARCH_IDS, FRESH_CONTROL_CONTINUATION_ID):
+        expected_profile = (
+            staged_checkpoint_profile(training, runner.it)
+            if study_id == FINAL_RESEARCH_ID
+            else training["controller_profile"]
+        )
+        if profile is None or profile != expected_profile:
+            raise ValueError("The checkpoint and its finalized run manifest disagree")
+    coordination_diagnostics = study_id in {
+        FRESH_CONTROL_CONTINUATION_ID,
+        FRESH_STABILITY_ID,
+        *FINAL_RESEARCH_IDS,
+        PAIRED_WEIGHT_STUDY_ID,
+        WEIGHT3_CONTINUATION_ID,
+    } or getattr(args, "record_coordination_diagnostics", False)
+    if coordination_diagnostics and profile is None:
+        raise ValueError("Coordination diagnostics require a saved controller profile")
+    contacts = FootGroundContacts(env, record_distal=coordination_diagnostics)
     effective_std = {}
     for scale in args.noise_scales:
         noise_cfg = Go2TrotRunnerCfg()
@@ -446,12 +599,7 @@ def record_evaluation(
     }
     with checkpoint.open("rb") as fh:
         checkpoint_sha = hashlib.file_digest(fh, "sha256").hexdigest()
-    training_manifest = checkpoint.with_name("friction_experiment.json")
-    training = (
-        json.loads(training_manifest.read_text(encoding="utf-8"))
-        if training_manifest.is_file()
-        else None
-    )
+    low_hz, high_hz = env.cfg.control.gait_freq
     metadata = {
         "protocol": "go2trot-friction-eval-v1",
         "status": "running",
@@ -470,7 +618,7 @@ def record_evaluation(
         "noise_scales": args.noise_scales,
         "noise_distribution": "independent zero-mean Gaussian on actor inputs",
         "noise_std_physical": effective_std,
-        "gait_frequency_hz": args.gait_frequency,
+        "gait_frequency_hz": low_hz if low_hz == high_hz else None,
         "maneuvers": {
             name: [{"steps": steps, "command": command} for steps, command in schedule]
             for name, schedule in schedules.items()
@@ -494,6 +642,43 @@ def record_evaluation(
         "env_config": class_to_dict(env.cfg),
         "runner_config": class_to_dict(train_cfg),
     }
+    if profile is not None:
+        metadata["controller_profile"] = profile
+        metadata["gait_frequency_range_hz"] = [low_hz, high_hz]
+        metadata["controller_telemetry"] = {
+            "force_source": contact_force_source(env),
+            "load_threshold_N": MIN_LOAD_N,
+            "slip_threshold_m_s": SLIP_SPEED_M_S,
+            "sustained_support_s": SUSTAINED_SUPPORT_S,
+            "joint_order": profile["actuated_joint_names"],
+            "pd_target_timing": "Target used at the start of the last physics substep",
+            "stance_timing": "Scheduled contact at the end of the actor interval",
+            "non_foot_force_groups": {
+                "calf_ground_load_N": "Ground-normal load on all calf links",
+                "head_ground_load_N": "Ground-normal load on all head links",
+            },
+        }
+        if coordination_diagnostics:
+            metadata["controller_telemetry"]["coordination_diagnostics"] = {
+                "distal_calf_collision_geom_ids": sorted(
+                    contacts.distal_slots, key=contacts.distal_slots.get
+                ),
+                "distal_calf_contact": "Active ground constraint per distal cylinder",
+                "distal_calf_ground_force_world_N": (
+                    "World XYZ force on each *_calflower1 cylinder, in foot order"
+                ),
+                "distal_leg_ground_force_world_N": (
+                    "Vector sum of each foot and its distal calf cylinder"
+                ),
+                "other_non_foot_ground_load_N": (
+                    "Upward ground load on non-foot bodies excluding distal cylinders"
+                ),
+                "actor_actions": (
+                    "Dimensionless actor outputs commanded before action scaling"
+                ),
+            }
+    if study_id == FINAL_RESEARCH_ID:
+        metadata["training_stage"] = checkpoint_stage(runner.it)["coordination_reward"]
     output.mkdir(parents=True, exist_ok=False)
     traces = output / "traces"
     traces.mkdir()
@@ -514,6 +699,13 @@ def record_evaluation(
         "recorded_steps",
         "trace",
     )
+    if profile is not None:
+        fields += (
+            "gait_frequency_hz",
+            "max_non_foot_support_duration_s",
+            *COUNT_FIELDS,
+            *RATE_FIELDS,
+        )
     try:
         with (output / "trials.csv").open("w", newline="", encoding="utf-8") as fh:
             writer = csv.DictWriter(fh, fieldnames=fields)
@@ -533,24 +725,40 @@ def record_evaluation(
                         with tmp.open("wb") as target:
                             np.savez_compressed(target, **trace)
                         tmp.replace(path)
-                        writer.writerow(
-                            {
-                                "trial_id": trial_id,
-                                "maneuver": maneuver,
-                                "friction": friction,
-                                "applied_friction": env._backend.contact_friction[
-                                    slot
-                                ].item(),
-                                "noise_scale": scale,
-                                "trial_index": start + slot,
-                                "eval_seed": batch[slot],
-                                "initial_phase_rad": phase,
-                                "status": trial_status(trace),
-                                "planned_steps": planned,
-                                "recorded_steps": len(trace["time_s"]),
-                                "trace": path.relative_to(output).as_posix(),
-                            }
-                        )
+                        row = {
+                            "trial_id": trial_id,
+                            "maneuver": maneuver,
+                            "friction": friction,
+                            "applied_friction": env._backend.contact_friction[
+                                slot
+                            ].item(),
+                            "noise_scale": scale,
+                            "trial_index": start + slot,
+                            "eval_seed": batch[slot],
+                            "initial_phase_rad": phase,
+                            "status": trial_status(trace),
+                            "planned_steps": planned,
+                            "recorded_steps": len(trace["time_s"]),
+                            "trace": path.relative_to(output).as_posix(),
+                        }
+                        if profile is not None:
+                            counts = tuple(
+                                int(value.sum())
+                                for value in controller_counts(trace, trace["fell"])
+                            )
+                            row.update(zip(COUNT_FIELDS, counts, strict=True))
+                            row.update(
+                                zip(
+                                    RATE_FIELDS,
+                                    controller_rates(counts, len(trace["time_s"])),
+                                    strict=True,
+                                )
+                            )
+                            row["gait_frequency_hz"] = trace["gait_frequency_hz"][0]
+                            row["max_non_foot_support_duration_s"] = trace[
+                                "non_foot_support_duration_s"
+                            ].max()
+                        writer.writerow(row)
                         fh.flush()
                         count += 1
     except BaseException as exc:
@@ -596,7 +804,10 @@ def main(argv=None):
     if output.exists():
         parser.error(f"Output directory already exists: {output}")
 
-    env, train_cfg, schedules = make_environment(checkpoint, args, seeds, maneuvers)
+    try:
+        env, train_cfg, schedules = make_environment(checkpoint, args, seeds, maneuvers)
+    except ValueError as exc:
+        parser.error(str(exc))
     try:
         runner = load_policy(env, train_cfg, checkpoint)
         report = record_evaluation(
