@@ -65,6 +65,12 @@ def get_play_args(argv=None):
         "alongside keyboard teleop)",
     )
     parser.add_argument(
+        "--follow",
+        action="store_true",
+        default=False,
+        help="camera follows the robot (MuJoCo viewer)",
+    )
+    parser.add_argument(
         "--keyboard",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -96,6 +102,8 @@ def setup(args):
     env_cfg.init_state.reset_mode = "reset_to_basic"
     if hasattr(env_cfg, "viewer"):
         env_cfg.viewer.show_ui = args.viewer_ui
+        if args.follow:
+            env_cfg.viewer.follow_body = 1  # * base (body 0 is the world)
 
     if args.seed is not None:
         env_cfg.seed = args.seed

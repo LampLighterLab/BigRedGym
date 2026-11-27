@@ -171,6 +171,8 @@ class MuJocoCPUBackend(MuJocoBackendBase):
 
         viewer_cfg = getattr(cfg, "viewer", None)
         self._show_ui = bool(getattr(viewer_cfg, "show_ui", False))
+        # * body id for the viewer camera to follow (None: free camera)
+        self._follow_body = getattr(viewer_cfg, "follow_body", None)
 
         # Allocate PyTorch state tensors
         self._dof_state_t = torch.zeros(num_envs, self._num_dof, 2, device=device)
@@ -359,6 +361,12 @@ class MuJocoCPUBackend(MuJocoBackendBase):
                 show_left_ui=self._show_ui,
                 show_right_ui=self._show_ui,
             )
+            if self._follow_body is not None:
+                with self._viewer.lock():
+                    cam = self._viewer.cam
+                    cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
+                    cam.trackbodyid = self._follow_body
+                    cam.distance, cam.azimuth, cam.elevation = 2.0, 135.0, -20.0
         if self._viewer.is_running():
             now = time.monotonic()
             if sync_frame_time and self._render_deadline is not None:
