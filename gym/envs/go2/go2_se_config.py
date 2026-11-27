@@ -362,3 +362,68 @@ class Go2SEJumpOracleRunnerCfg(Go2SEJumpRunnerCfg):
 
     class runner(Go2SEJumpRunnerCfg.runner):
         experiment_name = "go2_se_jump_oracle"
+
+
+# * ---------------------------------------------------------------------
+# * go2_se_jump_real: go2_se_jump hardened for running on the real Go2.
+# * Same observations and networks, so it resumes from a go2_se_jump
+# * checkpoint. Kept separate so the Step 3 comparison stays reproducible.
+# * ---------------------------------------------------------------------
+
+
+class Go2SEJumpRealCfg(Go2SEJumpCfg):
+    class jump(Go2SEJumpCfg.jump):
+        # * realistic Go2 jumps: reward height up to 0.3 m, penalize more
+        # * (jump_overshoot); 5800 went past 0.4 m and fell more
+        max_takeoff_vel = 1.5
+        max_height = 0.3
+        # * walking first: slightly fewer jumps than go2_se_jump (3 s)
+        mean_interval = 4.0
+
+    class sim2real:
+        # * applied target = a * previous + (1 - a) * current, a per episode
+        latency_blend = [0.0, 0.8]
+        # * fraction of max joint speed where motor torque starts to drop
+        torque_speed_knee = 0.5
+
+    class push_robots(Go2SEJumpCfg.push_robots):
+        toggle = True
+        interval_s = 5
+        max_push_vel_xy = 0.5
+
+    class domain_randomization(Go2SEJumpCfg.domain_randomization):
+        class startup(Go2SEJumpCfg.domain_randomization.startup):
+            contact_friction_range = [0.2, 1.0]
+            link_mass_scale_range = [0.85, 1.15]
+
+        class episode(Go2SEJumpCfg.domain_randomization.episode):
+            scale_ranges = {
+                "p_gains": [0.85, 1.15],
+                "d_gains": [0.7, 1.3],
+            }
+
+
+class Go2SEJumpRealRunnerCfg(Go2SEJumpRunnerCfg):
+    class actor(Go2SEJumpRunnerCfg.actor):
+        class noise(Go2SEJumpRunnerCfg.actor.noise):
+            # * closer to real IMU / encoder noise (physical units)
+            base_ang_vel = 0.15
+            projected_gravity = 0.05
+            dof_pos_obs = 0.01
+            dof_vel = 0.5
+            dof_vel_history = 0.5
+            foot_pos_base = 0.015
+
+    class critic(Go2SEJumpRunnerCfg.critic):
+        class reward(Go2SEJumpRunnerCfg.critic.reward):
+            class negative_weights(Go2SEJumpRunnerCfg.critic.reward.negative_weights):
+                # * x0.2 in r_tot: 0.1 m over the cap costs 4 per step
+                jump_overshoot = -200.0
+                # * level jumps; at -80 it logged -15/step (vs lin_vel_exp
+                # * ~1.2), enough to stop jumping, so about orientation_angle's size
+                jump_tilt = -25.0  # real5: -20 still lifted the back slightly
+                # * rear lifting while the front stays down costs 1 per step
+                jump_leg_balance = -7.0  # real5: was -5
+
+    class runner(Go2SEJumpRunnerCfg.runner):
+        experiment_name = "go2_se_jump_real"
